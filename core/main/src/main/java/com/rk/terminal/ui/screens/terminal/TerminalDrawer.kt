@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Delete
@@ -35,7 +34,6 @@ fun TerminalDrawer(
     drawerWidth: Dp,
     sessionBinder: SessionService.SessionBinder?,
     navController: NavController,
-    onAddSession: () -> Unit,
     onSessionSelected: (String) -> Unit
 ) {
     var sessionToRename by remember { mutableStateOf<String?>(null) }
@@ -104,10 +102,6 @@ fun TerminalDrawer(
                         Icon(imageVector = Icons.Outlined.Settings, contentDescription = null)
                     }
 
-                    // Add Session button
-                    IconButton(onClick = onAddSession) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                    }
                 }
             }
 

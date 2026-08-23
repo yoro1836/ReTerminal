@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,24 +18,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.rk.components.compose.preferences.base.PreferenceGroup
 import com.rk.libcommons.child
-import com.rk.resources.strings
 import com.rk.terminal.ui.activities.terminal.MainActivity
 import com.rk.terminal.ui.activities.terminal.MainViewModel
 import com.rk.terminal.ui.components.SetStatusBarTextColor
-import com.rk.terminal.ui.screens.settings.SettingsCard
-import com.rk.terminal.ui.screens.settings.WorkingMode
 import com.rk.terminal.ui.screens.terminal.virtualkeys.VirtualKeysListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,14 +52,13 @@ fun TerminalScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val configuration = LocalConfiguration.current
     val drawerWidth = (configuration.screenWidthDp * 0.84).dp
-    var showAddDialog by remember { mutableStateOf(false) }
 
     val sessionBinder = mainViewModel.sessionBinder
     
     LaunchedEffect(isDarkActive) {
         withContext(Dispatchers.IO) {
             if (context.filesDir.child("background").exists().not()) {
-                TerminalUtils.darkText.value = !isDarkActive
+                TerminalUtils.darkText.value = false
                 TerminalUtils.hasCustomBackground.value = false
             } else {
                 TerminalUtils.hasCustomBackground.value = true
@@ -86,27 +82,6 @@ fun TerminalScreen(
     val isDarkIcons = if (drawerState.isClosed) TerminalUtils.darkText.value else !isDarkActive
     SetStatusBarTextColor(isDarkIcons = isDarkIcons)
 
-    if (showAddDialog && sessionBinder != null) {
-        AddSessionDialog(
-            onDismiss = { showAddDialog = false },
-            onCreateSession = { mode ->
-                val sessionId = generateUniqueSessionId(sessionBinder.getService().sessionList.keys.toList())
-                val terminal = terminalViewModel.terminalView ?: return@AddSessionDialog
-                val client = TerminalBackEnd(terminal, mainActivity)
-                sessionBinder.createSession(sessionId, client, mode)
-                terminalViewModel.changeSession(context, sessionBinder, sessionId)
-                showAddDialog = false
-            },
-            onCreateCustomSession = { custom ->
-                val terminal = terminalViewModel.terminalView ?: return@AddSessionDialog
-                val client = TerminalBackEnd(terminal, mainActivity)
-                val pendingCommand = MkSession.buildCustomPendingCommand(context, custom)
-                sessionBinder.createSession(custom.name, client, WorkingMode.ALPINE, pendingCommand)
-                terminalViewModel.changeSession(context, sessionBinder, custom.name)
-                showAddDialog = false
-            }
-        )
-    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -116,7 +91,6 @@ fun TerminalScreen(
                 drawerWidth = drawerWidth,
                 sessionBinder = sessionBinder,
                 navController = navController,
-                onAddSession = { showAddDialog = true },
                 onSessionSelected = { id ->
                     sessionBinder?.let { terminalViewModel.changeSession(context, it, id) }
                     scope.launch { drawerState.close() }
@@ -124,7 +98,10 @@ fun TerminalScreen(
             )
         }
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color.Black),
+            contentAlignment = Alignment.Center,
+        ) {
             BackgroundImage(terminalViewModel)
 
             Column {
@@ -132,7 +109,6 @@ fun TerminalScreen(
                     TerminalTopBar(
                         sessionBinder = sessionBinder,
                         onMenuClick = { scope.launch { drawerState.open() } },
-                        onAddClick = { showAddDialog = true },
                         color = TerminalUtils.getComposeColor()
                     )
                 }
@@ -181,43 +157,3 @@ private fun BackgroundImage(viewModel: TerminalViewModel) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AddSessionDialog(
-    onDismiss: () -> Unit,
-    onCreateSession: (Int) -> Unit,
-    onCreateCustomSession: (CustomSession) -> Unit
-) {
-    val customSessions = remember { CustomSessions.getAll() }
-    BasicAlertDialog(onDismissRequest = onDismiss) {
-        PreferenceGroup {
-            SettingsCard(
-                title = { Text("Alpine") },
-                description = { Text(stringResource(strings.alpine_desc)) },
-                onClick = { onCreateSession(WorkingMode.ALPINE) }
-            )
-            SettingsCard(
-                title = { Text("Android") },
-                description = { Text(stringResource(strings.android_desc)) },
-                onClick = { onCreateSession(WorkingMode.ANDROID) }
-            )
-            customSessions.forEach { session ->
-                SettingsCard(
-                    title = { Text(session.name) },
-                    description = { Text(session.shellPath) },
-                    onClick = { onCreateCustomSession(session) }
-                )
-            }
-        }
-    }
-}
-
-private fun generateUniqueSessionId(existingIds: List<String>): String {
-    var index = 1
-    var newId: String
-    do {
-        newId = "main$index"
-        index++
-    } while (newId in existingIds)
-    return newId
-}

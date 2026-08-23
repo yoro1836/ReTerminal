@@ -89,4 +89,5 @@ dependencies {
     implementation(project(":core:proot"))
     implementation("com.github.termux.termux-app:terminal-view:v0.118.3")
     implementation("com.github.termux.termux-app:terminal-emulator:v0.118.3")
+    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
 }

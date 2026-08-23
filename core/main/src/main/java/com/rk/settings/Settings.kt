@@ -83,8 +83,44 @@ object Settings {
         set(value) = Preference.setFloat(key = "wallTransparency",value)
 
     var working_Mode
-        get() = Preference.getInt(key = "workingMode", default = WorkingMode.ALPINE)
-        set(value) = Preference.setInt(key = "workingMode",value)
+        get() = WorkingMode.AVF
+        set(@Suppress("UNUSED_PARAMETER") value) = Unit
+
+    var avfMemoryMb
+        get() = Preference.getInt(key = "avf_memory_mb", default = 2048)
+        set(value) = Preference.setInt(key = "avf_memory_mb", value)
+
+    var avfCpuCount
+        get() = Preference.getInt(key = "avf_cpu_count", default = 1)
+        set(value) = Preference.setInt(key = "avf_cpu_count", value)
+
+    var avfGuestOsName
+        get() = Preference.getString(key = "avf_guest_os_name", default = "Guest")
+        set(value) = Preference.setString(key = "avf_guest_os_name", value)
+
+    var avfWakelockEnabled
+        get() = Preference.getBoolean(key = "avf_wakelock_enabled", default = true)
+        set(value) = Preference.setBoolean(key = "avf_wakelock_enabled", value)
+
+    var avfNetworkEnabled
+        get() = Preference.getBoolean(key = "avf_network_enabled", default = true)
+        set(value) = Preference.setBoolean(key = "avf_network_enabled", value)
+
+    var avfSharedMediaEnabled
+        get() = Preference.getBoolean(key = "avf_shared_media_enabled", default = false)
+        set(value) = Preference.setBoolean(key = "avf_shared_media_enabled", value)
+
+    var avfMemoryBalloonEnabled
+        get() = Preference.getBoolean(key = "avf_memory_balloon_enabled", default = true)
+        set(value) = Preference.setBoolean(key = "avf_memory_balloon_enabled", value)
+
+    var avfStorageAutoExpandEnabled
+        get() = Preference.getBoolean(key = "avf_storage_auto_expand_enabled", default = true)
+        set(value) = Preference.setBoolean(key = "avf_storage_auto_expand_enabled", value)
+
+    var avfStorageBalloonEnabled
+        get() = Preference.getBoolean(key = "avf_storage_balloon_enabled", default = true)
+        set(value) = Preference.setBoolean(key = "avf_storage_balloon_enabled", value)
 
     var input_mode
         get() = Preference.getInt(key = "input_mode", default = InputMode.DEFAULT)

@@ -271,6 +271,13 @@ if(HAS_POKEDATA_WORKAROUND)
     list(APPEND PROOT_SOURCES "${LOADER_INFO_C}")
 endif()
 
+add_executable(avf-terminal-bridge avf-terminal-bridge.c)
+set_target_properties(avf-terminal-bridge PROPERTIES
+    OUTPUT_NAME "avf-terminal-bridge"
+    PREFIX "lib"
+    SUFFIX ".so"
+)
+
 add_executable(proot ${PROOT_SOURCES} ${TALLOC_SOURCES})
 add_dependencies(proot cli_obj loader_64)
 if(HAS_LOADER_32BIT)

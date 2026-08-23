@@ -19,12 +19,14 @@ android {
     signingConfigs {
         create("release") {
             val isGITHUB_ACTION = System.getenv("GITHUB_ACTIONS") == "true"
-            
-            val propertiesFilePath = if (isGITHUB_ACTION) {
-                "/tmp/signing.properties"
-            } else {
-                "/home/rohit/Android/xed-signing/signing.properties"
-            }
+
+            val propertiesFilePath = System.getenv("SIGNING_PROPERTIES_FILE")
+                ?.takeIf { it.isNotBlank() }
+                ?: if (isGITHUB_ACTION) {
+                    "/tmp/signing.properties"
+                } else {
+                    "/home/rohit/Android/xed-signing/signing.properties"
+                }
             
             val propertiesFile = File(propertiesFilePath)
             if (propertiesFile.exists() && propertiesFile.length() > 0) {
@@ -39,7 +41,11 @@ android {
                         keyAlias = alias
                         keyPassword = keyPass
                         storeFile = if (isGITHUB_ACTION) {
-                            File("/tmp/xed.keystore")
+                            File(
+                                System.getenv("KEYSTORE_FILE")
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?: "/tmp/xed.keystore",
+                            )
                         } else {
                             (properties["storeFile"] as String?)?.let { File(it) }
                         }
@@ -99,7 +105,7 @@ android {
     
     defaultConfig {
         applicationId = "com.rk.terminal"
-        minSdk = 26
+        minSdk = 36
         targetSdk = 37
         versionCode = 10
         versionName = "1.3.0"

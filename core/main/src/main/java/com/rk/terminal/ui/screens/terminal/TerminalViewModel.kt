@@ -13,7 +13,6 @@ import com.google.android.material.R
 import com.rk.settings.Settings
 import com.rk.terminal.service.SessionService
 import com.rk.terminal.ui.activities.terminal.MainActivity
-import com.rk.terminal.ui.screens.settings.WorkingMode
 import com.rk.terminal.ui.screens.terminal.virtualkeys.VirtualKeysListener
 import com.rk.terminal.ui.screens.terminal.virtualkeys.VirtualKeysView
 import com.termux.view.TerminalView
@@ -22,12 +21,15 @@ import java.lang.ref.WeakReference
 class TerminalViewModel : ViewModel() {
     private var terminalViewRef = WeakReference<TerminalView>(null)
     private var virtualKeysViewRef = WeakReference<VirtualKeysView>(null)
+    private var terminalImeViewRef = WeakReference<TerminalImeEditText>(null)
 
     val terminalView: TerminalView? get() = terminalViewRef.get()
     val virtualKeysView: VirtualKeysView? get() = virtualKeysViewRef.get()
+    val terminalImeView: TerminalImeEditText? get() = terminalImeViewRef.get()
 
     fun setTerminalView(view: TerminalView?) { terminalViewRef = WeakReference(view) }
     fun setVirtualKeysView(view: VirtualKeysView?) { virtualKeysViewRef = WeakReference(view) }
+    fun setTerminalImeView(view: TerminalImeEditText?) { terminalImeViewRef = WeakReference(view) }
 
     var bitmap by mutableStateOf<ImageBitmap?>(null)
     var wallAlpha by mutableFloatStateOf(Settings.wallTransparency)
@@ -48,22 +50,13 @@ class TerminalViewModel : ViewModel() {
     fun changeSession(context: Context, sessionBinder: SessionService.SessionBinder, sessionId: String) {
         val terminal = terminalView ?: return
         val activity = context as? MainActivity ?: return
-        val client = TerminalBackEnd(terminal, activity)
+        val client = TerminalBackEnd(terminal, activity) { terminalImeView }
 
         val session = sessionBinder.getSession(sessionId)
-            ?: run {
-                val service = sessionBinder.getService()
-                val custom = if (sessionId == service.currentSession.value.first) service.currentCustomSession else null
-                if (custom != null) {
-                    val pendingCommand = MkSession.buildCustomPendingCommand(context, custom)
-                    sessionBinder.createSession(sessionId, client, WorkingMode.ALPINE, pendingCommand)
-                } else {
-                    sessionBinder.createSession(sessionId, client, Settings.working_Mode)
-                }
-            }
+            ?: sessionBinder.createSession(sessionId, client)
 
         session.updateTerminalSessionClient(client)
-        terminal.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        terminal.setBackgroundColor(TerminalUtils.getBackgroundColor())
         terminal.attachSession(session)
         terminal.setTerminalViewClient(client)
 
@@ -79,6 +72,7 @@ class TerminalViewModel : ViewModel() {
                 set(257, bgColor)
                 set(258, fgColor)
             }
+            terminal.onScreenUpdated()
         }
 
         virtualKeysView?.apply {

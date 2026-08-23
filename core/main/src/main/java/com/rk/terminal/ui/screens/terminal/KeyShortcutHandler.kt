@@ -40,18 +40,10 @@ object KeyShortcutHandler {
         return true
     }
 
-    private fun handleNewSession(activity: MainActivity, viewModel: TerminalViewModel): Boolean {
-        val binder = activity.viewModel.sessionBinder ?: return true
-        val service = binder.getService()
-
-        val sessionId = generateUniqueSessionId(service.sessionList.keys.toList())
-        viewModel.terminalView?.let {
-            val client = TerminalBackEnd(it, activity)
-            binder.createSession(sessionId, client, Settings.working_Mode)
-        }
-        viewModel.changeSession(activity, binder, sessionId)
-        return true
-    }
+    private fun handleNewSession(
+        @Suppress("UNUSED_PARAMETER") activity: MainActivity,
+        @Suppress("UNUSED_PARAMETER") viewModel: TerminalViewModel,
+    ): Boolean = true
 
     private fun handleCloseSession(activity: MainActivity, viewModel: TerminalViewModel): Boolean {
         val binder = activity.viewModel.sessionBinder ?: return true

@@ -3,13 +3,18 @@ package com.rk.terminal.ui.screens.terminal
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -18,6 +23,7 @@ import com.rk.libcommons.child
 import com.rk.libcommons.dpToPx
 import com.rk.libcommons.localDir
 import com.rk.settings.Settings
+import com.rk.terminal.backend.avf.AvfUiState
 import com.rk.terminal.service.SessionService
 import com.rk.terminal.ui.activities.terminal.MainActivity
 import com.rk.terminal.ui.screens.terminal.virtualkeys.*
@@ -33,36 +39,28 @@ fun TerminalViewLayout(
     sessionBinder: SessionService.SessionBinder,
     modifier: Modifier = Modifier
 ) {
+    val avfState by AvfUiState.state.collectAsState()
+    val compositionRenderer = remember { TerminalCompositionRenderer() }
+    DisposableEffect(compositionRenderer) {
+        onDispose(compositionRenderer::close)
+    }
     Column(modifier = modifier) {
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
         AndroidView(
             factory = { ctx ->
                 TerminalView(ctx, null).apply {
                     viewModel.setTerminalView(this)
                     setTextSize(dpToPx(Settings.terminal_font_size.toFloat(), ctx))
-                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    setBackgroundColor(TerminalUtils.getBackgroundColor())
 
-                    val client = TerminalBackEnd(this, mainActivity)
+                    val client = TerminalBackEnd(this, mainActivity) { viewModel.terminalImeView }
                     val service = sessionBinder.getService()
 
                     val session = sessionBinder.getSession(service.currentSession.value.first)
-                        ?: run {
-                            val custom = service.currentCustomSession
-                            if (custom != null) {
-                                val pendingCommand = MkSession.buildCustomPendingCommand(ctx, custom)
-                                sessionBinder.createSession(
-                                    service.currentSession.value.first,
-                                    client,
-                                    service.currentSession.value.second,
-                                    pendingCommand
-                                )
-                            } else {
-                                sessionBinder.createSession(
-                                    service.currentSession.value.first,
-                                    client,
-                                    Settings.working_Mode
-                                )
-                            }
-                        }
+                        ?: sessionBinder.createSession(
+                            service.currentSession.value.first,
+                            client,
+                        )
 
                     session.updateTerminalSessionClient(client)
                     attachSession(session)
@@ -81,6 +79,7 @@ fun TerminalViewLayout(
                             set(257, bgColor)
                             set(258, color)
                         }
+                        onScreenUpdated()
 
                         val colorsFile = ctx.localDir().child("colors.properties")
                         if (colorsFile.exists() && colorsFile.isFile) {
@@ -89,11 +88,12 @@ fun TerminalViewLayout(
                             TerminalColors.COLOR_SCHEME.updateWith(props)
                         }
                     }
+                    compositionRenderer.attach(this)
                 }
             },
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            modifier = Modifier.fillMaxSize(),
             update = { view ->
-                view.onScreenUpdated()
+                view.setBackgroundColor(TerminalUtils.getBackgroundColor())
                 val color = TerminalUtils.getViewColor()
                 val bgColor = TerminalUtils.getBackgroundColor()
                 view.mEmulator?.mColors?.mCurrentColors?.apply {
@@ -101,10 +101,44 @@ fun TerminalViewLayout(
                     set(257, bgColor)
                     set(258, color)
                 }
+                view.onScreenUpdated()
             }
         )
+            AndroidView(
+                factory = { ctx ->
+                    TerminalImeEditText(ctx).apply {
+                        terminalProvider = { viewModel.terminalView }
+                        onCompositionChanged = compositionRenderer::setComposition
+                        viewModel.setTerminalImeView(this)
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .size(1.dp),
+            )
+            if (avfState.loading) {
+                Column(
+                    modifier = Modifier.fillMaxSize().background(Color.Black),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    CircularProgressIndicator(color = Color.White)
+                    Spacer(Modifier.height(24.dp))
+                    Text(text = avfState.message, color = Color.White)
+                }
+            } else if (avfState.message.isNotEmpty()) {
+                Text(
+                    text = avfState.message,
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .background(Color(0xcc202020))
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+        }
 
-        if (viewModel.showVirtualKeys) {
+        if (viewModel.showVirtualKeys && !avfState.loading) {
             VirtualKeysPager(viewModel)
         }
     }
@@ -113,9 +147,8 @@ fun TerminalViewLayout(
 @Composable
 private fun VirtualKeysPager(viewModel: TerminalViewModel) {
     val pagerState = rememberPagerState(pageCount = { 2 })
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface.toArgb()
-
-    val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
+    val onSurfaceColor = TerminalUtils.getViewColor()
+    val onSurfaceVariantColor = onSurfaceColor
 
     HorizontalPager(
         state = pagerState,
@@ -126,6 +159,8 @@ private fun VirtualKeysPager(viewModel: TerminalViewModel) {
                 AndroidView(
                     factory = { ctx ->
                         VirtualKeysView(ctx, null).apply {
+                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                            buttonActiveTextColor = onSurfaceColor
                             viewModel.setVirtualKeysView(this)
                             virtualKeysViewClient = viewModel.terminalView?.mTermSession?.let {
                                 VirtualKeysListener(it)
@@ -136,6 +171,8 @@ private fun VirtualKeysPager(viewModel: TerminalViewModel) {
                     },
                     modifier = Modifier.fillMaxWidth().height(75.dp),
                     update = { view ->
+                        view.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        view.buttonActiveTextColor = onSurfaceColor
                         view.buttonTextColor = onSurfaceColor
                     }
                 )
