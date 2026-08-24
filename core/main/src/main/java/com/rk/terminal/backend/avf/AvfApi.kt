@@ -129,8 +129,15 @@ internal object AvfApi {
     }
 
     fun getOrCreate(manager: Any, name: String, config: Any): Any {
-        val vm = invoke(manager, "getOrCreate", name, config)
-            ?: error("VirtualMachineManager.getOrCreate returned null")
+        val vm = runCatching { invoke(manager, "getOrCreate", name, config) }
+            .recoverCatching { error ->
+                // An unclean shutdown can persist an instance dir whose config
+                // cannot be loaded; recreate it through the public API.
+                android.util.Log.w("AvfApi", "Recreating unusable VM instance '$name'", error)
+                runCatching { invoke(manager, "delete", name) }
+                invoke(manager, "create", name, config)
+                    ?: error("VirtualMachineManager.create returned null")
+            }.getOrNull() ?: error("VirtualMachineManager.getOrCreate returned null")
         return runCatching {
             invoke(vm, "setConfig", config)
             vm
@@ -174,16 +181,17 @@ internal object AvfApi {
     fun run(vm: Any) { invoke(vm, "run") }
     fun stop(vm: Any) { invoke(vm, "stop") }
 
-    private fun invoke(target: Any, name: String, vararg args: Any?): Any? {
-        val method = findMethod(target.javaClass, name, args)
-        method.isAccessible = true
-        return method.invoke(target, *args)
-    }
+    private fun invoke(target: Any, name: String, vararg args: Any?): Any? =
+        unwrap { findMethod(target.javaClass, name, args).let { it.isAccessible = true; it.invoke(target, *args) } }
 
-    private fun invokeStatic(type: Class<*>, name: String, vararg args: Any?): Any? {
-        val method = findMethod(type, name, args)
-        method.isAccessible = true
-        return method.invoke(null, *args)
+    private fun invokeStatic(type: Class<*>, name: String, vararg args: Any?): Any? =
+        unwrap { findMethod(type, name, args).let { it.isAccessible = true; it.invoke(null, *args) } }
+
+    /** Reflection wraps failures in InvocationTargetException; surface the real cause. */
+    private inline fun <T> unwrap(block: () -> T): T = try {
+        block()
+    } catch (error: java.lang.reflect.InvocationTargetException) {
+        throw (error.cause ?: error)
     }
 
     private fun findMethod(type: Class<*>, name: String, args: Array<out Any?>): Method {

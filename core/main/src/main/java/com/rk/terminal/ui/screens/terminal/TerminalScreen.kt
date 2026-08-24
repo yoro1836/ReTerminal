@@ -109,6 +109,7 @@ fun TerminalScreen(
                     TerminalTopBar(
                         sessionBinder = sessionBinder,
                         onMenuClick = { scope.launch { drawerState.open() } },
+                        onNewSession = { sessionBinder?.let { terminalViewModel.addSshSession(context, it) } },
                         color = TerminalUtils.getComposeColor()
                     )
                 }

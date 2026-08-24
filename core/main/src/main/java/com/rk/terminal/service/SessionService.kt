@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.NotificationCompat
 import com.rk.settings.Settings
+import com.rk.terminal.backend.VsockTerminalBackend
 import com.rk.terminal.backend.TerminalSessionBackend
 import com.rk.terminal.backend.avf.AvfTerminalBackend
 import com.rk.resources.drawables
@@ -48,17 +49,34 @@ class SessionService : Service() {
             id: String,
             client: TerminalSessionClient,
         ): TerminalSession {
-            check(sessions.isEmpty()) { "Only one AVF session can run at a time" }
-            val backend = AvfTerminalBackend(this@SessionService, id)
-            return backend.createSession(client).also {
-                backends[id] = backend
-                sessions[id] = it
-                sessionList[id] = WorkingMode.AVF
-                if (!sessionOrder.contains(id)) {
-                    sessionOrder.add(id)
-                }
-                updateNotification()
+            check(backends.values.none { it is AvfTerminalBackend }) {
+                "Only one AVF session can run at a time"
             }
+            val backend = AvfTerminalBackend(this@SessionService, id)
+            return registerSession(backend, id, client, WorkingMode.AVF)
+        }
+
+        fun createVsockSession(
+            id: String,
+            client: TerminalSessionClient,
+        ): TerminalSession {
+            val backend = VsockTerminalBackend(this@SessionService, id)
+            return registerSession(backend, id, client, WorkingMode.SSH)
+        }
+
+        private fun registerSession(
+            backend: TerminalSessionBackend,
+            id: String,
+            client: TerminalSessionClient,
+            mode: Int,
+        ): TerminalSession = backend.createSession(client).also {
+            backends[id] = backend
+            sessions[id] = it
+            sessionList[id] = mode
+            if (!sessionOrder.contains(id)) {
+                sessionOrder.add(id)
+            }
+            updateNotification()
         }
 
         fun getSession(id: String): TerminalSession? = sessions[id]

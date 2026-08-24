@@ -19,6 +19,13 @@ internal data class AvfTerminalSize(
 internal class AvfConsoleRelay(
     val socketName: String,
     private val onWindowSizeChanged: (AvfTerminalSize) -> Unit,
+    private val onReady: (vmIp: String?) -> Unit = {},
+    /**
+     * Raw mode: plain bidirectional byte pipe between the terminal bridge and
+     * [consoleOutput]/[consoleInput]. Used by the vsock tab, whose protocol
+     * framing lives in VsockTerminalBackend - no console markers or probes.
+     */
+    private val rawMode: Boolean = false,
 ) : Closeable {
     private val closed = AtomicBoolean(false)
     private val executor = Executors.newFixedThreadPool(4)
@@ -121,6 +128,16 @@ internal class AvfConsoleRelay(
         }
     }
 
+    /** Writes a command to the guest console (used for SSH key bootstrap). */
+    fun injectCommand(command: String) {
+        runCatching {
+            consoleInput?.let { out ->
+                out.write(command.toByteArray())
+                out.flush()
+            }
+        }
+    }
+
     private fun startPumpsLocked() {
         if (pumpsStarted) return
         val socket = client ?: return
@@ -144,6 +161,10 @@ internal class AvfConsoleRelay(
 
 
     private fun copyFromVm(input: InputStream, output: OutputStream) {
+        if (rawMode) {
+            copy(input, output)
+            return
+        }
         val buffer = ByteArray(16 * 1024)
         val pending = StringBuilder()
         var markerSeen = false
@@ -195,6 +216,11 @@ internal class AvfConsoleRelay(
                         output.write(colorizePrompt(info.groupValues[3]).toByteArray())
                         output.flush()
                         AvfUiState.ready()
+                        val vmIp = RETERMINAL_IP
+                            .find(ANSI_ESCAPE.replace(pending, ""))
+                            ?.groupValues?.get(1)
+                            ?.takeIf { it.isNotBlank() }
+                        onReady(vmIp)
                     }
                 }
                 pending.keepTail()
@@ -241,7 +267,8 @@ internal class AvfConsoleRelay(
         const val MAX_WINDOW_SIZE = 65_535
         const val READY_MARKER = "RETERMINAL_READY"
         const val GUEST_INFO_COMMAND =
-            ". /etc/os-release; printf '\\nRETERMINAL_OS:%s\\nRETERMINAL_MOTD_BEGIN\\n' \"\$PRETTY_NAME\"; cat /etc/motd 2>/dev/null; printf '\\nRETERMINAL_MOTD_END\\n'\n"
+            ". /etc/os-release; printf '\\nRETERMINAL_OS:%s\\nRETERMINAL_MOTD_BEGIN\\n' \"\$PRETTY_NAME\"; cat /etc/motd 2>/dev/null; printf '\\nRETERMINAL_MOTD_END\\n'; printf 'RETERMINAL_IP:'; hostname -I 2>/dev/null | awk '{print \$1}'; printf '\\n'\n"
+        val RETERMINAL_IP = Regex("""RETERMINAL_IP:([0-9.]+)""")
         val SHELL_PROMPT = Regex("""(?m)(?:^|\r?\n)[^\r\n]*[#$%>] $""")
         val GUEST_INFO = Regex(
             """\r?\nRETERMINAL_OS:([^\r\n]+)\r?\nRETERMINAL_MOTD_BEGIN\r?\n(.*?)\r?\nRETERMINAL_MOTD_END.*?(?:^|\r?\n)([^\r\n]*[#$%>] )""",

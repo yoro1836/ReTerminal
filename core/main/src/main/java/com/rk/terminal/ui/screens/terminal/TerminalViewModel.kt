@@ -15,6 +15,8 @@ import com.rk.terminal.service.SessionService
 import com.rk.terminal.ui.activities.terminal.MainActivity
 import com.rk.terminal.ui.screens.terminal.virtualkeys.VirtualKeysListener
 import com.rk.terminal.ui.screens.terminal.virtualkeys.VirtualKeysView
+import com.rk.terminal.backend.avf.AvfUiState
+import com.termux.terminal.TerminalSession
 import com.termux.view.TerminalView
 import java.lang.ref.WeakReference
 
@@ -54,7 +56,33 @@ class TerminalViewModel : ViewModel() {
 
         val session = sessionBinder.getSession(sessionId)
             ?: sessionBinder.createSession(sessionId, client)
+        attachSession(terminal, client, session, sessionId, sessionBinder)
+    }
 
+    /** Creates a new vsock shell tab into the running VM and switches to it. */
+    fun addSshSession(context: Context, sessionBinder: SessionService.SessionBinder): Boolean {
+        val terminal = terminalView ?: return false
+        val activity = context as? MainActivity ?: return false
+        val id = nextSshSessionName(sessionBinder)
+        val client = TerminalBackEnd(terminal, activity) { terminalImeView }
+        val session = sessionBinder.createVsockSession(id, client)
+        attachSession(terminal, client, session, id, sessionBinder)
+        return true
+    }
+
+    private fun nextSshSessionName(sessionBinder: SessionService.SessionBinder): String {
+        var n = 1
+        while (sessionBinder.getService().sessionList.containsKey("ssh$n")) n++
+        return "ssh$n"
+    }
+
+    private fun attachSession(
+        terminal: TerminalView,
+        client: TerminalBackEnd,
+        session: TerminalSession,
+        sessionId: String,
+        sessionBinder: SessionService.SessionBinder,
+    ) {
         session.updateTerminalSessionClient(client)
         terminal.setBackgroundColor(TerminalUtils.getBackgroundColor())
         terminal.attachSession(session)

@@ -2,6 +2,7 @@ package com.rk.terminal.ui.screens.terminal
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -13,6 +14,7 @@ import com.rk.terminal.service.SessionService
 fun TerminalTopBar(
     sessionBinder: SessionService.SessionBinder?,
     onMenuClick: () -> Unit,
+    onNewSession: () -> Unit,
     color: Color
 ) {
     TopAppBar(
@@ -38,6 +40,11 @@ fun TerminalTopBar(
         navigationIcon = {
             IconButton(onClick = onMenuClick) {
                 Icon(Icons.Default.Menu, null, tint = color)
+            }
+        },
+        actions = {
+            IconButton(onClick = onNewSession) {
+                Icon(Icons.Default.Add, contentDescription = "New SSH session", tint = color)
             }
         },
     )

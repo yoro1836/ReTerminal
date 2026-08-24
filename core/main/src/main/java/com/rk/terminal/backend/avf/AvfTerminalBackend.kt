@@ -28,9 +28,19 @@ class AvfTerminalBackend(
     private val windowSizeUpdates = ArrayBlockingQueue<AvfTerminalSize>(1)
     private val latestWindowSize = AtomicReference<AvfTerminalSize>()
     @Volatile private var windowSizeOutput: OutputStream? = null
-    private val relay = AvfConsoleRelay("reterminal-avf-$sessionId", ::onWindowSizeChanged)
+    private val relay = AvfConsoleRelay("reterminal-avf-$sessionId", ::onWindowSizeChanged, ::onGuestReady)
     private var vm: Any? = null
     private var session: TerminalSession? = null
+
+    /**
+     * Called once the guest login shell is detected: records the VM IP
+     * (informational only since vsock tabs do not need networking).
+     */
+    private fun onGuestReady(vmIp: String?) {
+        if (!vmIp.isNullOrBlank()) {
+            Settings.avfVmIp = vmIp
+        }
+    }
 
     override fun createSession(client: TerminalSessionClient): TerminalSession {
         check(session == null) { "AVF terminal session already created" }
@@ -101,6 +111,7 @@ class AvfTerminalBackend(
             )
             val machine = AvfApi.getOrCreate(manager, vmName, config)
             vm = machine
+            AvfVmRegistry.publish(machine)
             val callback = AvfApi.callback(
                 onError = { code, message ->
                     relay.fail("VM error $code: ${message ?: "unknown error"}")
@@ -120,6 +131,7 @@ class AvfTerminalBackend(
             AvfApi.run(machine)
         } catch (error: Throwable) {
             stopWindowSizeForwarding()
+            android.util.Log.e("AvfTerminalBackend", "VM start failed", error)
             val cause = generateSequence(error) { it.cause }.last()
             relay.fail(cause.message ?: cause.javaClass.simpleName)
         }
@@ -189,6 +201,7 @@ class AvfTerminalBackend(
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
+        AvfVmRegistry.publish(null)
         stopWindowSizeForwarding()
         vm?.let { machine -> runCatching { AvfApi.stop(machine) } }
         vm = null

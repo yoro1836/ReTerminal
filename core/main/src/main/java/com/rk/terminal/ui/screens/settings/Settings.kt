@@ -77,6 +77,7 @@ object WorkingMode {
     const val ALPINE = 0
     const val ANDROID = 1
     const val AVF = 2
+    const val SSH = 3
 }
 
 object InputMode {

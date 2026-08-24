@@ -90,6 +90,10 @@ object Settings {
         get() = Preference.getInt(key = "avf_memory_mb", default = 2048)
         set(value) = Preference.setInt(key = "avf_memory_mb", value)
 
+    var avfVmIp: String
+        get() = Preference.getString(key = "avf_vm_ip", default = "")
+        set(value) = Preference.setString(key = "avf_vm_ip", value)
+
     var avfCpuCount
         get() = Preference.getInt(key = "avf_cpu_count", default = 1)
         set(value) = Preference.setInt(key = "avf_cpu_count", value)
