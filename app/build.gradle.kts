@@ -7,7 +7,7 @@ plugins {
 
 
 android {
-    namespace = "com.rk.application"
+    namespace = "com.yoro1836.application"
     compileSdk = 37
 
 
@@ -104,7 +104,7 @@ android {
 
     
     defaultConfig {
-        applicationId = "com.rk.terminal"
+        applicationId = "com.yoro1836.terminal"
         minSdk = 36
         targetSdk = 37
         versionCode = 10

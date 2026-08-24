@@ -17,9 +17,17 @@ val gitCommitDate: Provider<String> =
 
 
 android {
-    namespace = "com.rk.terminal"
+    namespace = "com.yoro1836.terminal"
+    ndkVersion = "29.0.13846066"
     android.buildFeatures.buildConfig = true
     compileSdk = 37
+
+    externalNativeBuild {
+        cmake {
+            path("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
 
     defaultConfig {
         minSdk = 24
@@ -86,7 +94,6 @@ dependencies {
 
     implementation(project(":core:resources"))
     implementation(project(":core:components"))
-    implementation(project(":core:proot"))
     implementation("com.github.termux.termux-app:terminal-view:v0.118.3")
     implementation("com.github.termux.termux-app:terminal-emulator:v0.118.3")
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")

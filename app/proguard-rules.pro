@@ -130,7 +130,7 @@
 -keep class com.google.gson.** { *; }
 -dontwarn com.google.gson.**
 -keep class org.joni.ast.QuantifierNode { *; }
--keep class com.rk.plugin.server.Manifest.** { *; }
+-keep class com.yoro1836.plugin.server.Manifest.** { *; }
 # For using GSON @Expose annotation
 -keepattributes *Annotation*
 # Gson specific classes
@@ -150,7 +150,7 @@
 # Retain generic signatures of TypeToken and its subclasses with R8 version 3.0 and higher.
 -keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
 -keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
--keep class com.rk.terminal.App { *; }
+-keep class com.yoro1836.terminal.App { *; }
 # Prevent proguard from stripping interface information from TypeAdapter, TypeAdapterFactory,
 # JsonSerializer, JsonDeserializer instances (so they can be used in @JsonAdapter)
 -keep class * extends com.google.gson.TypeAdapter
@@ -161,26 +161,26 @@
 -keepclassmembers,allowobfuscation class * {
   @com.google.gson.annotations.SerializedName <fields>;
 }
--keep class com.rk.plugin.server.Manifest { *; }
+-keep class com.yoro1836.plugin.server.Manifest { *; }
 # Retain generic signatures of TypeToken and its subclasses with R8 version 3.0 and higher.
 -keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
 -keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
 # Keep the no-args constructor of the deserialized class
--keepclassmembers class com.rk.plugin.server.Manifest {
+-keepclassmembers class com.yoro1836.plugin.server.Manifest {
   <init>();
 }
--keep,allowobfuscation,allowoptimization class com.rk.plugin.server.Manifest {
+-keep,allowobfuscation,allowoptimization class com.yoro1836.plugin.server.Manifest {
   @com.google.gson.annotations.SerializedName <fields>;
 }
--keep class com.rk.plugin.server.Manifest {
+-keep class com.yoro1836.plugin.server.Manifest {
    <fields>;
 }
--keepclassmembers class com.rk.plugin.server.Manifest {
+-keepclassmembers class com.yoro1836.plugin.server.Manifest {
  !transient <fields>;
 }
 # Keep classes and members for all models used with Gson
-#-keep class com.rk.xededitor.** { *; }
-#-keep class com.rk.plugin.** { *; }
+#-keep class com.yoro1836.xededitor.** { *; }
+#-keep class com.yoro1836.plugin.** { *; }
 # Keep all classes that might be used by Gson
 -keepclassmembers class * {
     @com.google.gson.annotations.SerializedName <fields>;
@@ -204,24 +204,24 @@
 -keep class * extends com.google.gson.TypeAdapter { *; }
 
 
--keepclasseswithmembernames class com.rk.plugin.server.api.API {*;}
--keepclasseswithmembernames class com.rk.plugin.server.api.PluginLifeCycle  {*;}
--keepclasseswithmembernames class com.rk.plugin.server.** {*;}
--keep class com.rk.terminal.MainActivity.MainActivity {*;}
--keepclasseswithmembernames class com.rk.terminal.App {*;}
--keepclasseswithmembernames class com.rk.terminal.BaseActivity {*;}
+-keepclasseswithmembernames class com.yoro1836.plugin.server.api.API {*;}
+-keepclasseswithmembernames class com.yoro1836.plugin.server.api.PluginLifeCycle  {*;}
+-keepclasseswithmembernames class com.yoro1836.plugin.server.** {*;}
+-keep class com.yoro1836.terminal.MainActivity.MainActivity {*;}
+-keepclasseswithmembernames class com.yoro1836.terminal.App {*;}
+-keepclasseswithmembernames class com.yoro1836.terminal.BaseActivity {*;}
 
--keepclassmembernames class com.rk.plugin.server.api.API {*;}
--keepclassmembernames class com.rk.plugin.server.api.PluginLifeCycle {*;}
--keepclassmembernames class com.rk.plugin.server.** {*;}
--keepclassmembernames class com.rk.terminal.App {*;}
--keepclassmembernames class com.rk.terminal.BaseActivity {*;}
+-keepclassmembernames class com.yoro1836.plugin.server.api.API {*;}
+-keepclassmembernames class com.yoro1836.plugin.server.api.PluginLifeCycle {*;}
+-keepclassmembernames class com.yoro1836.plugin.server.** {*;}
+-keepclassmembernames class com.yoro1836.terminal.App {*;}
+-keepclassmembernames class com.yoro1836.terminal.BaseActivity {*;}
 
--keepnames class com.rk.plugin.server.api.API {*;}
--keepnames class com.rk.plugin.server.api.PluginLifeCycle {*;}
--keepnames class com.rk.plugin.server.** {*;}
--keepnames class com.rk.terminal.App {*;}
--keepnames class com.rk.terminal.BaseActivity {*;}
+-keepnames class com.yoro1836.plugin.server.api.API {*;}
+-keepnames class com.yoro1836.plugin.server.api.PluginLifeCycle {*;}
+-keepnames class com.yoro1836.plugin.server.** {*;}
+-keepnames class com.yoro1836.terminal.App {*;}
+-keepnames class com.yoro1836.terminal.BaseActivity {*;}
 
 -dontwarn sun.security.x509.X509Key
 -dontobfuscate

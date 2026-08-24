@@ -83,6 +83,9 @@
     <string name="rename">Rename</string>
     <string name="session_name">Session Name</string>
     <string name="sort_sessions">Sort Sessions</string>
+    <string name="stop_vm_title">Stop VM</string>
+    <string name="stop_vm_message">Stop the Debian virtual machine? All open terminal tabs will end.</string>
+    <string name="confirm">Confirm</string>
     <string name="sort_az">Sort A to Z</string>
     <string name="sort_za">Sort Z to A</string>
     <string name="move_up">Move Up</string>

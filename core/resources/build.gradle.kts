@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.rk.resources"
+    namespace = "com.yoro1836.resources"
     compileSdk = 36
 
     lint.disable += "MissingTranslation"

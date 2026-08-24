@@ -16,7 +16,7 @@
 
 
     <application
-        android:name="com.rk.terminal.App"
+        android:name="com.yoro1836.terminal.App"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"
@@ -29,7 +29,7 @@
         android:theme="@style/Theme.Karbon"
         tools:targetApi="tiramisu">
 
-        <service android:name="com.rk.terminal.service.SessionService"
+        <service android:name="com.yoro1836.terminal.service.SessionService"
             android:exported="false"
             android:foregroundServiceType="specialUse" />
 
@@ -44,7 +44,7 @@
         </provider>
 
         <activity
-            android:name="com.rk.terminal.ui.activities.terminal.MainActivity"
+            android:name="com.yoro1836.terminal.ui.activities.terminal.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:launchMode="singleTop"

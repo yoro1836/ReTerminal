@@ -1,4 +1,4 @@
-package com.rk.resources
+package com.yoro1836.resources
 
 import org.junit.Test
 
