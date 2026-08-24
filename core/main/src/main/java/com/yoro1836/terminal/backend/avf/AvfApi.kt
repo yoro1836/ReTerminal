@@ -21,8 +21,8 @@ internal object AvfApi {
     private val callbackClass by lazy { Class.forName("$PACKAGE.VirtualMachineCallback") }
     private const val MEDIA_TAG = "reterminal-media"
     private const val MEDIA_SOCKET = "reterminal-media"
-    private const val GUEST_UID = 1001 // droid
-    private const val GUEST_GID = 1001 // droid
+    private const val GUEST_UID = 1000
+    private const val GUEST_GID = 1000
     private const val SHARED_PATH_MASK = 7
 
     fun manager(context: Context): Any =

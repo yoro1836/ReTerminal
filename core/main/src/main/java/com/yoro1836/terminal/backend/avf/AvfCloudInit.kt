@@ -5,7 +5,7 @@ import java.io.File
 
 internal object AvfCloudInit {
     private const val ASSET_PATH = "avf/cidata.iso"
-    private const val VERSION = "17"
+    private const val VERSION = "18"
 
     fun install(context: Context, imageDir: File): File {
         val target = imageDir.resolve("cidata.iso")
