@@ -70,6 +70,10 @@ internal object AvfApi {
                     it.parameterTypes.size == 10
             }?.apply { isAccessible = true }
                 ?: error("Unable to find AVF shared path constructor")
+            android.util.Log.w(
+                "AvfApi",
+                "SharedPath ctor: ${sharedPathConstructor.parameterTypes.joinToString()}",
+            )
             val sharedPathArgs = when (sharedPathConstructor.parameterTypes.size) {
                 8 -> arrayOf<Any?>(
                     sharedMediaPath,
