@@ -8,7 +8,6 @@ import com.github.anrwatchdog.ANRWatchDog
 import com.yoro1836.libcommons.application
 import com.yoro1836.resources.Res
 import com.yoro1836.terminal.ui.screens.terminal.TerminalUtils
-import com.yoro1836.update.UpdateManager
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -45,7 +44,6 @@ class App : Application() {
 
         ANRWatchDog().start()
 
-        UpdateManager(this).onUpdate()
 
         if (BuildConfig.DEBUG) {
             StrictMode.setVmPolicy(
