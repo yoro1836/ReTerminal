@@ -53,6 +53,7 @@ object MkSession {
                 vmLogin.createFileIfNot()
                 vmLogin.writeText(assets.open("vm-login.sh").bufferedReader().use { it.readText() })
                 env.add("VM_DIR=${DebianVm.dir(this).absolutePath}")
+                DebianVm.sharedDir(this)?.let { env.add("VM_SHARE=$it") }
                 DebianVm.ensure(this)
             }
 

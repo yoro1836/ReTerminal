@@ -72,6 +72,41 @@ object DebianVm {
     }
     fun diskGb(ctx: Context) = (disk(ctx).length() shr 30).toInt()
 
+    // ---- options (from the AVF build's settings)
+
+    /** Hold a partial wakelock while the VM runs, so it keeps going with the screen off. */
+    fun wakelock(ctx: Context) = prefs(ctx).getBoolean("wakelock", true)
+    fun setWakelock(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("wakelock", on).apply()
+    /** Grow the disk to the phone's free space at each boot (never shrinks). */
+    fun autoExpand(ctx: Context) = prefs(ctx).getBoolean("auto_expand", true)
+    fun setAutoExpand(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("auto_expand", on).apply()
+    /** Mount the phone's shared storage at /mnt/media (hostfs); needs all-files access. */
+    fun shareStorage(ctx: Context) = prefs(ctx).getBoolean("share_storage", false)
+    fun setShareStorage(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("share_storage", on).apply()
+    fun storageAccess() = android.os.Build.VERSION.SDK_INT < 30 || android.os.Environment.isExternalStorageManager()
+    /** Host directory the tab script mounts, or null. */
+    fun sharedDir(ctx: Context): String? =
+        if (shareStorage(ctx) && storageAccess()) android.os.Environment.getExternalStorageDirectory().path else null
+
+    /** Space the disk may take: its current use plus the phone's free space, less 2 GB for Android. */
+    private fun expandTarget(ctx: Context): Long {
+        val d = disk(ctx)
+        val used = try { android.system.Os.stat(d.path).st_blocks * 512 } catch (_: Exception) { d.length() }
+        return ((used + dir(ctx).usableSpace - (2L shl 30)) shr 30) shl 30
+    }
+
+    @Volatile private var wake: android.os.PowerManager.WakeLock? = null
+    private fun hold(ctx: Context, on: Boolean) {
+        if (on && wakelock(ctx)) {
+            val w = wake ?: ctx.getSystemService(android.os.PowerManager::class.java)
+                .newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "reterminal:vm")
+                .apply { setReferenceCounted(false) }.also { wake = it }
+            if (!w.isHeld) w.acquire()
+        } else {
+            wake?.let { if (it.isHeld) runCatching { it.release() } }
+        }
+    }
+
     @Volatile var bootedWith: Spec? = null
         private set
 
@@ -132,7 +167,8 @@ object DebianVm {
         val sp = spec(app)
         val port = freePort()
         portFile(app).writeText("$port\n")
-        val want = sp.diskGb.toLong() shl 30
+        var want = sp.diskGb.toLong() shl 30
+        if (autoExpand(app)) want = maxOf(want, expandTarget(app))
         if (disk(app).length() < want) RandomAccessFile(disk(app), "rw").use { it.setLength(want) }
         val cmd = listOf(
             lib(app, "libumnet.so").path, "--passt", lib(app, "libpasst.so").path,
@@ -152,9 +188,11 @@ object DebianVm {
         val p = pb.start()
         proc = p
         bootedWith = sp
+        hold(app, true)
         status(app, "booted")
         Thread {
             p.waitFor()
+            hold(app, false)
             if (proc === p) {
                 proc = null
                 status(app, "error: the VM stopped (exit ${p.exitValue()})")

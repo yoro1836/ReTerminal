@@ -7,6 +7,19 @@ export HOME="$D"
 # A probe must not hang: passt may accept before the guest's sshd answers.
 probe() { timeout 8 "$DB" dbclient -y -i "$D/id_dropbear" -p "$(cat "$D/port")" -T debian@127.0.0.1 true; }
 
+# Phone storage at /mnt/media (hostfs), once per boot; debian joins its group.
+share() {
+  [ -n "$VM_SHARE" ] || return 0
+  printf '%s\n' 'set -e
+mountpoint -q /mnt/media && exit 0
+mkdir -p /mnt/media
+mount -t hostfs none /mnt/media -o "$1"
+g=$(stat -c %g /mnt/media)
+n=$(getent group "$g" | cut -d: -f1)
+[ -n "$n" ] || { n=media; groupadd -g "$g" "$n"; }
+usermod -aG "$n" debian' | "$DB" dbclient -y -i "$D/id_dropbear" -p "$(cat "$D/port")" -T root@127.0.0.1 sh -s "$VM_SHARE"
+}
+
 shown=0
 console() {
   c=$(wc -l < "$D/console.log" 2>/dev/null)
@@ -31,6 +44,7 @@ while :; do
     booted)
       console
       if probe </dev/null >/dev/null 2>"$D/probe.err"; then
+        share || printf 'Could not mount phone storage at /mnt/media\n'
         printf '\033[2J\033[H'
         break
       fi

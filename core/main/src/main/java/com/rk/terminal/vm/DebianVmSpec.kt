@@ -6,11 +6,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -52,7 +55,40 @@ fun DebianVmSpec() {
             "The disk can only grow. Changes apply when the VM restarts (open Debian tabs disconnect).",
             style = MaterialTheme.typography.bodySmall,
         )
+        var expand by remember { mutableStateOf(DebianVm.autoExpand(ctx)) }
+        Toggle("Automatic storage expansion",
+            "At each boot, grow the disk into the phone's free space (keeps 2 GB for Android). It never shrinks.",
+            expand) { expand = it; DebianVm.setAutoExpand(ctx, it) }
+        var wake by remember { mutableStateOf(DebianVm.wakelock(ctx)) }
+        Toggle("Wakelock while running", "Keep the CPU awake while the VM runs, so it keeps working with the screen off.",
+            wake) { wake = it; DebianVm.setWakelock(ctx, it) }
+        var access by remember { mutableStateOf(DebianVm.storageAccess()) }
+        var share by remember { mutableStateOf(DebianVm.shareStorage(ctx)) }
+        Toggle("Share phone storage as /mnt/media",
+            if (access) "Mounted on the next Debian tab (hostfs)." else "Needs all-files access: tap to grant.",
+            share && access) {
+            if (!access) {
+                runCatching {
+                    ctx.startActivity(android.content.Intent(
+                        android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                        android.net.Uri.parse("package:${ctx.packageName}")))
+                }
+                access = DebianVm.storageAccess()
+            }
+            share = it; DebianVm.setShareStorage(ctx, it)
+        }
         if (DebianVm.running) TextButton(onClick = { save(); DebianVm.restart(ctx) }) { Text("Restart VM") }
+    }
+}
+
+@Composable
+private fun Toggle(label: String, desc: String, on: Boolean, set: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(desc, style = MaterialTheme.typography.bodySmall)
+        }
+        Switch(on, set)
     }
 }
 
