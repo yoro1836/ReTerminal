@@ -37,25 +37,14 @@ object DebianVm {
     fun dir(ctx: Context) = File(ctx.filesDir, "vm")
 
     /**
-     * Kernel modules for the guest: assets/uml-modules.tar (lib/modules/<release>)
-     * copied to files/vm once per kernel build; vm-login.sh unpacks it as root.
-     * Returns the build stamp, or null when the APK has no modules.
+     * Kernel modules for the guest ship as jniLibs/libumlmodules.so (a tar of
+     * lib/modules/<release>; extracted with the other native libs, so nothing is
+     * copied). vm-login.sh unpacks it as root. Returns the build stamp, or null.
      */
     fun modules(ctx: Context): String? {
-        val stamp = runCatching { ctx.assets.open("uml-modules.stamp").bufferedReader().use { it.readText().trim() } }
-            .getOrNull() ?: return null
-        val have = File(dir(ctx), "modules.stamp")
-        if (runCatching { have.readText().trim() }.getOrNull() != stamp) {
-            dir(ctx).mkdirs()
-            // Not .tar.gz: aapt strips ".gz" from asset names (and stores them unpacked).
-            runCatching {
-                ctx.assets.open("uml-modules.tar").use { i ->
-                    File(dir(ctx), "modules.tar").outputStream().use { i.copyTo(it) }
-                }
-                have.writeText(stamp)
-            }.onFailure { return null }
-        }
-        return stamp
+        if (!File(ctx.applicationInfo.nativeLibraryDir, "libumlmodules.so").isFile) return null
+        return runCatching { ctx.assets.open("uml-modules.stamp").bufferedReader().use { it.readText().trim() } }
+            .getOrNull()
     }
     private fun disk(ctx: Context) = File(dir(ctx), "debian.ext4")
     private fun log(ctx: Context) = File(dir(ctx), "console.log")

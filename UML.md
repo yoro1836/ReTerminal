@@ -51,8 +51,7 @@ claude-phone's `cp-debian-2` by renaming its `claude` user and boot service.
 
 ## Kernel modules
 
-`assets/uml-modules.tar` (not .gz: aapt strips that suffix) is `make modules_install INSTALL_MOD_STRIP=1` of the same
+`jniLibs/arm64-v8a/libumlmodules.so` (a plain tar; an asset copy did not work on the phone) is `make modules_install INSTALL_MOD_STRIP=1` of the same
 build (`lib/modules/<release>`, `build` link removed); `assets/uml-modules.stamp` is the
-first 12 hex of the kernel's md5. The app copies the tarball to `files/vm` when the stamp
-changes, and `vm-login.sh` unpacks it into the guest's `/lib/modules` as root when the
+first 12 hex of the kernel's md5. `vm-login.sh` unpacks it into the guest's `/lib/modules` as root when the
 guest's `/lib/modules/.rt-stamp` differs. `modprobe` needs the `kmod` package.
