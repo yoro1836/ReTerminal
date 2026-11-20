@@ -116,9 +116,19 @@ object UsbPassthrough {
                 proc.destroy()
                 return "umusb did not start: " + (out.lines().lastOrNull { it.isNotBlank() } ?: "no output")
             }
-            // Keep draining umusb's output so it never blocks on a full pipe.
+            // Keep draining umusb's output (to files/vm/usb.log) so it never blocks on a full pipe.
             val p = proc
-            Thread { runCatching { while (lines.readLine() != null) Unit }; gone(d.deviceName, p) }
+            val logFile = java.io.File(DebianVm.dir(ctx), "usb.log")
+            runCatching { logFile.writeText(synchronized(log) { log.toString() }) }
+            Thread {
+                runCatching {
+                    logFile.appendText("")
+                    java.io.FileWriter(logFile, true).use { w ->
+                        while (true) { val l = lines.readLine() ?: break; w.write(l + "\n"); w.flush() }
+                    }
+                }
+                gone(d.deviceName, p)
+            }
                 .also { it.isDaemon = true; it.start() }
 
             // vhci port: 0..7 high/full/low speed hub, 8..15 super speed hub.
