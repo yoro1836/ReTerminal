@@ -106,53 +106,6 @@ fun TerminalDrawer(
                         Icon(imageVector = Icons.Outlined.Settings, contentDescription = null)
                     }
 
-                    // Stop-VM button: powers the Debian VM off; its tabs end.
-                    if (com.rk.terminal.vm.DebianVm.supported()) {
-                        var vmStopping by remember { mutableStateOf(false) }
-                        var showStopConfirm by remember { mutableStateOf(false) }
-                        var showRestartConfirm by remember { mutableStateOf(false) }
-                        IconButton(enabled = !vmStopping, onClick = { showStopConfirm = true }) {
-                            Icon(imageVector = Icons.Outlined.PowerSettingsNew, contentDescription = stringResource(strings.stop_vm_title))
-                        }
-                        IconButton(enabled = !vmStopping, onClick = { showRestartConfirm = true }) {
-                            Icon(imageVector = Icons.Outlined.RestartAlt, contentDescription = stringResource(strings.restart_vm_title))
-                        }
-                        if (showRestartConfirm) {
-                            AlertDialog(
-                                onDismissRequest = { showRestartConfirm = false },
-                                title = { Text(stringResource(strings.restart_vm_title)) },
-                                text = { Text(stringResource(strings.restart_vm_message)) },
-                                confirmButton = {
-                                    TextButton(onClick = {
-                                        showRestartConfirm = false
-                                        sessionBinder?.restartDebianVm()
-                                    }) { Text(stringResource(strings.restart_vm_title)) }
-                                },
-                                dismissButton = {
-                                    TextButton(onClick = { showRestartConfirm = false }) { Text(stringResource(strings.cancel)) }
-                                },
-                            )
-                        }
-                        if (showStopConfirm) {
-                            AlertDialog(
-                                onDismissRequest = { showStopConfirm = false },
-                                title = { Text(stringResource(strings.stop_vm_title)) },
-                                text = { Text(stringResource(strings.stop_vm_message)) },
-                                confirmButton = {
-                                    TextButton(onClick = {
-                                        showStopConfirm = false
-                                        vmStopping = true
-                                        sessionBinder?.stopDebianVm()
-                                        vmStopping = false
-                                    }) { Text(stringResource(strings.stop_vm_title)) }
-                                },
-                                dismissButton = {
-                                    TextButton(onClick = { showStopConfirm = false }) { Text(stringResource(strings.cancel)) }
-                                },
-                            )
-                        }
-                    }
-
                     // Add Session button
                     IconButton(onClick = onAddSession) {
                         Icon(imageVector = Icons.Default.Add, contentDescription = null)
@@ -169,7 +122,7 @@ fun TerminalDrawer(
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxWidth().weight(1f)
             ) {
                 itemsIndexed(
                     items = sessions,
@@ -252,6 +205,76 @@ fun TerminalDrawer(
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            // Debian VM row: status, restart and stop.
+            if (com.rk.terminal.vm.DebianVm.supported()) {
+                var vmStopping by remember { mutableStateOf(false) }
+                var showStopConfirm by remember { mutableStateOf(false) }
+                var showRestartConfirm by remember { mutableStateOf(false) }
+                if (showRestartConfirm) {
+                    AlertDialog(
+                        onDismissRequest = { showRestartConfirm = false },
+                        title = { Text(stringResource(strings.restart_vm_title)) },
+                        text = { Text(stringResource(strings.restart_vm_message)) },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showRestartConfirm = false
+                                sessionBinder?.restartDebianVm()
+                            }) { Text(stringResource(strings.restart_vm_title)) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showRestartConfirm = false }) { Text(stringResource(strings.cancel)) }
+                        },
+                    )
+                }
+                if (showStopConfirm) {
+                    AlertDialog(
+                        onDismissRequest = { showStopConfirm = false },
+                        title = { Text(stringResource(strings.stop_vm_title)) },
+                        text = { Text(stringResource(strings.stop_vm_message)) },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showStopConfirm = false
+                                vmStopping = true
+                                sessionBinder?.stopDebianVm()
+                                vmStopping = false
+                            }) { Text(stringResource(strings.stop_vm_title)) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showStopConfirm = false }) { Text(stringResource(strings.cancel)) }
+                        },
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Debian VM", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                if (com.rk.terminal.vm.DebianVm.running) "Running" else "Off",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(enabled = !vmStopping, onClick = { showRestartConfirm = true }) {
+                            Icon(imageVector = Icons.Outlined.RestartAlt, contentDescription = stringResource(strings.restart_vm_title))
+                        }
+                        IconButton(enabled = !vmStopping, onClick = { showStopConfirm = true }) {
+                            Icon(
+                                imageVector = Icons.Outlined.PowerSettingsNew,
+                                contentDescription = stringResource(strings.stop_vm_title),
+                                tint = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }
