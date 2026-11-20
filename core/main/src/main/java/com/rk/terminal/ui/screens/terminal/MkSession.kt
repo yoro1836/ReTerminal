@@ -53,7 +53,6 @@ object MkSession {
                 vmLogin.createFileIfNot()
                 vmLogin.writeText(assets.open("vm-login.sh").bufferedReader().use { it.readText() })
                 env.add("VM_DIR=${DebianVm.dir(this).absolutePath}")
-                env.add("VM_PORT=${DebianVm.PORT}")
                 DebianVm.ensure(this)
             }
 

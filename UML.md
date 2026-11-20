@@ -8,7 +8,7 @@ Linux, arm64) as plain app processes: no root, no proot. Code:
 The first tab downloads the disk image (`cp-debian-N.ext4.gz`, ~190 MB) into
 `files/vm/debian.ext4` (sparse) and boots the VM once. Every tab is an SSH
 session (dropbear `dbclient`, key in `files/vm/id_dropbear`) to the guest's
-sshd, which passt forwards to `127.0.0.1:47622`. The VM powers off when the
+sshd, which passt forwards to a free `127.0.0.1` port picked at boot (`files/vm/port`). The VM powers off when the
 last session closes. Cores, memory, swap and disk are in Settings.
 
 Prebuilt binaries in `core/main/src/main/jniLibs/arm64-v8a/` (an app may only

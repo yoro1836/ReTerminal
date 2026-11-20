@@ -3,7 +3,7 @@
 D="$VM_DIR"
 DB="$NATIVE_LIB_DIR/libdropbear.so"
 export HOME="$D"
-ssh() { "$DB" dbclient -y -i "$D/id_dropbear" -p "$VM_PORT" "$@" root@127.0.0.1; }
+ssh() { "$DB" dbclient -y -i "$D/id_dropbear" -p "$(cat "$D/port")" "$@" root@127.0.0.1; }
 
 last=""
 n=0
@@ -15,14 +15,14 @@ while :; do
       tail -n 12 "$D/console.log" 2>/dev/null
       exit 1 ;;
     booted)
-      [ "$last" = booted ] || printf '\r\033[K부팅 중…'
+      [ "$last" = booted ] || printf '\r\033[KBooting…'
       if ssh -T true </dev/null >/dev/null 2>&1; then
         printf '\r\033[K'
         break
       fi
       n=$((n + 1))
       if [ $n -gt 180 ]; then
-        printf '\r\033[KVM에 접속하지 못했어요. 콘솔:\n'
+        printf '\r\033[KCould not reach the VM. Console:\n'
         tail -n 12 "$D/console.log" 2>/dev/null
         exit 1
       fi ;;
@@ -32,4 +32,4 @@ while :; do
   last="$s"
   sleep 1
 done
-exec "$DB" dbclient -y -i "$D/id_dropbear" -p "$VM_PORT" -t root@127.0.0.1 "$@"
+exec "$DB" dbclient -y -i "$D/id_dropbear" -p "$(cat "$D/port")" -t root@127.0.0.1 "$@"

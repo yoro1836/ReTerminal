@@ -15,7 +15,7 @@ import java.util.zip.GZIPInputStream
  * Debian as a real Linux kernel (User-Mode Linux, arm64) running as plain app
  * processes: no root, no proot. Every terminal tab is an SSH session
  * (dropbear's dbclient) to the guest's sshd, which passt forwards to
- * 127.0.0.1:[PORT].
+ * a free 127.0.0.1 port (files/vm/port).
  *
  * Binaries ship as lib*.so (an app may only exec from nativeLibraryDir):
  *   libuml.so      the kernel        libumstub.so  its per-process stub
@@ -23,11 +23,10 @@ import java.util.zip.GZIPInputStream
  *   libpasst.so    userspace TCP/IP (the guest's network)
  *   libdropbear.so dropbearmulti: dbclient + dropbearkey
  *
- * filesDir/vm: debian.ext4 (sparse disk), .ready, id_dropbear, console.log,
+ * filesDir/vm: debian.ext4 (sparse disk), .ready, id_dropbear, port, console.log,
  * status (one line the tab's login script shows while it waits).
  */
 object DebianVm {
-    const val PORT = 47622
     /** Bump with the image; an older disk is then reinstalled. */
     private const val IMAGE = 2
     private const val IMAGE_URL = "https://github.com/yoro1836/ReTerminal/releases/download/cp-debian-$IMAGE/cp-debian-$IMAGE.ext4.gz"
@@ -40,6 +39,11 @@ object DebianVm {
     private fun log(ctx: Context) = File(dir(ctx), "console.log")
     fun key(ctx: Context) = File(dir(ctx), "id_dropbear")
     private fun statusFile(ctx: Context) = File(dir(ctx), "status")
+    private fun portFile(ctx: Context) = File(dir(ctx), "port")
+    fun port(ctx: Context) = try { portFile(ctx).readText().trim().toInt() } catch (_: Exception) { 0 }
+
+    /** Another app (or a stale VM) may hold any fixed port, so take a free one. */
+    private fun freePort() = java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { it.localPort }
     fun installed(ctx: Context) = try {
         File(dir(ctx), ".ready").readText().trim() == "$IMAGE"
     } catch (_: Exception) { false }
@@ -110,7 +114,7 @@ object DebianVm {
         val p = ProcessBuilder(lib(ctx, "libdropbear.so").path, "dropbearkey", "-t", "ed25519", "-f", key(ctx).path)
             .redirectErrorStream(true).start()
         val out = p.inputStream.bufferedReader().readText()
-        if (p.waitFor() != 0 || !key(ctx).exists()) throw IllegalStateException("SSH 키를 만들지 못했어요: $out")
+        if (p.waitFor() != 0 || !key(ctx).exists()) throw IllegalStateException("Could not create the SSH key: $out")
     }
 
     private fun publicKey(ctx: Context): String {
@@ -119,18 +123,20 @@ object DebianVm {
         val out = p.inputStream.bufferedReader().readText()
         p.waitFor()
         return out.lines().firstOrNull { it.startsWith("ssh-") }?.trim()
-            ?: throw IllegalStateException("공개 키를 읽지 못했어요: $out")
+            ?: throw IllegalStateException("Could not read the public key: $out")
     }
 
     private fun boot(app: Context) {
         status(app, "booting")
         val pub = Base64.encodeToString(publicKey(app).toByteArray(), Base64.NO_WRAP)
         val sp = spec(app)
+        val port = freePort()
+        portFile(app).writeText("$port\n")
         val want = sp.diskGb.toLong() shl 30
         if (disk(app).length() < want) RandomAccessFile(disk(app), "rw").use { it.setLength(want) }
         val cmd = listOf(
             lib(app, "libumnet.so").path, "--passt", lib(app, "libpasst.so").path,
-            "--tcp", "127.0.0.1/$PORT:22", "--",
+            "--tcp", "127.0.0.1/$port:22", "--",
             lib(app, "libuml.so").path, "mem=${sp.memMb}M", "ncpus=${sp.cpus}",
             "con=null", "con0=fd:0,fd:1",
             "stub_exe=" + lib(app, "libumstub.so").path,
@@ -151,7 +157,7 @@ object DebianVm {
             p.waitFor()
             if (proc === p) {
                 proc = null
-                status(app, "error: VM이 멈췄어요 (exit ${p.exitValue()})")
+                status(app, "error: the VM stopped (exit ${p.exitValue()})")
             }
         }.start()
     }
@@ -166,7 +172,7 @@ object DebianVm {
             try {
                 ProcessBuilder(
                     lib(app, "libdropbear.so").path, "dbclient", "-y", "-i", key(app).path,
-                    "-p", "$PORT", "root@127.0.0.1", "systemctl poweroff",
+                    "-p", "${port(app)}", "root@127.0.0.1", "systemctl poweroff",
                 ).also { it.environment()["HOME"] = dir(app).path }
                     .redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS)
             } catch (_: Exception) {}
@@ -186,7 +192,7 @@ object DebianVm {
         d.mkdirs()
         val gz = File(ctx.cacheDir, "debian.ext4.gz")
         download(ctx, gz)
-        status(ctx, "디스크 만드는 중…")
+        status(ctx, "Creating the disk…")
         val tmp = File(d, "debian.ext4.part")
         RandomAccessFile(tmp, "rw").use { out ->
             GZIPInputStream(gz.inputStream().buffered(1 shl 20), 1 shl 16).use { input ->
@@ -212,7 +218,7 @@ object DebianVm {
             }
         }
         gz.delete()
-        if (!tmp.renameTo(disk(ctx))) throw IllegalStateException("디스크를 만들지 못했어요")
+        if (!tmp.renameTo(disk(ctx))) throw IllegalStateException("Could not create the disk")
         File(d, ".ready").writeText("$IMAGE\n")
     }
 
@@ -229,7 +235,7 @@ object DebianVm {
         c.readTimeout = 30000
         if (have > 0) c.setRequestProperty("Range", "bytes=$have-")
         val code = c.responseCode
-        if (code == 200) have = 0 else if (code != 206) throw IllegalStateException("다운로드 실패: HTTP $code")
+        if (code == 200) have = 0 else if (code != 206) throw IllegalStateException("Download failed: HTTP $code")
         val total = have + c.contentLengthLong.coerceAtLeast(0)
         var last = 0L
         c.inputStream.use { input ->
@@ -245,11 +251,11 @@ object DebianVm {
                     if (now - last > 500) {
                         last = now
                         val pct = if (total > 0) " ${got * 100 / total}%" else ""
-                        status(ctx, "Debian 내려받는 중… ${got shr 20} MB$pct")
+                        status(ctx, "Downloading Debian… ${got shr 20} MB$pct")
                     }
                 }
             }
         }
-        if (!part.renameTo(to)) throw IllegalStateException("다운로드 파일을 옮기지 못했어요")
+        if (!part.renameTo(to)) throw IllegalStateException("Could not move the download")
     }
 }
