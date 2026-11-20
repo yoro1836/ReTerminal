@@ -31,7 +31,7 @@ object DebianVm {
     private const val IMAGE = 1
     private const val IMAGE_URL = "https://github.com/yoro1836/ReTerminal/releases/download/rt-debian-$IMAGE/rt-debian-$IMAGE.ext4.gz"
 
-    private fun lib(ctx: Context, n: String) = File(ctx.applicationInfo.nativeLibraryDir, n)
+    internal fun lib(ctx: Context, n: String) = File(ctx.applicationInfo.nativeLibraryDir, n)
     fun supported(ctx: Context = application!!) = lib(ctx, "libuml.so").exists()
 
     fun dir(ctx: Context) = File(ctx.filesDir, "vm")
@@ -54,7 +54,7 @@ object DebianVm {
     fun port(ctx: Context) = try { portFile(ctx).readText().trim().toInt() } catch (_: Exception) { 0 }
 
     /** Another app (or a stale VM) may hold any fixed port, so take a free one. */
-    private fun freePort() = java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { it.localPort }
+    internal fun freePort() = java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { it.localPort }
     fun installed(ctx: Context) = try {
         File(dir(ctx), ".ready").readText().trim() == "rt-$IMAGE"
     } catch (_: Exception) { false }
@@ -227,6 +227,7 @@ object DebianVm {
         Thread {
             p.waitFor()
             hold(app, false)
+            UsbPassthrough.dropAll()
             if (proc === p) {
                 proc = null
                 status(app, "error: the VM stopped (exit ${p.exitValue()})")
@@ -263,6 +264,22 @@ object DebianVm {
         if (p.waitFor() != 0) return "fstrim failed: ${out.lines().lastOrNull { it.isNotBlank() } ?: ""}"
         val freed = (before - diskUsed(app)).coerceAtLeast(0)
         return "Freed ${freed shr 20} MB"
+    }
+
+    /** Run [cmd] as root in the guest; returns (exit code, output). */
+    fun rootSh(ctx: Context, cmd: String, timeoutSec: Long = 20): Pair<Int, String> {
+        val app = ctx.applicationContext
+        if (!running) return -1 to "The VM is not running"
+        val p = ProcessBuilder(
+            lib(app, "libdropbear.so").path, "dbclient", "-y", "-i", key(app).path,
+            "-p", "${port(app)}", "-T", "root@127.0.0.1", cmd,
+        ).also { it.environment()["HOME"] = dir(app).path }.redirectErrorStream(true).start()
+        p.outputStream.close()
+        val out = StringBuilder()
+        val t = Thread { runCatching { out.append(p.inputStream.bufferedReader().readText()) } }.also { it.start() }
+        if (!p.waitFor(timeoutSec, TimeUnit.SECONDS)) { p.destroy(); return -1 to "timed out" }
+        t.join(1000)
+        return p.exitValue() to out.toString().trim()
     }
 
     /** Power the guest off (sessions die with it). */
