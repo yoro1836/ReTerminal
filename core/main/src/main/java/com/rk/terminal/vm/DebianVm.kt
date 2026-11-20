@@ -50,7 +50,14 @@ object DebianVm {
 
     // ---- spec (applied on the next boot)
 
-    val hostCpus get() = Runtime.getRuntime().availableProcessors()
+    /** All of the phone's cores, counting offline ones (availableProcessors can miss those). */
+    val hostCpus: Int get() = try {
+        File("/sys/devices/system/cpu/possible").readText().trim().split(",").sumOf { r ->
+            r.split("-").let { if (it.size == 2) it[1].toInt() - it[0].toInt() + 1 else 1 }
+        }
+    } catch (_: Exception) { Runtime.getRuntime().availableProcessors() }
+    /** The kernel is built with NR_CPUS=16. */
+    val maxCpus get() = hostCpus.coerceIn(1, 16)
     fun hostMemMb(ctx: Context) = ActivityManager.MemoryInfo().also {
         ctx.getSystemService(ActivityManager::class.java).getMemoryInfo(it)
     }.totalMem shr 20
@@ -60,7 +67,7 @@ object DebianVm {
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("debian_vm", Context.MODE_PRIVATE)
     fun spec(ctx: Context) = prefs(ctx).let {
         Spec(
-            it.getInt("cpus", minOf(4, hostCpus)).coerceIn(1, minOf(8, hostCpus)),
+            it.getInt("cpus", minOf(4, hostCpus)).coerceIn(1, maxCpus),
             it.getInt("mem", 2048),
             it.getInt("swap", 1024),
             it.getInt("disk", 16),
@@ -87,6 +94,9 @@ object DebianVm {
     /** Hold a partial wakelock while the VM runs, so it keeps going with the screen off. */
     fun wakelock(ctx: Context) = prefs(ctx).getBoolean("wakelock", true)
     fun setWakelock(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("wakelock", on).apply()
+    /** fstrim once after each boot (the tab script does it). */
+    fun trimAtBoot(ctx: Context) = prefs(ctx).getBoolean("trim_boot", true)
+    fun setTrimAtBoot(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("trim_boot", on).apply()
     /** Grow the disk to the phone's free space at each boot (never shrinks). */
     fun autoExpand(ctx: Context) = prefs(ctx).getBoolean("auto_expand", true)
     fun setAutoExpand(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("auto_expand", on).apply()
@@ -175,6 +185,7 @@ object DebianVm {
         val sp = spec(app)
         val port = freePort()
         portFile(app).writeText("$port\n")
+        File(dir(app), "trimmed").delete()
         var want = sp.diskGb.toLong() shl 30
         if (autoExpand(app)) want = maxOf(want, expandTarget(app))
         val shrinkTo = prefs(app).getInt("shrink", 0).toLong() shl 30

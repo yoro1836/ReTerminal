@@ -20,6 +20,15 @@ n=$(getent group "$g" | cut -d: -f1)
 usermod -aG "$n" debian' | "$DB" dbclient -y -i "$D/id_dropbear" -p "$(cat "$D/port")" -T root@127.0.0.1 sh -s "$VM_SHARE"
 }
 
+# fstrim once per boot (the port changes every boot), in the background.
+trim() {
+  [ -n "$VM_TRIM" ] || return 0
+  p=$(cat "$D/port")
+  [ "$(cat "$D/trimmed" 2>/dev/null)" = "$p" ] && return 0
+  echo "$p" > "$D/trimmed"
+  ( "$DB" dbclient -y -i "$D/id_dropbear" -p "$p" -T root@127.0.0.1 "fstrim -a" </dev/null >/dev/null 2>&1 & )
+}
+
 shown=0
 console() {
   c=$(wc -l < "$D/console.log" 2>/dev/null)
@@ -45,6 +54,7 @@ while :; do
       console
       if probe </dev/null >/dev/null 2>"$D/probe.err"; then
         share || printf 'Could not mount phone storage at /mnt/media\n'
+        trim
         printf '\033[2J\033[H'
         break
       fi

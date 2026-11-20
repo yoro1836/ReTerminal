@@ -26,7 +26,7 @@ import kotlin.math.roundToInt
 fun DebianVmSpec() {
     val ctx = LocalContext.current
     val cur = remember { DebianVm.spec(ctx) }
-    val maxCpus = minOf(8, DebianVm.hostCpus)
+    val maxCpus = DebianVm.maxCpus
     val maxMem = remember { ((DebianVm.hostMemMb(ctx) * 3 / 4) / 256 * 256).toInt().coerceAtLeast(1024) }
     val minDisk = remember { DebianVm.minDiskGb(ctx) }
     val maxDisk = remember { maxOf(DebianVm.diskGb(ctx), minDisk + 4, 128) }
@@ -49,17 +49,22 @@ fun DebianVmSpec() {
         Line("Swap", if (swap == 0) "Off" else gb(swap))
         Slider(swap.toFloat(), { swap = (it / 512).roundToInt() * 512 }, Modifier.fillMaxWidth(),
             valueRange = 0f..8192f, onValueChangeFinished = ::save)
-        Line("Disk", "$disk GB")
+        Line("Disk", if (expand) "automatic (now ${DebianVm.diskGb(ctx)} GB)" else "$disk GB")
         Slider(disk.toFloat(), { disk = ((it / 4).roundToInt() * 4).coerceIn(minDisk, maxDisk) }, Modifier.fillMaxWidth(),
+            enabled = !expand,
             valueRange = minDisk.toFloat()..maxDisk.toFloat(),
-            onValueChangeFinished = { save(); if (disk < DebianVm.diskGb(ctx)) expand = false })
+            onValueChangeFinished = ::save)
         Text(
-            "Changes apply when the VM restarts (open Debian tabs disconnect). Shrinking runs e2fsck + resize2fs before boot and turns off automatic expansion; the smallest size is what the disk holds now + 2 GB.",
+            "Changes apply on the next boot (Restart VM is in the side drawer). Shrinking runs e2fsck + resize2fs before boot; the smallest size is what the disk holds now + 2 GB.",
             style = MaterialTheme.typography.bodySmall,
         )
         Toggle("Automatic storage expansion",
-            "At each boot, grow the disk into the phone's free space (keeps 2 GB for Android). It never shrinks.",
+            "At each boot, grow the disk into the phone's free space (keeps 2 GB for Android). Turn off to set the size by hand.",
             expand) { expand = it; DebianVm.setAutoExpand(ctx, it) }
+        var trimBoot by remember { mutableStateOf(DebianVm.trimAtBoot(ctx)) }
+        Toggle("Trim at boot",
+            "Run fstrim after each boot, so space freed inside Debian is given back to the phone.",
+            trimBoot) { trimBoot = it; DebianVm.setTrimAtBoot(ctx, it) }
         var wake by remember { mutableStateOf(DebianVm.wakelock(ctx)) }
         Toggle("Wakelock while running", "Keep the CPU awake while the VM runs, so it keeps working with the screen off.",
             wake) { wake = it; DebianVm.setWakelock(ctx, it) }
@@ -79,7 +84,6 @@ fun DebianVmSpec() {
             share = it; DebianVm.setShareStorage(ctx, it)
         }
         if (DebianVm.running) Row {
-            TextButton(onClick = { save(); DebianVm.restart(ctx) }) { Text("Restart VM") }
             var trimmed by remember { mutableStateOf<String?>(null) }
             TextButton(onClick = {
                 trimmed = "Trimming…"

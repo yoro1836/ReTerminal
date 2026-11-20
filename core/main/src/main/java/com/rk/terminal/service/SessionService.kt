@@ -67,6 +67,9 @@ class SessionService : Service() {
 
         fun getSession(id: String): TerminalSession? = sessions[id]
 
+        /** Reboot the Debian VM with the current settings; its tabs end. */
+        fun restartDebianVm() = com.rk.terminal.vm.DebianVm.restart(this@SessionService)
+
         /** Power the Debian VM off; its tabs end. */
         fun stopDebianVm() {
             com.rk.terminal.vm.DebianVm.stop(this@SessionService) {
