@@ -28,11 +28,13 @@ fun DebianVmSpec() {
     val cur = remember { DebianVm.spec(ctx) }
     val maxCpus = minOf(8, DebianVm.hostCpus)
     val maxMem = remember { ((DebianVm.hostMemMb(ctx) * 3 / 4) / 256 * 256).toInt().coerceAtLeast(1024) }
-    val minDisk = remember { maxOf(8, DebianVm.diskGb(ctx)) }
+    val minDisk = remember { DebianVm.minDiskGb(ctx) }
+    val maxDisk = remember { maxOf(DebianVm.diskGb(ctx), minDisk + 4, 128) }
     var cpus by remember { mutableIntStateOf(cur.cpus) }
     var mem by remember { mutableIntStateOf(cur.memMb) }
     var swap by remember { mutableIntStateOf(cur.swapMb) }
-    var disk by remember { mutableIntStateOf(maxOf(cur.diskGb, minDisk)) }
+    var disk by remember { mutableIntStateOf(maxOf(DebianVm.diskGb(ctx), minDisk)) }
+    var expand by remember { mutableStateOf(DebianVm.autoExpand(ctx)) }
     fun save() = DebianVm.setSpec(ctx, DebianVm.Spec(cpus, mem, swap, disk))
     fun gb(mb: Int) = "${mb / 1024.0}".removeSuffix(".0") + " GB"
 
@@ -48,14 +50,13 @@ fun DebianVmSpec() {
         Slider(swap.toFloat(), { swap = (it / 512).roundToInt() * 512 }, Modifier.fillMaxWidth(),
             valueRange = 0f..8192f, onValueChangeFinished = ::save)
         Line("Disk", "$disk GB")
-        Slider(disk.toFloat(), { disk = (it / 4).roundToInt() * 4 }, Modifier.fillMaxWidth(),
-            valueRange = minDisk.toFloat()..maxOf(minDisk + 4, 128).toFloat(),
-            onValueChangeFinished = ::save)
+        Slider(disk.toFloat(), { disk = ((it / 4).roundToInt() * 4).coerceIn(minDisk, maxDisk) }, Modifier.fillMaxWidth(),
+            valueRange = minDisk.toFloat()..maxDisk.toFloat(),
+            onValueChangeFinished = { save(); if (disk < DebianVm.diskGb(ctx)) expand = false })
         Text(
-            "The disk can only grow. Changes apply when the VM restarts (open Debian tabs disconnect).",
+            "Changes apply when the VM restarts (open Debian tabs disconnect). Shrinking runs e2fsck + resize2fs before boot and turns off automatic expansion; the smallest size is what the disk holds now + 2 GB.",
             style = MaterialTheme.typography.bodySmall,
         )
-        var expand by remember { mutableStateOf(DebianVm.autoExpand(ctx)) }
         Toggle("Automatic storage expansion",
             "At each boot, grow the disk into the phone's free space (keeps 2 GB for Android). It never shrinks.",
             expand) { expand = it; DebianVm.setAutoExpand(ctx, it) }
@@ -77,7 +78,14 @@ fun DebianVmSpec() {
             }
             share = it; DebianVm.setShareStorage(ctx, it)
         }
-        if (DebianVm.running) TextButton(onClick = { save(); DebianVm.restart(ctx) }) { Text("Restart VM") }
+        if (DebianVm.running) Row {
+            TextButton(onClick = { save(); DebianVm.restart(ctx) }) { Text("Restart VM") }
+            var trimmed by remember { mutableStateOf<String?>(null) }
+            TextButton(onClick = {
+                trimmed = "Trimming…"
+                Thread { trimmed = DebianVm.trim(ctx) }.start()
+            }) { Text(trimmed ?: "Free unused space") }
+        }
     }
 }
 

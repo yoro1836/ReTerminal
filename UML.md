@@ -19,6 +19,7 @@ exec from its native lib dir, hence the `lib*.so` names):
 | `libuml.so`, `libumstub.so` | Linux 7.3.1 UML kernel + its process stub, bionic static | [Raymer8639/linux-um-arm64](https://github.com/Raymer8639/linux-um-arm64) `um-arm64-v0.4.2` + `tools/uml/uml-arm64-fastpath.patch` (fastpath, memfd, stub zygote, SMP), built by its `tools/um-arm64/harness/build-bionic.sh` (NDK r29) with `EXTRA_CONFIG="tools/um-arm64/config/docker.config <this repo>/tools/uml/reterminal.config"` |
 | `libumnet.so` | fd transport <-> passt framing | `tools/uml/umnet.c` in yoro1836/claude-phone |
 | `libpasst.so` | passt, the guest's userspace network | [Raymer8639/passt-android](https://github.com/Raymer8639/passt-android) v0.4.1 |
+| `libe2fsck.so`, `libresize2fs.so` | e2fsprogs e2fsck + resize2fs, static bionic, used to shrink the disk while the VM is off | [tytso/e2fsprogs](https://github.com/tytso/e2fsprogs) `v1.47.3`, `configure --host=aarch64-linux-android --disable-nls --disable-fuse2fs --disable-uuidd --disable-defrag --disable-imager --disable-debugfs --disable-tdb --disable-e2initrd-helper --without-libarchive --disable-elf-shlibs` with `LDFLAGS=-static`, then `make libs`, `make -C resize`, `make -C e2fsck e2fsck`, stripped |
 | `libdropbear.so` | dropbearmulti (`dbclient`, `dropbearkey`), static bionic | [mkj/dropbear](https://github.com/mkj/dropbear) `DROPBEAR_2025.88`, see below |
 
 dropbear build (NDK r29):

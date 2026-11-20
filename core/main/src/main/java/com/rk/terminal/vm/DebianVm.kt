@@ -68,9 +68,19 @@ object DebianVm {
     }
     fun setSpec(ctx: Context, s: Spec) {
         prefs(ctx).edit().putInt("cpus", s.cpus).putInt("mem", s.memMb)
-            .putInt("swap", s.swapMb).putInt("disk", maxOf(s.diskGb, diskGb(ctx))).apply()
+            .putInt("swap", s.swapMb).putInt("disk", maxOf(s.diskGb, minDiskGb(ctx))).apply()
+        // Shrinking is explicit and done once, before the next boot; a smaller disk
+        // would only be grown back, so automatic expansion goes off.
+        if (s.diskGb < diskGb(ctx)) {
+            prefs(ctx).edit().putInt("shrink", maxOf(s.diskGb, minDiskGb(ctx))).apply()
+            setAutoExpand(ctx, false)
+        } else prefs(ctx).edit().remove("shrink").apply()
     }
     fun diskGb(ctx: Context) = (disk(ctx).length() shr 30).toInt()
+    /** Bytes the sparse disk really holds on the phone. */
+    fun diskUsed(ctx: Context) = try { android.system.Os.stat(disk(ctx).path).st_blocks * 512 } catch (_: Exception) { 0L }
+    /** Smallest size the disk may be shrunk to: what it holds plus 2 GB. */
+    fun minDiskGb(ctx: Context) = maxOf(4, ((diskUsed(ctx) + (1L shl 30) - 1) shr 30).toInt() + 2)
 
     // ---- options (from the AVF build's settings)
 
@@ -90,9 +100,7 @@ object DebianVm {
 
     /** Space the disk may take: its current use plus the phone's free space, less 2 GB for Android. */
     private fun expandTarget(ctx: Context): Long {
-        val d = disk(ctx)
-        val used = try { android.system.Os.stat(d.path).st_blocks * 512 } catch (_: Exception) { d.length() }
-        return ((used + dir(ctx).usableSpace - (2L shl 30)) shr 30) shl 30
+        return ((diskUsed(ctx) + dir(ctx).usableSpace - (2L shl 30)) shr 30) shl 30
     }
 
     @Volatile private var wake: android.os.PowerManager.WakeLock? = null
@@ -169,7 +177,11 @@ object DebianVm {
         portFile(app).writeText("$port\n")
         var want = sp.diskGb.toLong() shl 30
         if (autoExpand(app)) want = maxOf(want, expandTarget(app))
-        if (disk(app).length() < want) RandomAccessFile(disk(app), "rw").use { it.setLength(want) }
+        val shrinkTo = prefs(app).getInt("shrink", 0).toLong() shl 30
+        if (shrinkTo > 0 && shrinkTo < disk(app).length()) {
+            prefs(app).edit().remove("shrink").apply()
+            shrink(app, shrinkTo)
+        } else if (disk(app).length() < want) RandomAccessFile(disk(app), "rw").use { it.setLength(want) }
         val cmd = listOf(
             lib(app, "libumnet.so").path, "--passt", lib(app, "libpasst.so").path,
             "--tcp", "127.0.0.1/$port:22", "--",
@@ -198,6 +210,37 @@ object DebianVm {
                 status(app, "error: the VM stopped (exit ${p.exitValue()})")
             }
         }.start()
+    }
+
+    /** Shrink the (unmounted) ext4 disk to [size] bytes: e2fsck, resize2fs, truncate. */
+    private fun shrink(app: Context, size: Long) {
+        status(app, "Shrinking the disk to ${size shr 30} GB…")
+        fun run(vararg a: String): Pair<Int, String> {
+            val p = ProcessBuilder(*a).redirectErrorStream(true).start()
+            val out = p.inputStream.bufferedReader().readText()
+            return p.waitFor() to out.lines().filter { it.isNotBlank() }.takeLast(4).joinToString("\n")
+        }
+        val (fc, fout) = run(lib(app, "libe2fsck.so").path, "-fy", disk(app).path)
+        if (fc >= 4) throw IllegalStateException("e2fsck failed ($fc):\n$fout")
+        val (rc, rout) = run(lib(app, "libresize2fs.so").path, disk(app).path, "${size shr 20}M")
+        if (rc != 0) throw IllegalStateException("resize2fs failed, the disk is unchanged:\n$rout")
+        RandomAccessFile(disk(app), "rw").use { it.setLength(size) }
+        status(app, "booting")
+    }
+
+    /** fstrim in the guest: hands unused blocks back to the phone. */
+    fun trim(ctx: Context): String {
+        val app = ctx.applicationContext
+        if (!running) return "The VM is not running"
+        val before = diskUsed(app)
+        val p = ProcessBuilder(
+            lib(app, "libdropbear.so").path, "dbclient", "-y", "-i", key(app).path,
+            "-p", "${port(app)}", "-T", "root@127.0.0.1", "fstrim -a",
+        ).also { it.environment()["HOME"] = dir(app).path }.redirectErrorStream(true).start()
+        val out = p.inputStream.bufferedReader().readText()
+        if (p.waitFor() != 0) return "fstrim failed: ${out.lines().lastOrNull { it.isNotBlank() } ?: ""}"
+        val freed = (before - diskUsed(app)).coerceAtLeast(0)
+        return "Freed ${freed shr 20} MB"
     }
 
     /** Power the guest off (sessions die with it). */
