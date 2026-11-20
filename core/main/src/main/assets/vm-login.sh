@@ -13,7 +13,9 @@ share() {
   printf '%s\n' 'set -e
 mountpoint -q /mnt/media && exit 0
 mkdir -p /mnt/media
-mount -t hostfs none /mnt/media -o "$1"
+# libmount uses fsconfig, where the path is the "hostfs" key; old mount(2) takes it bare.
+mount -t hostfs none /mnt/media -o hostfs="$1" 2>/dev/null ||
+  LIBMOUNT_FORCE_MOUNT2=always mount -t hostfs none /mnt/media -o "$1"
 g=$(stat -c %g /mnt/media)
 n=$(getent group "$g" | cut -d: -f1)
 [ -n "$n" ] || { n=media; groupadd -g "$g" "$n"; }
@@ -53,9 +55,10 @@ while :; do
     booted)
       console
       if probe </dev/null >/dev/null 2>"$D/probe.err"; then
-        share || printf 'Could not mount phone storage at /mnt/media\n'
+        err=$(share 2>&1) || err="Could not mount phone storage at /mnt/media: $err"
         trim
         printf '\033[2J\033[H'
+        [ -z "$err" ] || printf '%s\n' "$err"
         break
       fi
       n=$((n + 1))
