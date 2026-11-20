@@ -46,8 +46,8 @@ import java.io.File
 import java.math.RoundingMode
 import java.text.DecimalFormat
 
-private const val MIN_TEXT_SIZE = 10f
-private const val MAX_TEXT_SIZE = 20f
+private const val MIN_TEXT_SIZE = 6f
+private const val MAX_TEXT_SIZE = 40f
 
 @Composable
 fun Customization(

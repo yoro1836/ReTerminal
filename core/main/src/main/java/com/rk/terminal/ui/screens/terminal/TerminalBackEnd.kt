@@ -95,10 +95,23 @@ class TerminalBackEnd(
         Log.e(tag ?: "Terminal", "Stack trace", e)
     }
 
+    // TerminalView passes the pinch's cumulative factor (starting at 1). Step the
+    // font size by 1 dp each time it passes +-10% and start over from 1, like
+    // Termux; the size is saved so it survives leaving the app.
     override fun onScale(scale: Float): Float {
-        val fontScale = scale.coerceIn(11f, 45f)
-        terminal.setTextSize(fontScale.toInt())
-        return fontScale
+        if (scale in 0.9f..1.1f) return scale
+        val cur = Settings.terminal_font_size
+        val next = (cur + if (scale > 1f) 1 else -1).coerceIn(MIN_FONT_DP, MAX_FONT_DP)
+        if (next != cur) {
+            Settings.terminal_font_size = next
+            terminal.setTextSize(com.rk.libcommons.dpToPx(next.toFloat(), activity))
+        }
+        return 1f
+    }
+
+    companion object {
+        const val MIN_FONT_DP = 6
+        const val MAX_FONT_DP = 40
     }
 
     private val isHardwareKeyboardConnected: Boolean
