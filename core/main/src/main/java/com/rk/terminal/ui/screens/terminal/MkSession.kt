@@ -59,7 +59,8 @@ object MkSession {
 
             val args: Array<String>
             val shell = if (pendingCommand == null) {
-                args = if (workingMode == WorkingMode.DEBIAN_VM) arrayOf(vmLogin.absolutePath) else arrayOf()
+                // argv[0] first (termux execs args as the whole argv).
+                args = if (workingMode == WorkingMode.DEBIAN_VM) arrayOf("sh", vmLogin.absolutePath) else arrayOf()
                 "/system/bin/sh"
             } else {
                 args = pendingCommand.args
@@ -81,7 +82,7 @@ object MkSession {
         val scriptFile = File(custom.shellPath)
         return PendingCommand(
             shell = "/system/bin/sh",
-            args = arrayOf("-c", scriptFile.absolutePath),
+            args = arrayOf("sh", "-c", scriptFile.absolutePath),
             workingDir = scriptFile.parentFile?.absolutePath ?: "/sdcard/ReTerminal",
             env = null
         )
@@ -97,9 +98,9 @@ object MkSession {
         return PendingCommand(
             shell = "/system/bin/sh",
             args = if (custom != null) {
-                arrayOf("-c", "'${custom.shellPath}' '${script.absolutePath}'")
+                arrayOf("sh", "-c", "'${custom.shellPath}' '${script.absolutePath}'")
             } else {
-                arrayOf("-c", script.absolutePath)
+                arrayOf("sh", "-c", script.absolutePath)
             },
             workingDir = workingDir,
             env = null
