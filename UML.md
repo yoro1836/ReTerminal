@@ -51,7 +51,7 @@ claude-phone's `cp-debian-2` by renaming its `claude` user and boot service.
 
 ## Kernel modules
 
-`assets/uml-modules.tar.gz` is `make modules_install INSTALL_MOD_STRIP=1` of the same
+`assets/uml-modules.tar` (not .gz: aapt strips that suffix) is `make modules_install INSTALL_MOD_STRIP=1` of the same
 build (`lib/modules/<release>`, `build` link removed); `assets/uml-modules.stamp` is the
 first 12 hex of the kernel's md5. The app copies the tarball to `files/vm` when the stamp
 changes, and `vm-login.sh` unpacks it into the guest's `/lib/modules` as root when the
