@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - dev
+      - 'claude/**'
     paths-ignore:
       - '**/*.md'
   workflow_dispatch:

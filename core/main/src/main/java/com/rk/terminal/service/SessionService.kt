@@ -130,6 +130,7 @@ class SessionService : Service() {
 
     override fun onDestroy() {
         sessions.values.forEach { it.finishIfRunning() }
+        com.rk.terminal.vm.DebianVm.stop(this)
         super.onDestroy()
     }
 

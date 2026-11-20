@@ -1,5 +1,7 @@
 package com.rk.terminal.ui.screens.settings
 
+import com.rk.terminal.vm.DebianVm
+import com.rk.terminal.vm.DebianVmSpec
 import android.content.Intent
 import android.os.Build
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -65,6 +67,7 @@ fun SettingsCard(
 object WorkingMode {
     const val ALPINE = 0
     const val ANDROID = 1
+    const val DEBIAN_VM = 2
 }
 
 object InputMode {
@@ -123,6 +126,16 @@ fun Settings(
                 selectedWorkingMode = WorkingMode.ANDROID
                 Settings.working_Mode = WorkingMode.ANDROID
             }
+            if (DebianVm.supported(context)) WorkingModeOption(
+                title = "Debian VM",
+                description = "Debian in a real Linux kernel (UML), no root",
+                selected = !defaultIsCustom && selectedWorkingMode == WorkingMode.DEBIAN_VM
+            ) {
+                defaultIsCustom = false
+                Settings.default_is_custom = false
+                selectedWorkingMode = WorkingMode.DEBIAN_VM
+                Settings.working_Mode = WorkingMode.DEBIAN_VM
+            }
             customSessions.forEach { session ->
                 WorkingModeOption(
                     title = session.name,
@@ -135,6 +148,10 @@ fun Settings(
                     CustomSessions.setDefault(session.id)
                 }
             }
+        }
+
+        if (DebianVm.supported(context)) PreferenceGroup(heading = "Debian VM") {
+            DebianVmSpec()
         }
 
         PreferenceGroup(heading = "Execution Mode") {

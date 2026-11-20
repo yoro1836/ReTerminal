@@ -1,5 +1,6 @@
 package com.rk.terminal.ui.screens.terminal
 
+import com.rk.terminal.vm.DebianVm
 import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
@@ -200,6 +201,11 @@ private fun AddSessionDialog(
                 title = { Text("Android") },
                 description = { Text(stringResource(strings.android_desc)) },
                 onClick = { onCreateSession(WorkingMode.ANDROID) }
+            )
+            if (DebianVm.supported()) SettingsCard(
+                title = { Text("Debian VM") },
+                description = { Text("Debian in a real Linux kernel (UML), no root") },
+                onClick = { onCreateSession(WorkingMode.DEBIAN_VM) }
             )
             customSessions.forEach { session ->
                 SettingsCard(

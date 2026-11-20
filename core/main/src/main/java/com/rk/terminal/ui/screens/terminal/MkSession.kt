@@ -1,5 +1,6 @@
 package com.rk.terminal.ui.screens.terminal
 
+import com.rk.terminal.vm.DebianVm
 import android.content.Context
 import com.rk.libcommons.alpineHomeDir
 import com.rk.libcommons.child
@@ -124,9 +125,21 @@ object MkSession {
                 env.addAll(it)
             }
 
+            val vmLogin = localBinDir().child("vm-login")
+            if (workingMode == WorkingMode.DEBIAN_VM) {
+                // Rewritten every time: it is small and follows the app version.
+                vmLogin.createFileIfNot()
+                vmLogin.writeText(assets.open("vm-login.sh").bufferedReader().use { it.readText() })
+                env.add("VM_DIR=${DebianVm.dir(this).absolutePath}")
+                env.add("VM_PORT=${DebianVm.PORT}")
+                DebianVm.ensure(this)
+            }
+
             val args: Array<String>
             val shell = if (pendingCommand == null) {
-                args = if (workingMode == WorkingMode.ALPINE) {
+                args = if (workingMode == WorkingMode.DEBIAN_VM) {
+                    arrayOf(vmLogin.absolutePath)
+                } else if (workingMode == WorkingMode.ALPINE) {
                     val targetInit = if (useChroot) initChrootFile else initFile
                     arrayOf("-c",targetInit.absolutePath)
                 } else {
