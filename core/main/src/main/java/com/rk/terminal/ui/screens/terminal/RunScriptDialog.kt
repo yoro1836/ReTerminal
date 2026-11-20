@@ -33,7 +33,7 @@ fun RunScriptDialog(
     onRun: (Int, CustomSession?) -> Unit
 ) {
     val customSessions = remember { CustomSessions.getAll() }
-    var selectedMode by remember { mutableIntStateOf(WorkingMode.ALPINE) }
+    var selectedMode by remember { mutableIntStateOf(WorkingMode.ANDROID) }
     var selectedCustom by remember { mutableStateOf<CustomSession?>(null) }
     var selectedIsCustom by remember { mutableStateOf(false) }
 
@@ -60,11 +60,6 @@ fun RunScriptDialog(
                 )
                 Spacer(Modifier.height(8.dp))
                 ScriptSessionOption(
-                    title = "Alpine",
-                    description = stringResource(strings.alpine_desc),
-                    selected = !selectedIsCustom && selectedMode == WorkingMode.ALPINE
-                ) { select(WorkingMode.ALPINE, null, false) }
-                ScriptSessionOption(
                     title = "Android",
                     description = stringResource(strings.android_desc),
                     selected = !selectedIsCustom && selectedMode == WorkingMode.ANDROID
@@ -74,7 +69,7 @@ fun RunScriptDialog(
                         title = session.name,
                         description = session.shellPath,
                         selected = selectedIsCustom && selectedCustom?.id == session.id
-                    ) { select(WorkingMode.ALPINE, session, true) }
+                    ) { select(WorkingMode.ANDROID, session, true) }
                 }
             }
         },

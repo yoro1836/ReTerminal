@@ -16,9 +16,7 @@ import com.rk.terminal.ui.activities.terminal.MainActivity
 import com.rk.terminal.ui.animations.NavigationAnimationTransitions
 import com.rk.terminal.ui.routes.MainActivityRoutes
 import com.rk.terminal.ui.screens.customization.Customization
-import com.rk.terminal.ui.screens.downloader.SetupScreen
 import com.rk.terminal.ui.screens.settings.Settings
-import com.rk.terminal.ui.screens.terminal.Rootfs
 import com.rk.terminal.ui.screens.terminal.TerminalScreen
 
 @Composable
@@ -40,7 +38,7 @@ fun MainActivityNavHost(
         modifier = modifier
     ) {
         composable(MainActivityRoutes.MainScreen.route) {
-            if (Rootfs.isInstalled.value) {
+            run {
                 val config = LocalConfiguration.current
                 val show = if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) {
                     horizontalStatusBar
@@ -49,8 +47,6 @@ fun MainActivityNavHost(
                 }
                 UpdateStatusBar(mainActivity.window, show)
                 TerminalScreen(mainActivity = mainActivity, navController = navController)
-            } else {
-                SetupScreen(mainActivity = mainActivity, navController = navController)
             }
         }
         

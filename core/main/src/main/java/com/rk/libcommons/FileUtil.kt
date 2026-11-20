@@ -14,32 +14,8 @@ fun Context.localDir(): File {
     }
 }
 
-fun Context.alpineDir(): File {
-    return localDir().child("alpine").also {
-        if (!it.exists()) {
-            it.mkdirs()
-        }
-    }
-}
-
-fun Context.alpineHomeDir(): File {
-    return alpineDir().child("root").also {
-        if (!it.exists()) {
-            it.mkdirs()
-        }
-    }
-}
-
 fun Context.localBinDir(): File {
     return localDir().child("bin").also {
-        if (!it.exists()) {
-            it.mkdirs()
-        }
-    }
-}
-
-fun Context.localLibDir(): File {
-    return localDir().child("lib").also {
         if (!it.exists()) {
             it.mkdirs()
         }

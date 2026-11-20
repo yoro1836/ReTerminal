@@ -13,7 +13,7 @@ Download the latest APK from the [Releases Section](https://github.com/RohitKush
 - [x] Basic Terminal
 - [x] Virtual Keys
 - [x] Multiple Sessions
-- [x] Alpine Linux support
+- [x] Debian VM on a real Linux kernel (UML, arm64, no root) — see [UML.md](UML.md)
 - [x] Configurable Keyboard Shortcuts (Paste, Session Management)
 
 # Screenshots
