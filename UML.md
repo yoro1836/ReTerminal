@@ -16,7 +16,7 @@ exec from its native lib dir, hence the `lib*.so` names):
 
 | file | what | from |
 |---|---|---|
-| `libuml.so`, `libumstub.so` | Linux 7.3.1 UML kernel + its process stub, bionic static | [Raymer8639/linux-um-arm64](https://github.com/Raymer8639/linux-um-arm64) `um-arm64-v0.4.2` + `tools/uml/uml-arm64-fastpath.patch` (fastpath, memfd, stub zygote, SMP), built by its `tools/um-arm64/harness/build-bionic.sh` (NDK r29) with `EXTRA_CONFIG="tools/um-arm64/config/docker.config <this repo>/tools/uml/reterminal.config"` |
+| `libuml.so`, `libumstub.so` | Linux 7.3.1 UML kernel + its process stub, bionic static | [Raymer8639/linux-um-arm64](https://github.com/Raymer8639/linux-um-arm64) `um-arm64-v0.4.2` + `tools/uml/uml-arm64-fastpath.patch` (fastpath, memfd, stub zygote, SMP) + `tools/uml/uml-arm64-modules.patch` (exports bionic string functions, modpost accepts `kernel_` renames), built by its `tools/um-arm64/harness/build-bionic.sh` (NDK r29) with `EXTRA_CONFIG="tools/um-arm64/config/docker.config <this repo>/tools/uml/reterminal.config"` |
 | `libumnet.so` | fd transport <-> passt framing | `tools/uml/umnet.c` in yoro1836/claude-phone |
 | `libpasst.so` | passt, the guest's userspace network | [Raymer8639/passt-android](https://github.com/Raymer8639/passt-android) v0.4.1 |
 | `libe2fsck.so`, `libresize2fs.so` | e2fsprogs e2fsck + resize2fs, static bionic, used to shrink the disk while the VM is off | [tytso/e2fsprogs](https://github.com/tytso/e2fsprogs) `v1.47.3`, `configure --host=aarch64-linux-android --disable-nls --disable-fuse2fs --disable-uuidd --disable-defrag --disable-imager --disable-debugfs --disable-tdb --disable-e2initrd-helper --without-libarchive --disable-elf-shlibs` with `LDFLAGS=-static`, then `make libs`, `make -C resize`, `make -C e2fsck e2fsck`, stripped |
@@ -48,3 +48,11 @@ resolved) + openssh-server, sudo, e2fsprogs; hostname `reterminal`, user
 line: `rtkey=` (base64 SSH public key, for root and debian) and `rtswap=` (swap
 file MB), and grows the filesystem into the sparse disk. It was derived from
 claude-phone's `cp-debian-2` by renaming its `claude` user and boot service.
+
+## Kernel modules
+
+`assets/uml-modules.tar.gz` is `make modules_install INSTALL_MOD_STRIP=1` of the same
+build (`lib/modules/<release>`, `build` link removed); `assets/uml-modules.stamp` is the
+first 12 hex of the kernel's md5. The app copies the tarball to `files/vm` when the stamp
+changes, and `vm-login.sh` unpacks it into the guest's `/lib/modules` as root when the
+guest's `/lib/modules/.rt-stamp` differs. `modprobe` needs the `kmod` package.

@@ -1,0 +1,51 @@
+diff --git a/arch/um/os-Linux/user_syms.c b/arch/um/os-Linux/user_syms.c
+index 2104ac8c4..4d57f426f 100644
+--- a/arch/um/os-Linux/user_syms.c
++++ b/arch/um/os-Linux/user_syms.c
+@@ -48,6 +48,26 @@ extern void *memset(void *, int, size_t);
+ EXPORT_SYMBOL(memset);
+ #endif
+ 
++/*
++ * arm64 on bionic: <asm/string.h> sets __HAVE_ARCH_* so the kernel uses
++ * bionic's optimised string functions and lib/string.c does not build (or
++ * export) them. Modules need them exported from here.
++ */
++#if defined(__aarch64__) && defined(__ANDROID__)
++EXPORT_SYMBOL(memcpy);
++EXPORT_SYMBOL(memset);
++EXPORT_SYMBOL(memmove);
++EXPORT_SYMBOL(memcmp);
++EXPORT_SYMBOL(memchr);
++EXPORT_SYMBOL(strcmp);
++EXPORT_SYMBOL(strcpy);
++EXPORT_SYMBOL(strchr);
++EXPORT_SYMBOL(strchrnul);
++EXPORT_SYMBOL(strlen);
++EXPORT_SYMBOL(strncmp);
++EXPORT_SYMBOL(strnlen);
++#endif
++
+ #ifdef _FORTIFY_SOURCE
+ extern int __sprintf_chk(char *str, int flag, size_t len, const char *format);
+ EXPORT_SYMBOL(__sprintf_chk);
+diff --git a/scripts/mod/modpost.c b/scripts/mod/modpost.c
+index 75374c64b..0f1a0e221 100644
+--- a/scripts/mod/modpost.c
++++ b/scripts/mod/modpost.c
+@@ -1112,6 +1112,15 @@ static void check_export_symbol(struct module *mod, struct elf_info *elf,
+ 	}
+ 
+ 	name = sym_name(elf, sym);
++	/*
++	 * UML on bionic renames kernel symbols that clash with libc to
++	 * kernel_<name> on the objects (scripts/link-vmlinux.sh), after
++	 * which __export_symbol_<name> references kernel_<name>. Export it
++	 * under the original name; the ksymtab object is renamed the same way.
++	 */
++	if (strstarts(name, "kernel_") &&
++	    !strcmp(label_name + strlen(prefix), name + strlen("kernel_")))
++		name = label_name + strlen(prefix);
+ 	if (strcmp(label_name + strlen(prefix), name)) {
+ 		mod_error(mod, ".export_symbol section references '%s', but it does not seem to be an export symbol\n",
+ 			  name);

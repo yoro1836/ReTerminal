@@ -35,6 +35,25 @@ object DebianVm {
     fun supported(ctx: Context = application!!) = lib(ctx, "libuml.so").exists()
 
     fun dir(ctx: Context) = File(ctx.filesDir, "vm")
+
+    /**
+     * Kernel modules for the guest: assets/uml-modules.tar.gz (lib/modules/<release>)
+     * copied to files/vm once per kernel build; vm-login.sh unpacks it as root.
+     * Returns the build stamp, or null when the APK has no modules.
+     */
+    fun modules(ctx: Context): String? {
+        val stamp = runCatching { ctx.assets.open("uml-modules.stamp").bufferedReader().use { it.readText().trim() } }
+            .getOrNull() ?: return null
+        val have = File(dir(ctx), "modules.stamp")
+        if (runCatching { have.readText().trim() }.getOrNull() != stamp) {
+            dir(ctx).mkdirs()
+            ctx.assets.open("uml-modules.tar.gz").use { i ->
+                File(dir(ctx), "modules.tar.gz").outputStream().use { i.copyTo(it) }
+            }
+            have.writeText(stamp)
+        }
+        return stamp
+    }
     private fun disk(ctx: Context) = File(dir(ctx), "debian.ext4")
     private fun log(ctx: Context) = File(dir(ctx), "console.log")
     fun key(ctx: Context) = File(dir(ctx), "id_dropbear")
