@@ -66,3 +66,13 @@ guest, bash opens `/dev/tcp/<gateway>/<port>` (passt maps the gateway to the pho
 loopback) and writes `<vhci port> 3 <devid> <speed>` to
 `/sys/devices/platform/vhci_hcd.0/attach`. Ports 0-7 are the USB 2 hub, 8-15 USB 3.
 USB core and vhci_hcd are built in; device drivers are modules (`kmod` + udev load them).
+
+## Rebuilding the kernel
+
+`tools/uml/build-kernel.sh` does the whole thing: clones Raymer's `um-arm64-v0.4.2`, applies
+`uml-arm64-fastpath.patch` (git am) and `uml-arm64-modules.patch`, builds the bionic kernel
+with `reterminal.config`, packs the modules tar, builds umusb, and copies the results into
+`jniLibs/arm64-v8a` (plus `assets/uml-modules.stamp`; `--no-install` skips that). Needs NDK
+r29 (`NDK=`) and clang, flex, bison, bc, libelf-dev, kmod. Work dir: `build/uml`.
+The `UML kernel` workflow runs it on GitHub (manually, or on pushes touching `tools/uml/`)
+and uploads the four libs and the stamp as the `uml-kernel` artifact.
