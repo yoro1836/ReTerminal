@@ -20,18 +20,14 @@ object TerminalUtils {
         hasCustomBackground.value = context.filesDir.child("background").exists()
     }
 
-    fun getViewColor(): Int = if (darkText.value) Color.BLACK else Color.WHITE
+    fun getViewColor(): Int =
+        if (!hasCustomBackground.value || !darkText.value) Color.WHITE else Color.BLACK
 
-    fun getBackgroundColor(): Int {
-        if (hasCustomBackground.value) {
-            return Color.TRANSPARENT
-        }
-        val baseColor = if (darkText.value) Color.WHITE else Color.BLACK
-        return androidx.core.graphics.ColorUtils.setAlphaComponent(baseColor, (255 * 0.3f).toInt())
-    }
+    fun getBackgroundColor(): Int =
+        if (hasCustomBackground.value) Color.TRANSPARENT else Color.BLACK
 
     fun getComposeColor(): androidx.compose.ui.graphics.Color =
-        if (darkText.value) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.White
+        androidx.compose.ui.graphics.Color(getViewColor())
 
     fun getNameOfWorkingMode(workingMode: Int?): String = when (workingMode) {
         1 -> "android"

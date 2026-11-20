@@ -33,15 +33,20 @@ fun TerminalViewLayout(
     sessionBinder: SessionService.SessionBinder,
     modifier: Modifier = Modifier
 ) {
+    val compositionRenderer = remember { TerminalCompositionRenderer() }
+    DisposableEffect(compositionRenderer) {
+        onDispose(compositionRenderer::close)
+    }
     Column(modifier = modifier) {
+      Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
         AndroidView(
             factory = { ctx ->
                 TerminalView(ctx, null).apply {
                     viewModel.setTerminalView(this)
                     setTextSize(dpToPx(Settings.terminal_font_size.toFloat(), ctx))
-                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    setBackgroundColor(TerminalUtils.getBackgroundColor())
 
-                    val client = TerminalBackEnd(this, mainActivity)
+                    val client = TerminalBackEnd(this, mainActivity) { viewModel.terminalImeView }
                     val service = sessionBinder.getService()
 
                     val session = sessionBinder.getSession(service.currentSession.value.first)
@@ -68,6 +73,7 @@ fun TerminalViewLayout(
                     attachSession(session)
                     setTerminalViewClient(client)
                     setTypeface(TerminalUtils.typeface)
+                    compositionRenderer.attach(this)
 
                     post {
                         val color = TerminalUtils.getViewColor()
@@ -91,8 +97,9 @@ fun TerminalViewLayout(
                     }
                 }
             },
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            modifier = Modifier.fillMaxSize(),
             update = { view ->
+                view.setBackgroundColor(TerminalUtils.getBackgroundColor())
                 view.onScreenUpdated()
                 val color = TerminalUtils.getViewColor()
                 val bgColor = TerminalUtils.getBackgroundColor()
@@ -103,6 +110,17 @@ fun TerminalViewLayout(
                 }
             }
         )
+        AndroidView(
+            factory = { ctx ->
+                TerminalImeEditText(ctx).apply {
+                    terminalProvider = { viewModel.terminalView }
+                    onCompositionChanged = compositionRenderer::setComposition
+                    viewModel.setTerminalImeView(this)
+                }
+            },
+            modifier = Modifier.align(androidx.compose.ui.Alignment.TopStart).size(1.dp),
+        )
+      }
 
         if (viewModel.showVirtualKeys) {
             VirtualKeysPager(viewModel)

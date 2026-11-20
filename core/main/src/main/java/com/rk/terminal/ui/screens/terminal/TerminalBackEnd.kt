@@ -28,7 +28,9 @@ import java.io.FileOutputStream
 class TerminalBackEnd(
     private val terminal: TerminalView,
     private val activity: MainActivity,
-    private val coroutineScope: CoroutineScope = activity.lifecycleScope
+    private val coroutineScope: CoroutineScope = activity.lifecycleScope,
+    /** Hidden EditText that takes IME input, so Hangul etc. compose properly. */
+    private val imeTarget: () -> TerminalImeEditText? = { null },
 ) : TerminalViewClient, TerminalSessionClient {
 
     private val terminalViewModel by lazy { ViewModelProvider(activity)[TerminalViewModel::class.java] }
@@ -158,7 +160,13 @@ class TerminalBackEnd(
     }
 
     private fun showSoftInput() {
-        terminal.requestFocus()
-        KeyboardUtils.showSoftInput(terminal)
+        val target = imeTarget()
+        if (target != null) {
+            target.showKeyboardAtCursor()
+            KeyboardUtils.showSoftInput(target)
+        } else {
+            terminal.requestFocus()
+            KeyboardUtils.showSoftInput(terminal)
+        }
     }
 }

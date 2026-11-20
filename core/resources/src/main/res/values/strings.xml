@@ -84,4 +84,6 @@
     <string name="move_down">Move Down</string>
     <string name="name_already_exists">A session with this name already exists</string>
     <string name="name_cannot_be_empty">Name cannot be empty</string>
+    <string name="stop_vm_title">Stop VM</string>
+    <string name="stop_vm_message">Stop the Debian virtual machine? All open Debian tabs will end.</string>
 </resources>

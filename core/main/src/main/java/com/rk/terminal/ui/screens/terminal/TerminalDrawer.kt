@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -102,6 +103,33 @@ fun TerminalDrawer(
                         keyboardController?.hide()
                     }) {
                         Icon(imageVector = Icons.Outlined.Settings, contentDescription = null)
+                    }
+
+                    // Stop-VM button: powers the Debian VM off; its tabs end.
+                    if (com.rk.terminal.vm.DebianVm.supported()) {
+                        var vmStopping by remember { mutableStateOf(false) }
+                        var showStopConfirm by remember { mutableStateOf(false) }
+                        IconButton(enabled = !vmStopping, onClick = { showStopConfirm = true }) {
+                            Icon(imageVector = Icons.Outlined.PowerSettingsNew, contentDescription = stringResource(strings.stop_vm_title))
+                        }
+                        if (showStopConfirm) {
+                            AlertDialog(
+                                onDismissRequest = { showStopConfirm = false },
+                                title = { Text(stringResource(strings.stop_vm_title)) },
+                                text = { Text(stringResource(strings.stop_vm_message)) },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        showStopConfirm = false
+                                        vmStopping = true
+                                        sessionBinder?.stopDebianVm()
+                                        vmStopping = false
+                                    }) { Text(stringResource(strings.stop_vm_title)) }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showStopConfirm = false }) { Text(stringResource(strings.cancel)) }
+                                },
+                            )
+                        }
                     }
 
                     // Add Session button

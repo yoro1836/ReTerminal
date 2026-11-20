@@ -1,5 +1,6 @@
 package com.rk.terminal.ui.screens.terminal
 
+import com.rk.settings.Settings
 import com.rk.terminal.vm.DebianVm
 import android.content.res.Configuration
 import android.graphics.BitmapFactory
@@ -133,7 +134,15 @@ fun TerminalScreen(
                     TerminalTopBar(
                         sessionBinder = sessionBinder,
                         onMenuClick = { scope.launch { drawerState.open() } },
-                        onAddClick = { showAddDialog = true },
+                        onAddClick = {
+                            // New tab of the default kind (the Debian VM), like the AVF build.
+                            val binder = sessionBinder ?: return@TerminalTopBar
+                            val terminal = terminalViewModel.terminalView ?: return@TerminalTopBar
+                            val id = generateUniqueSessionId(binder.getService().sessionList.keys.toList())
+                            binder.createSession(id, TerminalBackEnd(terminal, mainActivity) { terminalViewModel.terminalImeView }, Settings.working_Mode)
+                            terminalViewModel.changeSession(context, binder, id)
+                        },
+                        onAddLongClick = { showAddDialog = true },
                         color = TerminalUtils.getComposeColor()
                     )
                 }

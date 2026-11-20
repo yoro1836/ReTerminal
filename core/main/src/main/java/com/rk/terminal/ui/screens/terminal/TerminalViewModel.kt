@@ -27,6 +27,9 @@ class TerminalViewModel : ViewModel() {
     val virtualKeysView: VirtualKeysView? get() = virtualKeysViewRef.get()
 
     fun setTerminalView(view: TerminalView?) { terminalViewRef = WeakReference(view) }
+    private var terminalImeViewRef = WeakReference<TerminalImeEditText>(null)
+    val terminalImeView: TerminalImeEditText? get() = terminalImeViewRef.get()
+    fun setTerminalImeView(view: TerminalImeEditText?) { terminalImeViewRef = WeakReference(view) }
     fun setVirtualKeysView(view: VirtualKeysView?) { virtualKeysViewRef = WeakReference(view) }
 
     var bitmap by mutableStateOf<ImageBitmap?>(null)
@@ -48,7 +51,7 @@ class TerminalViewModel : ViewModel() {
     fun changeSession(context: Context, sessionBinder: SessionService.SessionBinder, sessionId: String) {
         val terminal = terminalView ?: return
         val activity = context as? MainActivity ?: return
-        val client = TerminalBackEnd(terminal, activity)
+        val client = TerminalBackEnd(terminal, activity) { terminalImeView }
 
         val session = sessionBinder.getSession(sessionId)
             ?: run {
@@ -63,7 +66,7 @@ class TerminalViewModel : ViewModel() {
             }
 
         session.updateTerminalSessionClient(client)
-        terminal.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        terminal.setBackgroundColor(TerminalUtils.getBackgroundColor())
         terminal.attachSession(session)
         terminal.setTerminalViewClient(client)
 

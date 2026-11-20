@@ -67,6 +67,13 @@ class SessionService : Service() {
 
         fun getSession(id: String): TerminalSession? = sessions[id]
 
+        /** Power the Debian VM off; its tabs end. */
+        fun stopDebianVm() {
+            com.rk.terminal.vm.DebianVm.stop(this@SessionService) {
+                if (sessions.isEmpty()) stopSelf()
+            }
+        }
+
         fun renameSession(oldId: String, newId: String): Boolean {
             val trimmed = newId.trim()
             if (trimmed.isEmpty()) return false
@@ -113,7 +120,8 @@ class SessionService : Service() {
             sessions.remove(id)
             sessionList.remove(id)
             sessionOrder.remove(id)
-            if (sessions.isEmpty()) {
+            // The VM outlives its tabs; stop it from the drawer or the notification.
+            if (sessions.isEmpty() && !com.rk.terminal.vm.DebianVm.running) {
                 stopSelf()
             } else {
                 updateNotification()
