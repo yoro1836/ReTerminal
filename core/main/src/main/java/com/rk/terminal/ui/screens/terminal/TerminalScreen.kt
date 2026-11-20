@@ -5,6 +5,7 @@ import com.rk.terminal.vm.DebianVm
 import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -85,7 +86,9 @@ fun TerminalScreen(
         scope.launch { drawerState.close() }
     }
 
-    val isDarkIcons = if (drawerState.isClosed) TerminalUtils.darkText.value else !isDarkActive
+    val isDarkIcons = if (drawerState.isClosed)
+        TerminalUtils.hasCustomBackground.value && TerminalUtils.darkText.value
+    else !isDarkActive
     SetStatusBarTextColor(isDarkIcons = isDarkIcons)
 
     if (showAddDialog && sessionBinder != null) {
@@ -126,7 +129,20 @@ fun TerminalScreen(
             )
         }
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // Without a custom background the terminal is black, so the whole screen
+        // (top bar, extra keys) is drawn dark even when the app is in light mode.
+        val plain = !TerminalUtils.hasCustomBackground.value
+        val screenScheme = if (plain) darkColorScheme(
+            primary = MaterialTheme.colorScheme.inversePrimary,
+            background = androidx.compose.ui.graphics.Color.Black,
+            surface = androidx.compose.ui.graphics.Color.Black,
+        ) else MaterialTheme.colorScheme
+        MaterialTheme(colorScheme = screenScheme) {
+        Box(
+            modifier = Modifier.fillMaxSize()
+                .background(if (plain) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.Transparent),
+            contentAlignment = Alignment.Center,
+        ) {
             BackgroundImage(terminalViewModel)
 
             Column {
@@ -165,6 +181,7 @@ fun TerminalScreen(
                     )
                 }
             }
+        }
         }
     }
 }
