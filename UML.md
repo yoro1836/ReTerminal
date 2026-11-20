@@ -5,10 +5,10 @@ Linux, arm64) as plain app processes: no root, no proot. Code:
 `core/main/src/main/java/com/rk/terminal/vm/DebianVm.kt` and
 `core/main/src/main/assets/vm-login.sh`.
 
-The first tab downloads the disk image (`cp-debian-N.ext4.gz`, ~190 MB) into
+The first tab downloads the disk image (`rt-debian-N.ext4.gz`, ~170 MB) into
 `files/vm/debian.ext4` (sparse) and boots the VM once. Every tab is an SSH
 session (dropbear `dbclient`, key in `files/vm/id_dropbear`) to the guest's
-sshd as `debian` (sudo without a password; the tab script creates it and sets the hostname `reterminal` on the first connect), which passt forwards to a free `127.0.0.1` port picked at boot (`files/vm/port`). The VM powers off when the
+sshd as `debian`, which passt forwards to a free `127.0.0.1` port picked at boot (`files/vm/port`). The VM powers off when the
 last session closes. Cores, memory, swap and disk are in Settings.
 
 Prebuilt binaries in `core/main/src/main/jniLibs/arm64-v8a/` (an app may only
@@ -40,6 +40,10 @@ make PROGRAMS="dbclient dropbearkey" MULTI=1 STATIC=1
 llvm-strip -o libdropbear.so dropbearmulti
 ```
 
-The image is the claude-phone one: LXC Debian trixie arm64 + openssh-server,
-sudo, user `claude`; its boot service installs the `cpkey=` key for root and
-claude, makes a `cpswap=` MB swap file and grows the filesystem to the disk.
+The image (`rt-debian-1`) is LXC Debian trixie arm64 (systemd, networkd,
+resolved) + openssh-server, sudo, e2fsprogs; hostname `reterminal`, user
+`debian` (passwordless sudo), root autologin on the console.
+`reterminal-boot.service` reads the app's settings from the kernel command
+line: `rtkey=` (base64 SSH public key, for root and debian) and `rtswap=` (swap
+file MB), and grows the filesystem into the sparse disk. It was derived from
+claude-phone's `cp-debian-2` by renaming its `claude` user and boot service.

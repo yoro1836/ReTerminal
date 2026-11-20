@@ -28,8 +28,8 @@ import java.util.zip.GZIPInputStream
  */
 object DebianVm {
     /** Bump with the image; an older disk is then reinstalled. */
-    private const val IMAGE = 2
-    private const val IMAGE_URL = "https://github.com/yoro1836/ReTerminal/releases/download/cp-debian-$IMAGE/cp-debian-$IMAGE.ext4.gz"
+    private const val IMAGE = 1
+    private const val IMAGE_URL = "https://github.com/yoro1836/ReTerminal/releases/download/rt-debian-$IMAGE/rt-debian-$IMAGE.ext4.gz"
 
     private fun lib(ctx: Context, n: String) = File(ctx.applicationInfo.nativeLibraryDir, n)
     fun supported(ctx: Context = application!!) = lib(ctx, "libuml.so").exists()
@@ -45,7 +45,7 @@ object DebianVm {
     /** Another app (or a stale VM) may hold any fixed port, so take a free one. */
     private fun freePort() = java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { it.localPort }
     fun installed(ctx: Context) = try {
-        File(dir(ctx), ".ready").readText().trim() == "$IMAGE"
+        File(dir(ctx), ".ready").readText().trim() == "rt-$IMAGE"
     } catch (_: Exception) { false }
 
     // ---- spec (applied on the next boot)
@@ -141,7 +141,7 @@ object DebianVm {
             "con=null", "con0=fd:0,fd:1",
             "stub_exe=" + lib(app, "libumstub.so").path,
             "ubd0=" + disk(app).path, "root=/dev/ubda", "rw",
-            "cpkey=$pub", "cpswap=${sp.swapMb}",
+            "rtkey=$pub", "rtswap=${sp.swapMb}",
         )
         val pb = ProcessBuilder(cmd).directory(dir(app)).redirectErrorStream(true)
             .redirectOutput(log(app))
@@ -190,7 +190,7 @@ object DebianVm {
         val d = dir(ctx)
         d.listFiles()?.forEach { if (it.name != "status") it.deleteRecursively() }
         d.mkdirs()
-        val gz = File(ctx.cacheDir, "debian.ext4.gz")
+        val gz = File(ctx.cacheDir, "rt-debian-$IMAGE.ext4.gz")
         download(ctx, gz)
         status(ctx, "Creating the disk…")
         val tmp = File(d, "debian.ext4.part")
@@ -219,7 +219,7 @@ object DebianVm {
         }
         gz.delete()
         if (!tmp.renameTo(disk(ctx))) throw IllegalStateException("Could not create the disk")
-        File(d, ".ready").writeText("$IMAGE\n")
+        File(d, ".ready").writeText("rt-$IMAGE\n")
     }
 
     private inline fun ByteArray.any(n: Int, p: (Byte) -> Boolean): Boolean {
