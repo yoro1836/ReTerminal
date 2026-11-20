@@ -1,0 +1,2257 @@
+From 122de0338bebb3e2117380206901c9d51aaa6ad2 Mon Sep 17 00:00:00 2001
+From: t <t@t>
+Date: Fri, 20 Nov 2026 06:29:49 +0000
+Subject: [PATCH 1/6] um/arm64: syscall-site fast path (wip)
+
+---
+ arch/arm64/um/Kconfig                       |  11 +
+ arch/arm64/um/Makefile                      |   2 +
+ arch/arm64/um/fastpath.c                    | 293 ++++++++++++++++++++
+ arch/arm64/um/shared/sysdep/stub-fastpath.h | 293 ++++++++++++++++++++
+ arch/arm64/um/shared/sysdep/stub.h          |   9 +
+ arch/um/include/asm/mmu.h                   |  11 +
+ arch/um/include/shared/skas/stub-data.h     |  12 +
+ arch/um/kernel/skas/mmu.c                   |   8 +
+ arch/um/kernel/skas/stub.c                  |  39 ++-
+ arch/um/kernel/skas/stub_exe.c              |  24 +-
+ arch/um/kernel/skas/syscall.c               |   4 +
+ arch/x86/um/shared/sysdep/stub_32.h         |   1 +
+ arch/x86/um/shared/sysdep/stub_64.h         |   1 +
+ 13 files changed, 697 insertions(+), 11 deletions(-)
+ create mode 100644 arch/arm64/um/fastpath.c
+ create mode 100644 arch/arm64/um/shared/sysdep/stub-fastpath.h
+
+diff --git a/arch/arm64/um/Kconfig b/arch/arm64/um/Kconfig
+index b9efdab28288..d7e5e9a70b04 100644
+--- a/arch/arm64/um/Kconfig
++++ b/arch/arm64/um/Kconfig
+@@ -104,3 +104,14 @@ config GENERIC_CSUM
+ # exist for a UML guest, which is an ordinary userspace process. The subarch
+ # advertises itself as UML_ARM64 instead, exactly as x86 UML would if it were
+ # written today, and selects the individual capabilities it really has.
++
++config UML_FASTPATH
++	bool "Rewrite hot guest syscall sites (SECCOMP mode)"
++	default y
++	help
++	  In SECCOMP mode every guest syscall costs a host SIGSYS delivery and
++	  an rt_sigreturn on top of the stub<->kernel handoff. With this, a
++	  "mov w8, #nr; svc #0" site that has trapped 64 times is rewritten
++	  (copy-on-write, in that process only) to branch into a trampoline
++	  that enters the stub directly. Same idea as tawcroot's
++	  TAWCROOT_FASTPATH. Boot with fastpath=0 to turn it off.
+diff --git a/arch/arm64/um/Makefile b/arch/arm64/um/Makefile
+index 751ffdb72997..dbfb943243f8 100644
+--- a/arch/arm64/um/Makefile
++++ b/arch/arm64/um/Makefile
+@@ -8,6 +8,8 @@ obj-y = bugs.o cpuinfo.o delay.o fault.o mem.o ptrace.o \
+ 	sys_call_table.o sysrq.o tls.o \
+ 	subarch.o os-Linux/ vdso/
+ 
++obj-$(CONFIG_UML_FASTPATH) += fastpath.o
++
+ # Module loading is the parent architecture's, reused rather than reimplemented.
+ # The relocation types, the PLT veneers and the immediate-field encoders are
+ # properties of the aarch64 ELF ABI and of the instruction set, not of how the
+diff --git a/arch/arm64/um/fastpath.c b/arch/arm64/um/fastpath.c
+new file mode 100644
+index 000000000000..b120da2320f7
+--- /dev/null
++++ b/arch/arm64/um/fastpath.c
+@@ -0,0 +1,293 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Syscall-site fast path, kernel half (CONFIG_UML_FASTPATH).
++ *
++ * Counts SECCOMP-mode guest syscalls per call site and, once a site has
++ * trapped FP_THRESHOLD times, rewrites its "svc #0" into a branch to a
++ * trampoline slot that enters the stub without a host signal. The stub half,
++ * and the slot layout, are described in <sysdep/stub-fastpath.h>.
++ *
++ * Both writes go through FOLL_FORCE, like a debugger's breakpoint: the site's
++ * page is copied on write in this mm only, so the file and every other
++ * process keep the original instruction. Slots live in anonymous r-x pages
++ * mapped within branch range of the site, which fork() copies like any other
++ * memory, so a child inherits patched sites together with their slots.
++ *
++ * Only "mov {w,x}8, #nr; svc #0" sites are patched, so the number at a patched
++ * site is fixed. Calls that replace or end the whole register state are left
++ * alone; everything else is safe because the stub falls back to a real
++ * rt_sigreturn whenever the kernel resumes anywhere but right after the site.
++ */
++#include <linux/kernel.h>
++#include <linux/init.h>
++#include <linux/mm.h>
++#include <linux/mman.h>
++#include <linux/highmem.h>
++#include <linux/slab.h>
++#include <linux/spinlock.h>
++#include <linux/mutex.h>
++#include <linux/hash.h>
++#include <linux/sched.h>
++#include <linux/uaccess.h>
++#include <linux/ptrace.h>
++#include <linux/security.h>
++#include <asm/mmu.h>
++#include <asm/unistd.h>
++#include <as-layout.h>
++#include <init.h>
++#include <skas.h>
++
++#define FP_THRESHOLD	64
++#define FP_SITES	256	/* per mm, open addressing */
++#define FP_PROBE	8
++#define FP_DONE		UINT_MAX
++#define FP_MAX_PAGES	16
++#define FP_SLOT_SIZE	32
++#define FP_SLOTS	((PAGE_SIZE - 8) / FP_SLOT_SIZE)
++#define FP_RANGE	(120UL << 20)	/* b reaches +-128 MiB */
++
++#define INSN_SVC0	0xd4000001u
++#define INSN_MOVZ_W8	0x52800008u
++#define INSN_MOVZ_X8	0xd2800008u
++
++struct um_fastpath {
++	spinlock_t lock;	/* site table */
++	struct mutex patch;	/* slot pages; patching sleeps */
++	unsigned int npages;
++	unsigned long page[FP_MAX_PAGES];
++	unsigned int used[FP_MAX_PAGES];
++	unsigned long site[FP_SITES];
++	unsigned int count[FP_SITES];
++};
++
++extern char __syscall_stub_start[];
++extern char stub_fast_entry[];
++
++static int fastpath_on = 1;
++static unsigned long fastpath_patched;
++
++static int __init uml_fastpath_setup(char *line, int *add)
++{
++	fastpath_on = simple_strtoul(line, NULL, 0) != 0;
++	return 0;
++}
++__uml_setup("fastpath=", uml_fastpath_setup,
++"fastpath=<0|1>\n"
++"    In SECCOMP mode, rewrite guest syscall sites that trap often so they\n"
++"    enter the stub without a host signal. Default: 1.\n\n");
++
++static bool fp_excluded(long nr)
++{
++	switch (nr) {
++	case __NR_rt_sigreturn:
++	case __NR_clone:
++	case __NR_clone3:
++	case __NR_execve:
++	case __NR_execveat:
++	case __NR_exit:
++	case __NR_exit_group:
++		return true;
++	}
++	return nr < 0 || nr > 0xffff;
++}
++
++/* Write @len bytes of code into @mm at @addr, breaking COW as ptrace would. */
++static int fp_poke(struct mm_struct *mm, unsigned long addr,
++		   const void *buf, size_t len)
++{
++	struct page *page;
++	void *k;
++	long got;
++
++	if (offset_in_page(addr) + len > PAGE_SIZE)
++		return -EINVAL;
++
++	mmap_read_lock(mm);
++	got = get_user_pages_remote(mm, addr, 1, FOLL_WRITE | FOLL_FORCE,
++				    &page, NULL);
++	mmap_read_unlock(mm);
++	if (got != 1)
++		return -EFAULT;
++
++	k = kmap_local_page(page) + offset_in_page(addr);
++	memcpy(k, buf, len);
++	/* Same physical page as the stub's mapping: make the I-side see it. */
++	__builtin___clear_cache(k, k + len);
++	kunmap_local(k);
++	put_page(page);
++	return 0;
++}
++
++static unsigned long fp_new_page(struct mm_struct *mm, unsigned long site)
++{
++	struct vm_unmapped_area_info info = {};
++	unsigned long addr, entry;
++	unsigned long lo = site > FP_RANGE ? site - FP_RANGE : 0;
++	unsigned long hi = min(site + FP_RANGE, (unsigned long)TASK_SIZE);
++
++	lo = max(lo, PAGE_ALIGN(max(mmap_min_addr, PAGE_SIZE)));
++	info.length = PAGE_SIZE;
++	info.low_limit = lo;
++	info.high_limit = hi;
++
++	mmap_read_lock(mm);
++	addr = vm_unmapped_area(&info);
++	mmap_read_unlock(mm);
++	if (IS_ERR_VALUE(addr))
++		return 0;
++
++	addr = vm_mmap(NULL, addr, PAGE_SIZE, PROT_READ | PROT_EXEC,
++		       MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, 0);
++	if (IS_ERR_VALUE(addr))
++		return 0;
++
++	entry = STUB_CODE + (stub_fast_entry - __syscall_stub_start);
++	if (fp_poke(mm, addr + PAGE_SIZE - 8, &entry, sizeof(entry))) {
++		vm_munmap(addr, PAGE_SIZE);
++		return 0;
++	}
++	return addr;
++}
++
++static long fp_dist(unsigned long a, unsigned long b)
++{
++	return (long)(a - b);
++}
++
++/* A free slot within branch range of @site, or 0. */
++static unsigned long fp_get_slot(struct mm_struct *mm, struct um_fastpath *fp,
++				 unsigned long site)
++{
++	unsigned long page;
++	unsigned int i;
++
++	for (i = 0; i < fp->npages; i++) {
++		long d = fp_dist(fp->page[i], site);
++
++		if (fp->used[i] < FP_SLOTS && d > -(long)FP_RANGE &&
++		    d < (long)FP_RANGE)
++			return fp->page[i] + FP_SLOT_SIZE * fp->used[i]++;
++	}
++
++	if (fp->npages == FP_MAX_PAGES)
++		return 0;
++	page = fp_new_page(mm, site);
++	if (!page)
++		return 0;
++	fp->page[fp->npages] = page;
++	fp->used[fp->npages] = 1;
++	fp->npages++;
++	return page;
++}
++
++static int fp_patch(struct mm_struct *mm, struct um_fastpath *fp,
++		    unsigned long site, long nr)
++{
++	struct vm_area_struct *vma;
++	unsigned long slot, ret = site + 4;
++	u32 insn[2], code[8], b;
++	bool ok;
++
++	if (site < 4 || copy_from_user(insn, (void __user *)(site - 4), 8))
++		return -EFAULT;
++	if (insn[1] != INSN_SVC0 ||
++	    (insn[0] != (INSN_MOVZ_W8 | (u32)nr << 5) &&
++	     insn[0] != (INSN_MOVZ_X8 | (u32)nr << 5)))
++		return -EINVAL;
++
++	/* File-backed, private, executable, not writable: ordinary text. */
++	mmap_read_lock(mm);
++	vma = vma_lookup(mm, site);
++	ok = vma && vma->vm_file && (vma->vm_flags & VM_EXEC) &&
++	     !(vma->vm_flags & (VM_WRITE | VM_SHARED)) &&
++	     vma->vm_start <= site - 4;
++	mmap_read_unlock(mm);
++	if (!ok)
++		return -EINVAL;
++
++	slot = fp_get_slot(mm, fp, site);
++	if (!slot)
++		return -ENOSPC;
++
++	code[0] = 0xa9bf47f0;				/* stp x16, x17, [sp, #-16]! */
++	code[1] = 0x10fffff1;				/* adr x17, slot */
++	code[2] = 0x58000010 |				/* ldr x16, <entry> */
++		  ((((slot & PAGE_MASK) + PAGE_SIZE - 8 - (slot + 8)) >> 2) << 5);
++	code[3] = 0xd61f0200;				/* br x16 */
++	code[4] = 0xa8c147f0;				/* ldp x16, x17, [sp], #16 */
++	code[5] = 0x14000000 |				/* b site + 4 */
++		  (((ret - (slot + 20)) >> 2) & 0x03ffffff);
++	code[6] = lower_32_bits(ret);			/* .quad site + 4 */
++	code[7] = upper_32_bits(ret);
++	if (fp_poke(mm, slot, code, sizeof(code)))
++		return -EFAULT;
++
++	/* svc and b may both be swapped under a running thread. */
++	b = 0x14000000 | (((slot - site) >> 2) & 0x03ffffff);
++	if (fp_poke(mm, site, &b, sizeof(b)))
++		return -EFAULT;
++
++	fastpath_patched++;
++	return 0;
++}
++
++/* Called for every SECCOMP-mode guest syscall, before it runs. */
++void um_fastpath_syscall(unsigned long pc, long nr)
++{
++	struct mm_struct *mm = current->mm;
++	struct um_fastpath *fp;
++	unsigned long site = pc - 4;
++	unsigned int h, i, slot = FP_SITES;
++	bool patch = false;
++
++	if (!fastpath_on || !using_seccomp || !mm || fp_excluded(nr) ||
++	    (current->ptrace & PT_PTRACED))
++		return;
++
++	fp = READ_ONCE(mm->context.fastpath);
++	if (!fp) {
++		struct um_fastpath *new = kzalloc(sizeof(*new), GFP_KERNEL);
++
++		if (!new)
++			return;
++		spin_lock_init(&new->lock);
++		mutex_init(&new->patch);
++		fp = cmpxchg(&mm->context.fastpath, NULL, new);
++		if (fp)
++			kfree(new);
++		else
++			fp = new;
++	}
++
++	h = hash_long(site, ilog2(FP_SITES));
++	spin_lock(&fp->lock);
++	for (i = 0; i < FP_PROBE; i++) {
++		unsigned int j = (h + i) % FP_SITES;
++
++		if (fp->site[j] == site || !fp->site[j]) {
++			slot = j;
++			break;
++		}
++	}
++	if (slot < FP_SITES && fp->count[slot] != FP_DONE) {
++		fp->site[slot] = site;
++		if (++fp->count[slot] >= FP_THRESHOLD) {
++			/* One attempt per site, whatever it gives. */
++			fp->count[slot] = FP_DONE;
++			patch = true;
++		}
++	}
++	spin_unlock(&fp->lock);
++
++	if (patch) {
++		mutex_lock(&fp->patch);
++		fp_patch(mm, fp, site, nr);
++		mutex_unlock(&fp->patch);
++	}
++}
++
++void um_fastpath_destroy(struct mm_struct *mm)
++{
++	kfree(mm->context.fastpath);
++	mm->context.fastpath = NULL;
++}
+diff --git a/arch/arm64/um/shared/sysdep/stub-fastpath.h b/arch/arm64/um/shared/sysdep/stub-fastpath.h
+new file mode 100644
+index 000000000000..f7d69352d9b0
+--- /dev/null
++++ b/arch/arm64/um/shared/sysdep/stub-fastpath.h
+@@ -0,0 +1,293 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Syscall-site fast path, stub half (CONFIG_UML_FASTPATH).
++ *
++ * In SECCOMP mode every guest syscall is a SIGSYS: the host builds a signal
++ * frame on the stub's sigstack, the handler hands it to the kernel, and an
++ * rt_sigreturn puts the result back. The kernel half (arch/arm64/um/fastpath.c)
++ * rewrites hot "mov w8, #nr; svc #0" sites into "mov w8, #nr; b slot", where
++ * slot is a 32-byte trampoline in a page it maps into the guest mm:
++ *
++ *	+0	stp	x16, x17, [sp, #-16]!
++ *	+4	adr	x17, slot
++ *	+8	ldr	x16, =stub_fast_entry	(literal at the end of the page)
++ *	+12	br	x16
++ *	+16	ldp	x16, x17, [sp], #16	(fast return lands here)
++ *	+20	b	site + 4
++ *	+24	.quad	site + 4
++ *
++ * stub_fast_entry builds the same rt_sigframe the host would have, at the top
++ * of sigstack[], and runs the same handoff the SIGSYS handler runs. That skips
++ * the host's signal delivery and, in the common case, its rt_sigreturn:
++ *
++ *  - fast return: the kernel left pc/sp where the syscall was made, so the
++ *    registers are reloaded in userspace and the slot's epilogue branches back
++ *    to the site;
++ *  - anything else (a guest signal, a thread switch, a restart): a real
++ *    rt_sigreturn on the fake frame, which restores state exactly as the
++ *    SIGSYS path does.
++ *
++ * The trampoline uses 32 bytes below the guest's sp. AAPCS64 has no red zone
++ * and the host kernel writes signal frames in the same place, so code cannot
++ * rely on that memory.
++ */
++#ifndef __SYSDEP_STUB_FASTPATH_H
++#define __SYSDEP_STUB_FASTPATH_H
++
++#include <stddef.h>
++
++struct stub_fp_ctx_head {
++	unsigned int magic;
++	unsigned int size;
++};
++
++struct stub_fp_fpsimd {
++	struct stub_fp_ctx_head head;
++	unsigned int fpsr;
++	unsigned int fpcr;
++	__uint128_t vregs[32];
++};
++
++/* Starts with the host's struct rt_sigframe: siginfo, then ucontext. */
++struct stub_fast_frame {
++	siginfo_t info;
++	ucontext_t uc;
++	unsigned long slot;	/* trampoline slot we came through */
++	unsigned long ret_pc;	/* site + 4 */
++	unsigned long orig_sp;	/* guest sp at the site */
++	unsigned long pad;
++};
++
++_Static_assert(offsetof(struct stub_fast_frame, uc) == 128, "rt_sigframe layout");
++_Static_assert(offsetof(ucontext_t, uc_mcontext) == 176, "ucontext layout");
++_Static_assert(offsetof(mcontext_t, __reserved) == 288, "mcontext layout");
++_Static_assert(sizeof(struct stub_fast_frame) % 16 == 0, "frame alignment");
++_Static_assert(offsetof(struct stub_fast_frame, ret_pc) ==
++	       offsetof(struct stub_fast_frame, slot) + 8, "slot/ret_pc pair");
++_Static_assert(offsetof(struct stub_fast_frame, orig_sp) ==
++	       offsetof(struct stub_fast_frame, slot) + 16, "orig_sp");
++
++#define STUB_FAST_FRAME_OFF						\
++	((offsetof(struct stub_data, sigstack) +			\
++	  sizeof(((struct stub_data *)0)->sigstack) -			\
++	  sizeof(struct stub_fast_frame)) & ~15UL)
++
++#define STUB_FP_REGS_OFF \
++	(offsetof(struct stub_fast_frame, uc.uc_mcontext.regs))
++#define STUB_FP_FPSIMD_OFF \
++	(offsetof(struct stub_fast_frame, uc.uc_mcontext.__reserved))
++
++#define STUB_FP_FPSIMD_MAGIC	0x46508001
++#define STUB_AUDIT_ARCH_AARCH64	0xc00000b7
++#define STUB_SYS_SECCOMP	1
++#define STUB_PSTATE_NZCV	0xf0000000UL
++
++int stub_fast_syscall(struct stub_fast_frame *f);
++void stub_fast_entry_holder(void);
++
++/*
++ * Returns 0 to resume through the slot epilogue, 1 to rt_sigreturn on @f.
++ * Called by stub_fast_entry on sigstack[], with every guest register saved.
++ */
++int __section(".__syscall_stub") __used
++stub_fast_syscall(struct stub_fast_frame *f)
++{
++	struct stub_data *d = get_stub_data();
++	mcontext_t *mc = &f->uc.uc_mcontext;
++	struct stub_fp_fpsimd *fp = (void *)mc->__reserved;
++	struct stub_fp_ctx_head *end = (void *)(fp + 1);
++	unsigned long all = ~0UL, old = 0;
++
++	/* A host SIGSYS frame may have been built over ours since last time. */
++	fp->head.magic = STUB_FP_FPSIMD_MAGIC;
++	fp->head.size = sizeof(*fp);
++	end->magic = 0;
++	end->size = 0;
++	mc->fault_address = 0;
++
++	f->info.si_signo = SIGSYS;
++	f->info.si_errno = 0;
++	f->info.si_code = STUB_SYS_SECCOMP;
++	f->info.si_call_addr = (void *)mc->pc;
++	f->info.si_syscall = (int)mc->regs[8];
++	f->info.si_arch = STUB_AUDIT_ARCH_AARCH64;
++
++	stub_handoff(d, SIGSYS, &f->info, &f->uc);
++
++	while (__atomic_load_n(&d->fast_pending, __ATOMIC_RELAXED)) {
++		d->fast_pending = 0;
++		f->info.si_signo = SIGALRM;
++		f->info.si_code = 0x80;	/* SI_KERNEL */
++		stub_handoff(d, SIGALRM, &f->info, &f->uc);
++	}
++
++	if (mc->pc == f->ret_pc && mc->sp == f->orig_sp &&
++	    !(mc->pstate & ~STUB_PSTATE_NZCV))
++		return 0;	/* the entry code clears fast_busy */
++
++	/*
++	 * Slow return. Block everything first: once fast_busy is clear a
++	 * SIGALRM would run a real handoff, and the kernel could then hand
++	 * this frame to another guest thread before the sigreturn reads it.
++	 * rt_sigreturn reinstates the old mask from uc_sigmask atomically.
++	 */
++	stub_syscall4(__NR_rt_sigprocmask, SIG_SETMASK, (unsigned long)&all,
++		      (unsigned long)&old, sizeof(all));
++	f->uc.uc_flags = 0;
++	f->uc.uc_link = 0;
++	f->uc.uc_stack.ss_sp = (void *)d;
++	f->uc.uc_stack.ss_flags = 0;
++	f->uc.uc_stack.ss_size = STUB_DATA_PAGES * UM_KERN_PAGE_SIZE;
++	*(unsigned long *)&f->uc.uc_sigmask = old;
++	d->fast_busy = 0;
++	return 1;
++}
++
++/*
++ * Entered from a slot with x16 = this address, x17 = slot, and the guest's
++ * x16/x17 pushed at sp. The function wrapper is only there to give the asm
++ * its operands; nothing ever calls it.
++ */
++void __section(".__syscall_stub") __used __attribute__((naked))
++stub_fast_entry_holder(void)
++{
++	__asm__ volatile (
++	".globl stub_fast_entry\n"
++	".type stub_fast_entry, %%function\n"
++	"stub_fast_entry:\n"
++	"	stp	x0, x1, [sp, #-16]!\n"
++	/* x0 = stub data: the page after the one this code is in */
++	"	adr	x0, .\n"
++	"	and	x0, x0, #%c[pgmask]\n"
++	"	add	x0, x0, #%c[pgsz]\n"
++	"	mov	w1, #1\n"
++	"	str	w1, [x0, #%c[busy]]\n"
++	"	mov	x16, #%c[frame]\n"
++	"	add	x1, x0, x16\n"
++	"	add	x16, x1, #%c[regs]\n"
++	"	stp	x2, x3, [x16, #16]\n"
++	"	stp	x4, x5, [x16, #32]\n"
++	"	stp	x6, x7, [x16, #48]\n"
++	"	stp	x8, x9, [x16, #64]\n"
++	"	stp	x10, x11, [x16, #80]\n"
++	"	stp	x12, x13, [x16, #96]\n"
++	"	stp	x14, x15, [x16, #112]\n"
++	"	stp	x18, x19, [x16, #144]\n"
++	"	stp	x20, x21, [x16, #160]\n"
++	"	stp	x22, x23, [x16, #176]\n"
++	"	stp	x24, x25, [x16, #192]\n"
++	"	stp	x26, x27, [x16, #208]\n"
++	"	stp	x28, x29, [x16, #224]\n"
++	"	str	x30, [x16, #240]\n"
++	"	ldp	x2, x3, [sp]\n"			/* guest x0, x1 */
++	"	stp	x2, x3, [x16, #0]\n"
++	"	ldp	x2, x3, [sp, #16]\n"		/* guest x16, x17 */
++	"	stp	x2, x3, [x16, #128]\n"
++	"	add	x2, sp, #32\n"			/* guest sp */
++	"	ldr	x3, [x17, #24]\n"		/* site + 4 */
++	"	stp	x2, x3, [x16, #248]\n"		/* mc sp, pc */
++	"	mrs	x4, nzcv\n"
++	"	str	x4, [x16, #264]\n"		/* mc pstate */
++	"	mov	x4, #%c[slot]\n"
++	"	add	x4, x1, x4\n"
++	"	stp	x17, x3, [x4]\n"		/* slot, ret_pc */
++	"	str	x2, [x4, #16]\n"		/* orig_sp */
++	"	add	x16, x1, #%c[fpsimd]\n"
++	"	mrs	x2, fpsr\n"
++	"	mrs	x3, fpcr\n"
++	"	stp	w2, w3, [x16, #8]\n"
++	"	stp	q0, q1, [x16, #16]\n"
++	"	stp	q2, q3, [x16, #48]\n"
++	"	stp	q4, q5, [x16, #80]\n"
++	"	stp	q6, q7, [x16, #112]\n"
++	"	stp	q8, q9, [x16, #144]\n"
++	"	stp	q10, q11, [x16, #176]\n"
++	"	stp	q12, q13, [x16, #208]\n"
++	"	stp	q14, q15, [x16, #240]\n"
++	"	stp	q16, q17, [x16, #272]\n"
++	"	stp	q18, q19, [x16, #304]\n"
++	"	stp	q20, q21, [x16, #336]\n"
++	"	stp	q22, q23, [x16, #368]\n"
++	"	stp	q24, q25, [x16, #400]\n"
++	"	stp	q26, q27, [x16, #432]\n"
++	"	stp	q28, q29, [x16, #464]\n"
++	"	stp	q30, q31, [x16, #496]\n"
++	"	mov	sp, x1\n"
++	"	mov	x0, x1\n"
++	"	bl	stub_fast_syscall\n"
++	"	adr	x16, .\n"
++	"	and	x16, x16, #%c[pgmask]\n"
++	"	add	x16, x16, #%c[pgsz]\n"
++	"	mov	x17, #%c[frame]\n"
++	"	add	x16, x16, x17\n"		/* x16 = frame */
++	"	cbnz	w0, 1f\n"
++	"	add	x17, x16, #%c[fpsimd]\n"
++	"	ldp	w0, w1, [x17, #8]\n"
++	"	msr	fpsr, x0\n"
++	"	msr	fpcr, x1\n"
++	"	ldp	q0, q1, [x17, #16]\n"
++	"	ldp	q2, q3, [x17, #48]\n"
++	"	ldp	q4, q5, [x17, #80]\n"
++	"	ldp	q6, q7, [x17, #112]\n"
++	"	ldp	q8, q9, [x17, #144]\n"
++	"	ldp	q10, q11, [x17, #176]\n"
++	"	ldp	q12, q13, [x17, #208]\n"
++	"	ldp	q14, q15, [x17, #240]\n"
++	"	ldp	q16, q17, [x17, #272]\n"
++	"	ldp	q18, q19, [x17, #304]\n"
++	"	ldp	q20, q21, [x17, #336]\n"
++	"	ldp	q22, q23, [x17, #368]\n"
++	"	ldp	q24, q25, [x17, #400]\n"
++	"	ldp	q26, q27, [x17, #432]\n"
++	"	ldp	q28, q29, [x17, #464]\n"
++	"	ldp	q30, q31, [x17, #496]\n"
++	"	add	x17, x16, #%c[regs]\n"
++	"	ldr	x0, [x17, #264]\n"
++	"	msr	nzcv, x0\n"
++	"	ldr	x0, [x17, #248]\n"
++	"	sub	x0, x0, #16\n"
++	"	mov	sp, x0\n"			/* guest sp - 16 */
++	"	ldp	x0, x1, [x17, #128]\n"
++	"	stp	x0, x1, [sp]\n"			/* x16/x17 for the epilogue */
++	"	ldp	x0, x1, [x17, #0]\n"
++	"	ldp	x2, x3, [x17, #16]\n"
++	"	ldp	x4, x5, [x17, #32]\n"
++	"	ldp	x6, x7, [x17, #48]\n"
++	"	ldp	x8, x9, [x17, #64]\n"
++	"	ldp	x10, x11, [x17, #80]\n"
++	"	ldp	x12, x13, [x17, #96]\n"
++	"	ldp	x14, x15, [x17, #112]\n"
++	"	ldp	x18, x19, [x17, #144]\n"
++	"	ldp	x20, x21, [x17, #160]\n"
++	"	ldp	x22, x23, [x17, #176]\n"
++	"	ldp	x24, x25, [x17, #192]\n"
++	"	ldp	x26, x27, [x17, #208]\n"
++	"	ldp	x28, x29, [x17, #224]\n"
++	"	ldr	x30, [x17, #240]\n"
++	"	ldr	x16, [x16, #%c[slot]]\n"
++	"	add	x16, x16, #16\n"		/* slot epilogue */
++	/* Done with the frame: from here on a SIGALRM is an ordinary one. */
++	"	adr	x17, .\n"
++	"	and	x17, x17, #%c[pgmask]\n"
++	"	add	x17, x17, #%c[pgsz]\n"
++	"	str	wzr, [x17, #%c[busy]]\n"
++	"	br	x16\n"
++	"1:\n"
++	"	mov	sp, x16\n"
++	"	mov	x8, #%c[nr_sigreturn]\n"
++	"	svc	#0\n"
++	"	brk	#0x5a\n"
++	".size stub_fast_entry, . - stub_fast_entry\n"
++	:
++	: [pgmask] "i" (-(long)UM_KERN_PAGE_SIZE),
++	  [pgsz] "i" (UM_KERN_PAGE_SIZE),
++	  [busy] "i" (offsetof(struct stub_data, fast_busy)),
++	  [frame] "i" (STUB_FAST_FRAME_OFF),
++	  [regs] "i" (STUB_FP_REGS_OFF),
++	  [fpsimd] "i" (STUB_FP_FPSIMD_OFF),
++	  [slot] "i" (offsetof(struct stub_fast_frame, slot)),
++	  [nr_sigreturn] "i" (__NR_rt_sigreturn)
++	);
++}
++
++#endif /* __SYSDEP_STUB_FASTPATH_H */
+diff --git a/arch/arm64/um/shared/sysdep/stub.h b/arch/arm64/um/shared/sysdep/stub.h
+index 9981ae6e1c51..d2767d8a1c59 100644
+--- a/arch/arm64/um/shared/sysdep/stub.h
++++ b/arch/arm64/um/shared/sysdep/stub.h
+@@ -30,8 +30,17 @@
+  * anything, since no syscall number is -1.
+  */
+ #define STUB_SECCOMP_TLS_SYSCALL (-1)
++#ifndef CONFIG_UML_FASTPATH
++#define STUB_SECCOMP_EXTRA_SYSCALL (-1)
++#endif
+ #define MMAP_OFFSET(o) (o)
+ 
++/* Syscall-site fast path, see <sysdep/stub-fastpath.h> */
++#ifdef CONFIG_UML_FASTPATH
++#define UM_STUB_FASTPATH
++#define STUB_SECCOMP_EXTRA_SYSCALL __NR_rt_sigprocmask
++#endif
++
+ static __always_inline long stub_syscall0(long syscall)
+ {
+ 	register long x8 __asm__("x8") = syscall;
+diff --git a/arch/um/include/asm/mmu.h b/arch/um/include/asm/mmu.h
+index e88b8155b70b..3781f75006c3 100644
+--- a/arch/um/include/asm/mmu.h
++++ b/arch/um/include/asm/mmu.h
+@@ -34,8 +34,19 @@ typedef struct mm_context {
+ 	 */
+ 	unsigned long prefault_next;
+ 	unsigned int prefault_level;
++
++#ifdef CONFIG_UML_FASTPATH
++	/* Syscall-site fast path state, arch/arm64/um/fastpath.c */
++	struct um_fastpath *fastpath;
++#endif
+ } mm_context_t;
+ 
++#ifdef CONFIG_UML_FASTPATH
++struct mm_struct;
++void um_fastpath_syscall(unsigned long pc, long nr);
++void um_fastpath_destroy(struct mm_struct *mm);
++#endif
++
+ #define INIT_MM_CONTEXT(mm)						\
+ 	.context = {							\
+ 		.turnstile = __MUTEX_INITIALIZER(mm.context.turnstile),	\
+diff --git a/arch/um/include/shared/skas/stub-data.h b/arch/um/include/shared/skas/stub-data.h
+index a295eeaec679..319cf4e621c6 100644
+--- a/arch/um/include/shared/skas/stub-data.h
++++ b/arch/um/include/shared/skas/stub-data.h
+@@ -118,6 +118,18 @@ struct stub_data {
+ 
+ 	int syscall_data_len;
+ 
++	/*
++	 * Syscall-site fast path (UML_FASTPATH, arm64). fast_busy is set while
++	 * the stub runs a guest syscall that entered through a patched site
++	 * rather than through SIGSYS, i.e. while the fake signal frame on
++	 * sigstack[] is live. A SIGALRM landing in that window must not run the
++	 * handoff a second time on top of it, so stub_signal_interrupt() only
++	 * records it in fast_pending and the fast path reports it afterwards.
++	 * Written by the stub only.
++	 */
++	int fast_busy;
++	int fast_pending;
++
+ 	/*
+ 	 * The handoff word, alone in a 64-byte slot. Both sides poll it now
+ 	 * (see stub-futex.h); if it shared a cacheline with anything the peer
+diff --git a/arch/um/kernel/skas/mmu.c b/arch/um/kernel/skas/mmu.c
+index 2ef58ee9b91e..5ed098f4564b 100644
+--- a/arch/um/kernel/skas/mmu.c
++++ b/arch/um/kernel/skas/mmu.c
+@@ -55,6 +55,10 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
+ 	 */
+ 	mm->context.prefault_next = 0;
+ 	mm->context.prefault_level = 0;
++#ifdef CONFIG_UML_FASTPATH
++	/* fork copies the parent's context; the site table is not inherited */
++	mm->context.fastpath = NULL;
++#endif
+ 
+ 	stack = __get_free_pages(GFP_KERNEL | __GFP_ZERO, ilog2(STUB_DATA_PAGES));
+ 	if (stack == 0) {
+@@ -126,6 +130,10 @@ void destroy_context(struct mm_struct *mm)
+ {
+ 	struct mm_context *mmu = &mm->context;
+ 
++#ifdef CONFIG_UML_FASTPATH
++	um_fastpath_destroy(mm);
++#endif
++
+ 	/*
+ 	 * If init_new_context wasn't called, this will be
+ 	 * zero, resulting in a kill(0), which will result in the
+diff --git a/arch/um/kernel/skas/stub.c b/arch/um/kernel/skas/stub.c
+index c98b295a235f..8e31afd3e15d 100644
+--- a/arch/um/kernel/skas/stub.c
++++ b/arch/um/kernel/skas/stub.c
+@@ -90,10 +90,14 @@ stub_syscall_handler(void)
+ 	trap_myself();
+ }
+ 
+-void __section(".__syscall_stub")
+-stub_signal_interrupt(int sig, siginfo_t *info, void *p)
++/*
++ * Hand one event (a signal the stub caught, or a fast-path syscall) to the
++ * kernel and wait for it to finish with it. On return the mcontext at @p holds
++ * whatever the kernel wants the guest to continue with.
++ */
++static __always_inline void
++stub_handoff(struct stub_data *d, int sig, siginfo_t *info, void *p)
+ {
+-	struct stub_data *d = get_stub_data();
+ 	char rcv_data;
+ 	union {
+ 		char data[CMSG_SPACE(sizeof(int) * STUB_MAX_FDS)];
+@@ -215,10 +219,39 @@ stub_signal_interrupt(int sig, siginfo_t *info, void *p)
+ 
+ 	/* Restore arch dependent state that is not part of the mcontext */
+ 	stub_seccomp_restore_state(&d->arch_data);
++}
++
++void __section(".__syscall_stub")
++stub_signal_interrupt(int sig, siginfo_t *info, void *p)
++{
++	struct stub_data *d = get_stub_data();
++
++#ifdef UM_STUB_FASTPATH
++	/*
++	 * A fast-path syscall owns sigstack[] and the handoff word right now
++	 * (see stub_fast_syscall()). Only SIGALRM can get here then: the fast
++	 * path touches nothing that can fault. Defer it; the fast path hands it
++	 * over once the syscall is done, which is what the kernel would have
++	 * seen had the timer fired one instruction later.
++	 */
++	if (d->fast_busy) {
++		if (sig == SIGALRM) {
++			d->fast_pending = 1;
++			return;
++		}
++		stub_syscall1(__NR_exit_group, 31);
++	}
++#endif
++
++	stub_handoff(d, sig, info, p);
+ 
+ 	/* Return so that the host modified mcontext is restored. */
+ }
+ 
++#ifdef UM_STUB_FASTPATH
++#include <sysdep/stub-fastpath.h>
++#endif
++
+ void __section(".__syscall_stub")
+ stub_signal_restorer(void)
+ {
+diff --git a/arch/um/kernel/skas/stub_exe.c b/arch/um/kernel/skas/stub_exe.c
+index 002e62adee57..3ac6c4d0d1ad 100644
+--- a/arch/um/kernel/skas/stub_exe.c
++++ b/arch/um/kernel/skas/stub_exe.c
+@@ -185,17 +185,17 @@ noinline static void real_init(void)
+ 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+ 				 offsetof(struct seccomp_data, nr)),
+ 
+-			/* [10-16] Check against permitted syscalls */
++			/* [10-17] Check against permitted syscalls */
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_futex,
+-				 7, 0),
++				 8, 0),
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,__NR_recvmsg,
+-				 6, 0),
++				 7, 0),
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,__NR_close,
+-				 5, 0),
++				 6, 0),
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, STUB_MMAP_NR,
+-				 4, 0),
++				 5, 0),
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_munmap,
+-				 3, 0),
++				 4, 0),
+ 			/*
+ 			 * The syscall the stub needs in order to reinstate
+ 			 * guest TLS, which is architecture-specific:
+@@ -208,14 +208,22 @@ noinline static void real_init(void)
+ 			 */
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,
+ 				 (unsigned int)STUB_SECCOMP_TLS_SYSCALL,
++				 3, 0),
++			/*
++			 * One more arch-specific call, -1 (inert) unless the
++			 * subarch needs it: the arm64 syscall-site fast path
++			 * blocks signals before its rt_sigreturn.
++			 */
++			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,
++				 (unsigned int)STUB_SECCOMP_EXTRA_SYSCALL,
+ 				 2, 0),
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_rt_sigreturn,
+ 				 1, 0),
+ 
+-			/* [17] Not one of the permitted syscalls */
++			/* [18] Not one of the permitted syscalls */
+ 			BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
+ 
+-			/* [18] Permitted call for the stub */
++			/* [19] Permitted call for the stub */
+ 			BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
+ 		};
+ 		struct sock_fprog prog = {
+diff --git a/arch/um/kernel/skas/syscall.c b/arch/um/kernel/skas/syscall.c
+index d703771c448b..f387e8e70a76 100644
+--- a/arch/um/kernel/skas/syscall.c
++++ b/arch/um/kernel/skas/syscall.c
+@@ -33,6 +33,10 @@ void handle_syscall(struct uml_pt_regs *r)
+ 
+ 	/* Initialize the syscall number and default return value. */
+ 	UPT_SYSCALL_NR(r) = PT_SYSCALL_NR(r->gp);
++
++#ifdef CONFIG_UML_FASTPATH
++	um_fastpath_syscall(UPT_IP(r), UPT_SYSCALL_NR(r));
++#endif
+ 	if (UM_SEED_ENOSYS_BEFORE_TRACE(r))
+ 		PT_REGS_SET_SYSCALL_RETURN(regs, -ENOSYS);
+ 
+diff --git a/arch/x86/um/shared/sysdep/stub_32.h b/arch/x86/um/shared/sysdep/stub_32.h
+index c8f5014ea35c..02d7f056e78e 100644
+--- a/arch/x86/um/shared/sysdep/stub_32.h
++++ b/arch/x86/um/shared/sysdep/stub_32.h
+@@ -12,6 +12,7 @@
+ 
+ #define STUB_MMAP_NR __NR_mmap2
+ /* Syscall the stub uses to restore guest TLS; see arch/um/kernel/skas/stub_exe.c */
++#define STUB_SECCOMP_EXTRA_SYSCALL (-1)
+ #define STUB_SECCOMP_TLS_SYSCALL __NR_set_thread_area
+ #define MMAP_OFFSET(o) ((o) >> UM_KERN_PAGE_SHIFT)
+ 
+diff --git a/arch/x86/um/shared/sysdep/stub_64.h b/arch/x86/um/shared/sysdep/stub_64.h
+index 81fef1c9ad03..9d2abb89254a 100644
+--- a/arch/x86/um/shared/sysdep/stub_64.h
++++ b/arch/x86/um/shared/sysdep/stub_64.h
+@@ -14,6 +14,7 @@
+ 
+ #define STUB_MMAP_NR __NR_mmap
+ /* Syscall the stub uses to restore guest TLS; see arch/um/kernel/skas/stub_exe.c */
++#define STUB_SECCOMP_EXTRA_SYSCALL (-1)
+ #define STUB_SECCOMP_TLS_SYSCALL __NR_arch_prctl
+ #define MMAP_OFFSET(o) (o)
+ 
+-- 
+2.43.0
+
+From c8d8a77cb91ed96de8dbff4da1d2120b1243f350 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 20 Nov 2026 07:17:58 +0000
+Subject: [PATCH 2/6] um/arm64: fastpath fixes (slot floor, stub-only stores),
+ any svc site, memfd physmem, spin 200
+
+---
+ arch/arm64/um/fastpath.c                    | 43 +++++++++++------
+ arch/arm64/um/shared/sysdep/stub-fastpath.h | 52 ++++++++++++---------
+ arch/um/os-Linux/mem.c                      | 50 ++++++++++++++++++++
+ arch/um/os-Linux/skas/process.c             |  4 +-
+ 4 files changed, 109 insertions(+), 40 deletions(-)
+
+diff --git a/arch/arm64/um/fastpath.c b/arch/arm64/um/fastpath.c
+index b120da2320f7..78e8e3dc3aae 100644
+--- a/arch/arm64/um/fastpath.c
++++ b/arch/arm64/um/fastpath.c
+@@ -13,10 +13,12 @@
+  * mapped within branch range of the site, which fork() copies like any other
+  * memory, so a child inherits patched sites together with their slots.
+  *
+- * Only "mov {w,x}8, #nr; svc #0" sites are patched, so the number at a patched
+- * site is fixed. Calls that replace or end the whole register state are left
+- * alone; everything else is safe because the stub falls back to a real
+- * rt_sigreturn whenever the kernel resumes anywhere but right after the site.
++ * Any "svc #0" in ordinary text can be patched: the stub reads the number
++ * from x8 like the host would, so wrappers such as libc's syscall() qualify
++ * too. A site is not patched while it is being used for a call that replaces
++ * or ends the whole register state, but whatever later comes through a slot
++ * is still safe: the stub falls back to a real rt_sigreturn whenever the
++ * kernel resumes anywhere but right after the site, on the same stack.
+  */
+ #include <linux/kernel.h>
+ #include <linux/init.h>
+@@ -36,6 +38,7 @@
+ #include <as-layout.h>
+ #include <init.h>
+ #include <skas.h>
++#include <stub-data.h>
+ 
+ #define FP_THRESHOLD	64
+ #define FP_SITES	256	/* per mm, open addressing */
+@@ -45,10 +48,14 @@
+ #define FP_SLOT_SIZE	32
+ #define FP_SLOTS	((PAGE_SIZE - 8) / FP_SLOT_SIZE)
+ #define FP_RANGE	(120UL << 20)	/* b reaches +-128 MiB */
++/*
++ * The host has its own mmap_min_addr (32 KiB on Android) that the guest does
++ * not know about: a slot page below it can never be mapped by the stub, and
++ * the failed mmap silently drops the rest of that sync batch.
++ */
++#define FP_LOW_FLOOR	(1UL << 20)
+ 
+ #define INSN_SVC0	0xd4000001u
+-#define INSN_MOVZ_W8	0x52800008u
+-#define INSN_MOVZ_X8	0xd2800008u
+ 
+ struct um_fastpath {
+ 	spinlock_t lock;	/* site table */
+@@ -125,7 +132,7 @@ static unsigned long fp_new_page(struct mm_struct *mm, unsigned long site)
+ 	unsigned long lo = site > FP_RANGE ? site - FP_RANGE : 0;
+ 	unsigned long hi = min(site + FP_RANGE, (unsigned long)TASK_SIZE);
+ 
+-	lo = max(lo, PAGE_ALIGN(max(mmap_min_addr, PAGE_SIZE)));
++	lo = max(lo, PAGE_ALIGN(max(mmap_min_addr, FP_LOW_FLOOR)));
+ 	info.length = PAGE_SIZE;
+ 	info.low_limit = lo;
+ 	info.high_limit = hi;
+@@ -185,22 +192,19 @@ static int fp_patch(struct mm_struct *mm, struct um_fastpath *fp,
+ {
+ 	struct vm_area_struct *vma;
+ 	unsigned long slot, ret = site + 4;
+-	u32 insn[2], code[8], b;
++	u32 insn, code[8], b;
+ 	bool ok;
+ 
+-	if (site < 4 || copy_from_user(insn, (void __user *)(site - 4), 8))
++	if (copy_from_user(&insn, (void __user *)site, 4))
+ 		return -EFAULT;
+-	if (insn[1] != INSN_SVC0 ||
+-	    (insn[0] != (INSN_MOVZ_W8 | (u32)nr << 5) &&
+-	     insn[0] != (INSN_MOVZ_X8 | (u32)nr << 5)))
++	if (insn != INSN_SVC0)
+ 		return -EINVAL;
+ 
+ 	/* File-backed, private, executable, not writable: ordinary text. */
+ 	mmap_read_lock(mm);
+ 	vma = vma_lookup(mm, site);
+ 	ok = vma && vma->vm_file && (vma->vm_flags & VM_EXEC) &&
+-	     !(vma->vm_flags & (VM_WRITE | VM_SHARED)) &&
+-	     vma->vm_start <= site - 4;
++	     !(vma->vm_flags & (VM_WRITE | VM_SHARED));
+ 	mmap_read_unlock(mm);
+ 	if (!ok)
+ 		return -EINVAL;
+@@ -244,6 +248,10 @@ void um_fastpath_syscall(unsigned long pc, long nr)
+ 	    (current->ptrace & PT_PTRACED))
+ 		return;
+ 
++	/* Entered through a slot: the site is patched already. */
++	if (((struct stub_data *)mm->context.id.stack)->fast_busy)
++		return;
++
+ 	fp = READ_ONCE(mm->context.fastpath);
+ 	if (!fp) {
+ 		struct um_fastpath *new = kzalloc(sizeof(*new), GFP_KERNEL);
+@@ -280,9 +288,14 @@ void um_fastpath_syscall(unsigned long pc, long nr)
+ 	spin_unlock(&fp->lock);
+ 
+ 	if (patch) {
++		int r;
++
+ 		mutex_lock(&fp->patch);
+-		fp_patch(mm, fp, site, nr);
++		r = fp_patch(mm, fp, site, nr);
+ 		mutex_unlock(&fp->patch);
++		if (r && r != -EINVAL)
++			pr_debug("fastpath: pid %d site %lx nr %ld: %d\n",
++				 current->pid, site, nr, r);
+ 	}
+ }
+ 
+diff --git a/arch/arm64/um/shared/sysdep/stub-fastpath.h b/arch/arm64/um/shared/sysdep/stub-fastpath.h
+index f7d69352d9b0..06b266bbaa83 100644
+--- a/arch/arm64/um/shared/sysdep/stub-fastpath.h
++++ b/arch/arm64/um/shared/sysdep/stub-fastpath.h
+@@ -82,6 +82,12 @@ _Static_assert(offsetof(struct stub_fast_frame, orig_sp) ==
+ #define STUB_SYS_SECCOMP	1
+ #define STUB_PSTATE_NZCV	0xf0000000UL
+ 
++/*
++ * The stub may only touch its own two pages: keep clang from turning runs of
++ * constant stores into vector loads from the kernel's .rodata.
++ */
++#define STUB_W(x, v)	(*(volatile __typeof__(x) *)&(x) = (v))
++
+ int stub_fast_syscall(struct stub_fast_frame *f);
+ void stub_fast_entry_holder(void);
+ 
+@@ -99,32 +105,32 @@ stub_fast_syscall(struct stub_fast_frame *f)
+ 	unsigned long all = ~0UL, old = 0;
+ 
+ 	/* A host SIGSYS frame may have been built over ours since last time. */
+-	fp->head.magic = STUB_FP_FPSIMD_MAGIC;
+-	fp->head.size = sizeof(*fp);
+-	end->magic = 0;
+-	end->size = 0;
+-	mc->fault_address = 0;
++	STUB_W(fp->head.magic, STUB_FP_FPSIMD_MAGIC);
++	STUB_W(fp->head.size, sizeof(*fp));
++	STUB_W(end->magic, 0);
++	STUB_W(end->size, 0);
++	STUB_W(mc->fault_address, 0);
+ 
+-	f->info.si_signo = SIGSYS;
+-	f->info.si_errno = 0;
+-	f->info.si_code = STUB_SYS_SECCOMP;
+-	f->info.si_call_addr = (void *)mc->pc;
+-	f->info.si_syscall = (int)mc->regs[8];
+-	f->info.si_arch = STUB_AUDIT_ARCH_AARCH64;
++	STUB_W(f->info.si_signo, SIGSYS);
++	STUB_W(f->info.si_errno, 0);
++	STUB_W(f->info.si_code, STUB_SYS_SECCOMP);
++	STUB_W(f->info.si_call_addr, (void *)mc->pc);
++	STUB_W(f->info.si_syscall, (int)mc->regs[8]);
++	STUB_W(f->info.si_arch, STUB_AUDIT_ARCH_AARCH64);
+ 
+ 	stub_handoff(d, SIGSYS, &f->info, &f->uc);
+ 
+ 	while (__atomic_load_n(&d->fast_pending, __ATOMIC_RELAXED)) {
+-		d->fast_pending = 0;
+-		f->info.si_signo = SIGALRM;
+-		f->info.si_code = 0x80;	/* SI_KERNEL */
++		STUB_W(d->fast_pending, 0);
++		STUB_W(f->info.si_signo, SIGALRM);
++		STUB_W(f->info.si_code, 0x80);	/* SI_KERNEL */
+ 		stub_handoff(d, SIGALRM, &f->info, &f->uc);
+ 	}
+ 
+ 	if (mc->pc == f->ret_pc && mc->sp == f->orig_sp &&
+-	    !(mc->pstate & ~STUB_PSTATE_NZCV))
++	    !(mc->pstate & ~STUB_PSTATE_NZCV)) {
+ 		return 0;	/* the entry code clears fast_busy */
+-
++	}
+ 	/*
+ 	 * Slow return. Block everything first: once fast_busy is clear a
+ 	 * SIGALRM would run a real handoff, and the kernel could then hand
+@@ -133,13 +139,13 @@ stub_fast_syscall(struct stub_fast_frame *f)
+ 	 */
+ 	stub_syscall4(__NR_rt_sigprocmask, SIG_SETMASK, (unsigned long)&all,
+ 		      (unsigned long)&old, sizeof(all));
+-	f->uc.uc_flags = 0;
+-	f->uc.uc_link = 0;
+-	f->uc.uc_stack.ss_sp = (void *)d;
+-	f->uc.uc_stack.ss_flags = 0;
+-	f->uc.uc_stack.ss_size = STUB_DATA_PAGES * UM_KERN_PAGE_SIZE;
+-	*(unsigned long *)&f->uc.uc_sigmask = old;
+-	d->fast_busy = 0;
++	STUB_W(f->uc.uc_flags, 0);
++	STUB_W(f->uc.uc_link, 0);
++	STUB_W(f->uc.uc_stack.ss_sp, (void *)d);
++	STUB_W(f->uc.uc_stack.ss_flags, 0);
++	STUB_W(f->uc.uc_stack.ss_size, STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
++	STUB_W(*(unsigned long *)&f->uc.uc_sigmask, old);
++	STUB_W(d->fast_busy, 0);
+ 	return 1;
+ }
+ 
+diff --git a/arch/um/os-Linux/mem.c b/arch/um/os-Linux/mem.c
+index 72f302f4d197..0c2b92c8ec82 100644
+--- a/arch/um/os-Linux/mem.c
++++ b/arch/um/os-Linux/mem.c
+@@ -12,6 +12,7 @@
+ #include <string.h>
+ #include <sys/stat.h>
+ #include <sys/mman.h>
++#include <sys/syscall.h>
+ #include <sys/vfs.h>
+ #include <linux/magic.h>
+ #include <init.h>
+@@ -124,6 +125,51 @@ static char * __init choose_tempdir(void)
+ 	return strdup(dir);
+ }
+ 
++/*
++ * Prefer an anonymous memfd: it lives in shmem whatever the tempdir is on.
++ * On Android the only writable tempdir is usually on f2fs, where every guest
++ * page would be file-backed flash with writeback behind it. Falls back to the
++ * tempdir if memfds are missing or cannot be mapped executable (W^X hosts).
++ * UML_NO_MEMFD in the environment forces the tempdir.
++ */
++static int __init make_memfd(void)
++{
++	static int state;	/* 0 untested, 1 usable, -1 not */
++	void *addr;
++	int fd;
++
++	if (state < 0 || getenv("UML_NO_MEMFD"))
++		return -1;
++
++	fd = syscall(__NR_memfd_create, "uml-physmem", 1 /* MFD_CLOEXEC */);
++	if (fd < 0)
++		goto bad;
++	if (state)
++		return fd;
++
++	if (ftruncate(fd, UM_KERN_PAGE_SIZE) < 0)
++		goto bad_close;
++	addr = mmap(NULL, UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC,
++		    MAP_SHARED, fd, 0);
++	if (addr == MAP_FAILED)
++		goto bad_close;
++	munmap(addr, UM_KERN_PAGE_SIZE);
++	if (ftruncate(fd, 0) < 0)
++		goto bad_close;
++
++	os_info("Guest memory: memfd (not %s)\n", tempdir);
++	state = 1;
++	return fd;
++
++bad_close:
++	close(fd);
++bad:
++	os_info("Guest memory: memfd unusable (%s), using %s\n",
++		strerror(errno), tempdir);
++	state = -1;
++	return -1;
++}
++
+ /*
+  * Create an unlinked tempfile in a suitable tempdir. template must be the
+  * basename part of the template with a leading '/'.
+@@ -142,6 +188,10 @@ static int __init make_tempfile(const char *template)
+ 		}
+ 	}
+ 
++	fd = make_memfd();
++	if (fd >= 0)
++		return fd;
++
+ #ifdef O_TMPFILE
+ 	fd = open(tempdir, O_CLOEXEC | O_RDWR | O_EXCL | O_TMPFILE, 0700);
+ 	/*
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index e40bc4559003..9b900dab3408 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -128,7 +128,7 @@ void wait_stub_done(int pid)
+  * accounting (see stub-futex.h) keeps an idle or compute-bound guest from
+  * paying even that on every wait.
+  */
+-#define SECCOMP_SPIN_DEFAULT_US 10
++#define SECCOMP_SPIN_DEFAULT_US 200	/* 10 measured 33us/syscall on a Galaxy S24, 200 gave 3.3us */
+ 
+ static unsigned long seccomp_spin_us = SECCOMP_SPIN_DEFAULT_US;
+ 
+@@ -155,7 +155,7 @@ __uml_setup("seccomp_spin=", uml_seccomp_spin_setup,
+ "    (the constant-rate architected counter), not iterations, so it means\n"
+ "    the same thing at every CPU frequency. An adaptive hit-streak stops\n"
+ "    the polling when the peer keeps being slow. 0 disables polling.\n"
+-"    Default: 10 (SECCOMP_SPIN_DEFAULT_US).\n\n");
++"    Default: 200 (SECCOMP_SPIN_DEFAULT_US).\n\n");
+ 
+ void wait_stub_done_seccomp(struct mm_id *mm_idp, int running, int wait_sigsys)
+ {
+-- 
+2.43.0
+
+From 2c1f4618bca1daa15e70da5e702ff5a65c10296f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 20 Nov 2026 07:36:39 +0000
+Subject: [PATCH 3/6] um: stub zygote with pre-filtered spare stubs
+ (stub_zygote=), spawn timing stat
+
+---
+ arch/arm64/um/shared/sysdep/stub.h      |   1 +
+ arch/um/include/shared/skas/stub-data.h |   8 +
+ arch/um/kernel/skas/stub.c              |  39 +++++
+ arch/um/kernel/skas/stub_exe.c          |  83 ++++++++-
+ arch/um/os-Linux/skas/process.c         | 221 +++++++++++++++++++++++-
+ arch/x86/um/shared/sysdep/stub.h        |   1 +
+ 6 files changed, 342 insertions(+), 11 deletions(-)
+
+diff --git a/arch/arm64/um/shared/sysdep/stub.h b/arch/arm64/um/shared/sysdep/stub.h
+index d2767d8a1c59..7b094c00bbff 100644
+--- a/arch/arm64/um/shared/sysdep/stub.h
++++ b/arch/arm64/um/shared/sysdep/stub.h
+@@ -382,5 +382,6 @@ extern void stub_segv_handler(int, siginfo_t *, void *);
+ extern void stub_syscall_handler(void);
+ extern void stub_signal_interrupt(int, siginfo_t *, void *);
+ extern void stub_signal_restorer(void);
++extern void stub_spare_wait(void);
+ 
+ #endif /* __SYSDEP_STUB_H */
+diff --git a/arch/um/include/shared/skas/stub-data.h b/arch/um/include/shared/skas/stub-data.h
+index 319cf4e621c6..38355e993a00 100644
+--- a/arch/um/include/shared/skas/stub-data.h
++++ b/arch/um/include/shared/skas/stub-data.h
+@@ -80,6 +80,13 @@ struct stub_spin_state {
+ 
+ struct stub_init_data {
+ 	int seccomp;
++	/*
++	 * 1: become the stub zygote (see zygote_loop() in stub_exe.c) instead
++	 * of a stub. 2 is only used inside stub_exe, for its spares.
++	 */
++	int zygote;
++	/* STUB_CODE address of stub_spare_wait() */
++	unsigned long spare_entry;
+ 
+ 	unsigned long stub_start;
+ 
+@@ -130,6 +137,7 @@ struct stub_data {
+ 	int fast_busy;
+ 	int fast_pending;
+ 
++
+ 	/*
+ 	 * The handoff word, alone in a 64-byte slot. Both sides poll it now
+ 	 * (see stub-futex.h); if it shared a cacheline with anything the peer
+diff --git a/arch/um/kernel/skas/stub.c b/arch/um/kernel/skas/stub.c
+index 8e31afd3e15d..8da62cbfa395 100644
+--- a/arch/um/kernel/skas/stub.c
++++ b/arch/um/kernel/skas/stub.c
+@@ -252,6 +252,45 @@ stub_signal_interrupt(int sig, siginfo_t *info, void *p)
+ #include <sysdep/stub-fastpath.h>
+ #endif
+ 
++/*
++ * A zygote spare (see stub_exe.c), filtered already, waits here for its
++ * stub_init_data and its kernel socket on fd 4; fd 3 is physmem. The socket
++ * lands on fd 0, the lowest free one, like every stub's.
++ */
++void __section(".__syscall_stub")
++stub_spare_wait(void)
++{
++	struct stub_init_data init;
++	struct iovec iov = { .iov_base = &init, .iov_len = sizeof(init) };
++	union {
++		char buf[CMSG_SPACE(sizeof(int))];
++		struct cmsghdr align;
++	} ctrl;
++	struct msghdr mh = {
++		.msg_iov = &iov,
++		.msg_iovlen = 1,
++		.msg_control = &ctrl,
++		.msg_controllen = sizeof(ctrl),
++	};
++	long res;
++
++	do {
++		res = stub_syscall3(__NR_recvmsg, 4, (unsigned long)&mh, 0);
++	} while (res == -EINTR);
++	if (res != sizeof(init))
++		stub_syscall0(__NR_getpid);	/* not allowed here: killed */
++
++	res = stub_syscall6(STUB_MMAP_NR, init.stub_start + UM_KERN_PAGE_SIZE,
++			    STUB_DATA_PAGES * UM_KERN_PAGE_SIZE,
++			    PROT_READ | PROT_WRITE, MAP_FIXED | MAP_SHARED,
++			    3, init.stub_data_offset);
++	if (res != init.stub_start + UM_KERN_PAGE_SIZE)
++		stub_syscall0(__NR_getpid);
++
++	stub_syscall2(__NR_close, 4, 0);
++	stub_syscall2(__NR_close, 3, 0);
++}
++
+ void __section(".__syscall_stub")
+ stub_signal_restorer(void)
+ {
+diff --git a/arch/um/kernel/skas/stub_exe.c b/arch/um/kernel/skas/stub_exe.c
+index 3ac6c4d0d1ad..7c34aca910b4 100644
+--- a/arch/um/kernel/skas/stub_exe.c
++++ b/arch/um/kernel/skas/stub_exe.c
+@@ -1,6 +1,9 @@
+ #include <sys/ptrace.h>
+ #include <sys/prctl.h>
+ #include <sys/fcntl.h>
++#include <sys/socket.h>
++#include <sched.h>
++#include <errno.h>
+ #include <asm/unistd.h>
+ #include <sysdep/stub.h>
+ #include <stub-data.h>
+@@ -10,6 +13,71 @@
+ 
+ void _start(void);
+ 
++/*
++ * Stub zygote: every guest fork() and execve() needs a fresh stub, and making
++ * one from scratch is slow on some hosts (Android: ~1 ms to get a new process
++ * running, ~1.3 ms to install the seccomp filter). The zygote keeps spare
++ * stubs that are already filtered and only wait for their stub data: for each
++ * byte the kernel writes to fd 0 it forks one (CLONE_PARENT, so the kernel is
++ * its parent like any stub) and answers with its pid plus the kernel end of a
++ * socket the spare listens on. Returns only in a spare, which then continues
++ * the normal init with fd 3 = physmem and fd 4 = that socket (see
++ * stub_spare_wait() in stub.c).
++ */
++static __always_inline void zygote_loop(struct stub_init_data *init_data)
++{
++	for (;;) {
++		char byte;
++		int sv[2], pid;
++		struct iovec iov = { .iov_base = &pid, .iov_len = sizeof(pid) };
++		union {
++			char buf[CMSG_SPACE(sizeof(int))];
++			struct cmsghdr align;
++		} ctrl;
++		struct msghdr mh = {
++			.msg_iov = &iov,
++			.msg_iovlen = 1,
++			.msg_control = &ctrl,
++			.msg_controllen = sizeof(ctrl),
++		};
++		struct cmsghdr *cm;
++		long res;
++
++		res = stub_syscall3(__NR_read, 0, (unsigned long)&byte, 1);
++		if (res == -EINTR)
++			continue;
++		if (res <= 0)
++			stub_syscall1(__NR_exit, 0);	/* kernel went away */
++
++		if (stub_syscall4(__NR_socketpair, AF_UNIX, SOCK_STREAM, 0,
++				  (unsigned long)sv))
++			stub_syscall1(__NR_exit, 41);
++
++		res = stub_syscall5(__NR_clone, CLONE_PARENT, 0, 0, 0, 0);
++		if (res == 0) {
++			stub_syscall2(__NR_prctl, PR_SET_PDEATHSIG, SIGKILL);
++			stub_syscall3(__NR_dup3, sv[0], 100, 0);
++			stub_syscall3(__NR_dup3, init_data->stub_code_fd, 101, 0);
++			stub_syscall3(__NR_dup3, 101, 3, 0);
++			stub_syscall3(__NR_dup3, 100, 4, 0);
++			stub_syscall3(__NR_close_range, 0, 2, 0);
++			stub_syscall3(__NR_close_range, 5, ~0U, 0);
++			init_data->stub_code_fd = 3;
++			init_data->zygote = 2;	/* spare */
++			return;
++		}
++		stub_syscall1(__NR_close, sv[0]);
++		pid = res;
++		cm = CMSG_FIRSTHDR(&mh);
++		cm->cmsg_level = SOL_SOCKET;
++		cm->cmsg_type = SCM_RIGHTS;
++		cm->cmsg_len = CMSG_LEN(sizeof(int));
++		*(int *)CMSG_DATA(cm) = sv[1];
++		stub_syscall3(__NR_sendmsg, 0, (unsigned long)&mh, 0);
++		stub_syscall1(__NR_close, sv[1]);
++	}
++}
++
+ noinline static void real_init(void)
+ {
+ 	struct stub_init_data init_data;
+@@ -53,9 +121,12 @@ noinline static void real_init(void)
+ 		stub_syscall1(__NR_exit, 10);
+ 
+ 	/* In SECCOMP mode, FD 0 is a socket and is later used for FD passing */
++	if (init_data.zygote)
++		zygote_loop(&init_data);	/* returns in a new stub */
++
+ 	if (!init_data.seccomp)
+ 		stub_syscall1(__NR_close, 0);
+-	else
++	else if (init_data.zygote != 2)	/* a spare's fd 0 comes later */
+ 		stub_syscall3(__NR_fcntl, 0, F_SETFL, O_NONBLOCK);
+ 
+ 	/* map stub code + data */
+@@ -66,16 +137,18 @@ noinline static void real_init(void)
+ 	if (res != init_data.stub_start)
+ 		stub_syscall1(__NR_exit, 11);
+ 
++	if (init_data.zygote != 2)
+ 	res = stub_syscall6(STUB_MMAP_NR,
+ 			    init_data.stub_start + UM_KERN_PAGE_SIZE,
+ 			    STUB_DATA_PAGES * UM_KERN_PAGE_SIZE,
+ 			    PROT_READ | PROT_WRITE, MAP_FIXED | MAP_SHARED,
+ 			    init_data.stub_data_fd, init_data.stub_data_offset);
+-	if (res != init_data.stub_start + UM_KERN_PAGE_SIZE)
++	if (init_data.zygote != 2 &&
++	    res != init_data.stub_start + UM_KERN_PAGE_SIZE)
+ 		stub_syscall1(__NR_exit, 12);
+ 
+ 	/* In SECCOMP mode, we only need the signalling FD from now on */
+-	if (init_data.seccomp) {
++	if (init_data.seccomp && init_data.zygote != 2) {
+ 		res = stub_syscall3(__NR_close_range, 1, ~0U, 0);
+ 		if (res != 0)
+ 			stub_syscall1(__NR_exit, 13);
+@@ -236,6 +309,10 @@ noinline static void real_init(void)
+ 				  (unsigned long)&prog) != 0)
+ 			stub_syscall1(__NR_exit, 21);
+ 
++		/* A spare waits here (in the stub page) for its stub data. */
++		if (init_data.zygote == 2)
++			((void (*)(void))init_data.spare_entry)();
++
+ 		/* Fall through, the exit syscall will cause SIGSYS */
+ 	} else {
+ 		stub_syscall4(__NR_ptrace, PTRACE_TRACEME, 0, 0, 0);
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index 9b900dab3408..d3be0657d1a5 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -361,22 +361,21 @@ struct tramp_data {
+ 	struct stub_data *stub_data;
+ 	/* 0 is inherited, 1 is the kernel side */
+ 	int sockpair[2];
++	int zygote;
+ };
+ 
+ #ifndef CLOSE_RANGE_CLOEXEC
+ #define CLOSE_RANGE_CLOEXEC	(1U << 2)
+ #endif
+ 
+-static int userspace_tramp(void *data)
++static void stub_fill_init_data(struct stub_init_data *init_data_p,
++				struct stub_data *stub_data)
+ {
+-	struct tramp_data *tramp_data = data;
+-	char *const argv[] = { "uml-userspace", NULL };
+ 	unsigned long long offset;
+ 	struct stub_init_data init_data = {
+ 		.seccomp = using_seccomp,
+ 		.stub_start = STUB_START,
+ 	};
+-	int ret;
+ 
+ 	if (using_seccomp) {
+ 		init_data.signal_handler = STUB_CODE +
+@@ -396,9 +395,24 @@ static int userspace_tramp(void *data)
+ 					      &offset);
+ 	init_data.stub_code_offset = MMAP_OFFSET(offset);
+ 
+-	init_data.stub_data_fd = phys_mapping(uml_to_phys(tramp_data->stub_data),
++	init_data.stub_data_fd = phys_mapping(uml_to_phys(stub_data),
+ 					      &offset);
+ 	init_data.stub_data_offset = MMAP_OFFSET(offset);
++	init_data.spare_entry = STUB_CODE +
++				(unsigned long) stub_spare_wait -
++				(unsigned long) __syscall_stub_start;
++	*init_data_p = init_data;
++}
++
++static int userspace_tramp(void *data)
++{
++	struct tramp_data *tramp_data = data;
++	char *const argv[] = { "uml-userspace", NULL };
++	struct stub_init_data init_data;
++	int ret;
++
++	stub_fill_init_data(&init_data, tramp_data->stub_data);
++	init_data.zygote = tramp_data->zygote;
+ 
+ 	/*
+ 	 * Avoid leaking unneeded FDs to the stub by setting CLOEXEC on all FDs
+@@ -570,6 +584,181 @@ int have_ptrace_sysemu = 1;
+ int syscall_cancel_nr = -1;
+ int have_stub_cycles;
+ 
++/* The stub zygote and its spares (see zygote_loop() in stub_exe.c). */
++#define ZYGOTE_SPARES	2
++static int zygote_sock = -1;
++static int zygote_state;	/* 0 untried, 1 running, -1 off */
++static int zygote_on = 1;
++static int spare_pid[ZYGOTE_SPARES], spare_sock[ZYGOTE_SPARES], spare_n;
++static int spare_asked;		/* requested, not yet received */
++
++static int __init uml_stub_zygote_setup(char *line, int *add)
++{
++	*add = 0;
++	zygote_on = strtoul(line, NULL, 0) != 0;
++	return 0;
++}
++__uml_setup("stub_zygote=", uml_stub_zygote_setup,
++"stub_zygote=<0|1>\n"
++"    In SECCOMP mode, keep pre-started stubs forked from one exec()ed stub\n"
++"    instead of starting one from scratch for every guest fork() and\n"
++"    execve(). Default: 1.\n\n");
++
++static void zygote_off(const char *why, int err)
++{
++	printk(UM_KERN_INFO "stub zygote off: %s (%d), exec()ing stubs\n",
++	       why, err);
++	if (zygote_sock >= 0)
++		close(zygote_sock);
++	zygote_sock = -1;
++	zygote_state = -1;
++	while (spare_n) {
++		spare_n--;
++		close(spare_sock[spare_n]);
++		kill(spare_pid[spare_n], SIGKILL);
++	}
++}
++
++static void zygote_ask(void)
++{
++	const char byte = 0;
++	int n;
++
++	CATCH_EINTR(n = write(zygote_sock, &byte, 1));
++	if (n == 1)
++		spare_asked++;
++}
++
++/* Receive one spare announcement; @wait says whether to block for it. */
++static int zygote_recv(int wait)
++{
++	int pid, n;
++	struct iovec iov = { .iov_base = &pid, .iov_len = sizeof(pid) };
++	union {
++		char buf[CMSG_SPACE(sizeof(int))];
++		struct cmsghdr align;
++	} ctrl;
++	struct msghdr mh = {
++		.msg_iov = &iov,
++		.msg_iovlen = 1,
++		.msg_control = ctrl.buf,
++		.msg_controllen = sizeof(ctrl.buf),
++	};
++	struct cmsghdr *cm;
++
++	CATCH_EINTR(n = recvmsg(zygote_sock, &mh,
++				MSG_CMSG_CLOEXEC | (wait ? 0 : MSG_DONTWAIT)));
++	if (n < 0 && !wait && (errno == EAGAIN || errno == EWOULDBLOCK))
++		return 0;
++	cm = CMSG_FIRSTHDR(&mh);
++	if (n != sizeof(pid) || !cm || cm->cmsg_type != SCM_RIGHTS) {
++		zygote_off("recv", n < 0 ? -errno : n);
++		return -1;
++	}
++	spare_asked--;
++	spare_pid[spare_n] = pid;
++	memcpy(&spare_sock[spare_n], CMSG_DATA(cm), sizeof(int));
++	spare_n++;
++	return 1;
++}
++
++static void zygote_start(struct stub_data *any_stub_data)
++{
++	struct tramp_data td = { .stub_data = any_stub_data, .zygote = 1 };
++	void *stack;
++	int pid, i;
++
++	zygote_state = -1;
++	stack = mmap(NULL, UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
++		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	if (stack == MAP_FAILED)
++		return;
++	if (socketpair(AF_UNIX, SOCK_STREAM, 0, td.sockpair)) {
++		munmap(stack, UM_KERN_PAGE_SIZE);
++		return;
++	}
++	pid = clone(userspace_tramp, stack + UM_KERN_PAGE_SIZE,
++		    CLONE_VFORK | CLONE_VM | SIGCHLD, &td);
++	munmap(stack, UM_KERN_PAGE_SIZE);
++	close(td.sockpair[0]);
++	if (pid < 0) {
++		close(td.sockpair[1]);
++		return;
++	}
++	fcntl(td.sockpair[1], F_SETFD, FD_CLOEXEC);
++	zygote_sock = td.sockpair[1];
++	zygote_state = 1;
++	printk(UM_KERN_INFO "stub zygote: pid %d, %d spares\n", pid,
++	       ZYGOTE_SPARES);
++	for (i = 0; i < ZYGOTE_SPARES; i++)
++		zygote_ask();
++}
++
++/*
++ * Hand a new mm to a spare stub. Returns its pid, or <0 to start one from
++ * scratch instead.
++ */
++static int zygote_spawn(struct stub_data *stub_data, int stub_sock)
++{
++	struct stub_init_data init_data;
++	struct iovec iov = { .iov_base = &init_data, .iov_len = sizeof(init_data) };
++	union {
++		char buf[CMSG_SPACE(sizeof(int))];
++		struct cmsghdr align;
++	} ctrl;
++	struct msghdr mh = {
++		.msg_iov = &iov,
++		.msg_iovlen = 1,
++		.msg_control = ctrl.buf,
++		.msg_controllen = sizeof(ctrl.buf),
++	};
++	struct cmsghdr *cm;
++	int pid, sock, n, i;
++
++	if (!using_seccomp || !zygote_on || zygote_state < 0)
++		return -1;
++	if (!zygote_state)
++		zygote_start(stub_data);
++	if (zygote_state < 0)
++		return -1;
++
++	/* Collect what is ready; block only if nothing is. */
++	while (spare_asked && spare_n < ZYGOTE_SPARES &&
++	       zygote_recv(0) > 0)
++		;
++	if (!spare_n && (!spare_asked || zygote_recv(1) <= 0))
++		return -1;
++
++	pid = spare_pid[0];
++	sock = spare_sock[0];
++	spare_n--;
++	for (i = 0; i < spare_n; i++) {
++		spare_pid[i] = spare_pid[i + 1];
++		spare_sock[i] = spare_sock[i + 1];
++	}
++	zygote_ask();	/* a replacement, made while this one runs */
++
++	stub_fill_init_data(&init_data, stub_data);
++	memset(&ctrl, 0, sizeof(ctrl));
++	cm = CMSG_FIRSTHDR(&mh);
++	cm->cmsg_level = SOL_SOCKET;
++	cm->cmsg_type = SCM_RIGHTS;
++	cm->cmsg_len = CMSG_LEN(sizeof(int));
++	memcpy(CMSG_DATA(cm), &stub_sock, sizeof(int));
++
++	/* The stub's end is used non-blocking; the flag lives in the file. */
++	fcntl(stub_sock, F_SETFL, fcntl(stub_sock, F_GETFL) | O_NONBLOCK);
++
++	CATCH_EINTR(n = sendmsg(sock, &mh, MSG_NOSIGNAL));
++	close(sock);
++	if (n != sizeof(init_data)) {
++		/* That spare died; start this stub from scratch. */
++		kill(pid, SIGKILL);
++		return -1;
++	}
++	return pid;
++}
++
+ /**
+  * start_userspace() - prepare a new userspace process
+  * @mm_id: The corresponding struct mm_id
+@@ -589,6 +778,7 @@ int start_userspace(struct mm_id *mm_id)
+ 	};
+ 	void *stack;
+ 	unsigned long sp;
++	unsigned long long spawn_t0;
+ 	int status, n, err;
+ 
+ 	/* setup a temporary stack page */
+@@ -632,9 +822,12 @@ int start_userspace(struct mm_id *mm_id)
+ 		seccomp_spin_us * stub_cycles_per_us() : 0;
+ 	}
+ 
+-	mm_id->pid = clone(userspace_tramp, (void *) sp,
+-		    CLONE_VFORK | CLONE_VM | SIGCHLD,
+-		    (void *)&tramp_data);
++	spawn_t0 = os_nsecs();	/* UMSTAT */
++	mm_id->pid = zygote_spawn(proc_data, tramp_data.sockpair[0]);
++	if (mm_id->pid < 0)
++		mm_id->pid = clone(userspace_tramp, (void *) sp,
++				   CLONE_VFORK | CLONE_VM | SIGCHLD,
++				   (void *)&tramp_data);
+ 	if (mm_id->pid < 0) {
+ 		err = -errno;
+ 		printk(UM_KERN_ERR "%s : clone failed, errno = %d\n",
+@@ -689,6 +882,18 @@ int start_userspace(struct mm_id *mm_id)
+ 		}
+ 	}
+ 
++	{	/* UMSTAT: stub spawn cost */
++		static unsigned long long tot;
++		static unsigned int cnt;
++
++		tot += os_nsecs() - spawn_t0;
++		if (++cnt % 256 == 0) {
++			printk(UM_KERN_INFO "umstat: %u stub spawns, avg %llu us\n",
++			       cnt, tot / 256 / 1000);
++			tot = 0;
++		}
++	}
++
+ 	if (munmap(stack, UM_KERN_PAGE_SIZE) < 0) {
+ 		err = -errno;
+ 		printk(UM_KERN_ERR "%s : munmap failed, errno = %d\n",
+diff --git a/arch/x86/um/shared/sysdep/stub.h b/arch/x86/um/shared/sysdep/stub.h
+index 58f6010ade11..08e5938c0594 100644
+--- a/arch/x86/um/shared/sysdep/stub.h
++++ b/arch/x86/um/shared/sysdep/stub.h
+@@ -100,5 +100,6 @@ extern void stub_segv_handler(int, siginfo_t *, void *);
+ extern void stub_syscall_handler(void);
+ extern void stub_signal_interrupt(int, siginfo_t *, void *);
+ extern void stub_signal_restorer(void);
++extern void stub_spare_wait(void);
+ 
+ #endif /* __SYSDEP_X86_STUB_H */
+-- 
+2.43.0
+
+From bc2ab4b82f6acef01d0ede8bb123cc2771617c80 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 20 Nov 2026 07:46:48 +0000
+Subject: [PATCH 4/6] um: stub_pin (kernel thread and stubs on separate host
+ CPUs, default on), spin backoff knob, umstat= timing
+
+---
+ arch/um/include/shared/skas/stub-data.h  |   8 ++
+ arch/um/include/shared/skas/stub-futex.h |   5 +-
+ arch/um/kernel/skas/stub.c               |  18 +++-
+ arch/um/kernel/skas/stub_exe.c           |   5 +
+ arch/um/os-Linux/skas/process.c          | 122 ++++++++++++++++++++++-
+ 5 files changed, 149 insertions(+), 9 deletions(-)
+
+diff --git a/arch/um/include/shared/skas/stub-data.h b/arch/um/include/shared/skas/stub-data.h
+index 38355e993a00..0bba6ab11f5d 100644
+--- a/arch/um/include/shared/skas/stub-data.h
++++ b/arch/um/include/shared/skas/stub-data.h
+@@ -87,6 +87,8 @@ struct stub_init_data {
+ 	int zygote;
+ 	/* STUB_CODE address of stub_spare_wait() */
+ 	unsigned long spare_entry;
++	/* nonzero: host CPUs the stub may run on (stub_pin=) */
++	unsigned long cpumask;
+ 
+ 	unsigned long stub_start;
+ 
+@@ -137,6 +139,9 @@ struct stub_data {
+ 	int fast_busy;
+ 	int fast_pending;
+ 
++	/* UMSTAT: stub-side timestamps (stub_cycles) */
++	unsigned long ts_sig, ts_sc0, ts_sc1, sc_n;
++
+ 
+ 	/*
+ 	 * The handoff word, alone in a 64-byte slot. Both sides poll it now
+@@ -177,6 +182,9 @@ struct stub_data {
+ 	 * a constant rate regardless.
+ 	 */
+ 	unsigned int spin_ticks;
++	unsigned int spin_backoff;	/* waits to sleep after a miss */
++	/* UMSTAT: spin outcomes, kernel side and stub side */
++	unsigned int k_hit, k_miss, k_skip, s_hit, s_miss, s_skip;
+ 	struct stub_spin_state kern_spin;	/* written by the kernel side only */
+ 	struct stub_spin_state stub_spin;	/* written by the stub only */
+ 
+diff --git a/arch/um/include/shared/skas/stub-futex.h b/arch/um/include/shared/skas/stub-futex.h
+index 43f318dcda8f..cc196aaafb8a 100644
+--- a/arch/um/include/shared/skas/stub-futex.h
++++ b/arch/um/include/shared/skas/stub-futex.h
+@@ -66,14 +66,15 @@ stub_futex_spin_budget(struct stub_spin_state *s, unsigned int spin_ticks)
+ 
+ /* Record the outcome of an actually-attempted spin. */
+ static __always_inline void
+-stub_futex_spin_result(struct stub_spin_state *s, int hit)
++stub_futex_spin_result(struct stub_spin_state *s, int hit,
++		       unsigned int backoff)
+ {
+ 	if (hit) {
+ 		if (s->streak < STUB_SPIN_STREAK_MAX)
+ 			s->streak++;
+ 	} else {
+ 		s->streak = 0;
+-		s->backoff = STUB_SPIN_BACKOFF;
++		s->backoff = backoff;
+ 	}
+ }
+ 
+diff --git a/arch/um/kernel/skas/stub.c b/arch/um/kernel/skas/stub.c
+index 8da62cbfa395..6053013796f5 100644
+--- a/arch/um/kernel/skas/stub.c
++++ b/arch/um/kernel/skas/stub.c
+@@ -121,6 +121,7 @@ stub_handoff(struct stub_data *d, int sig, siginfo_t *info, void *p)
+ 	unsigned int futex_val;
+ 	long res;
+ 
++	d->ts_sig = stub_cycles();
+ 	d->signal = sig;
+ 	d->si_offset = (unsigned long)info - (unsigned long)&d->sigstack[0];
+ 	d->mctx_offset = (unsigned long)&uc->uc_mcontext - (unsigned long)&d->sigstack[0];
+@@ -151,9 +152,17 @@ stub_handoff(struct stub_data *d, int sig, siginfo_t *info, void *p)
+ 	 */
+ 	budget = stub_futex_spin_budget(&d->stub_spin, d->spin_ticks);
+ 	futex_val = stub_futex_spin(&d->futex, FUTEX_IN_KERN, budget);
+-	if (budget)
+-		stub_futex_spin_result(&d->stub_spin,
+-				       STUB_FUTEX_OWNER(futex_val) == FUTEX_IN_CHILD);
++	if (budget) {
++		int hit = STUB_FUTEX_OWNER(futex_val) == FUTEX_IN_CHILD;
++
++		stub_futex_spin_result(&d->stub_spin, hit, d->spin_backoff);
++		if (hit)
++			d->s_hit++;
++		else
++			d->s_miss++;
++	} else {
++		d->s_skip++;
++	}
+ 
+ 	if (STUB_FUTEX_OWNER(futex_val) == FUTEX_IN_KERN) {
+ 		/*
+@@ -201,7 +210,10 @@ stub_handoff(struct stub_data *d, int sig, siginfo_t *info, void *p)
+ 			num_fds = (fd_msg->cmsg_len - CMSG_LEN(0)) / sizeof(int);
+ 
+ 		/* Try running queued syscalls. */
++		d->sc_n = d->syscall_data_len;
++		d->ts_sc0 = stub_cycles();
+ 		res = syscall_handler(fd_map);
++		d->ts_sc1 = stub_cycles();
+ 
+ 		while (num_fds)
+ 			stub_syscall2(__NR_close, fd_map[--num_fds], 0);
+diff --git a/arch/um/kernel/skas/stub_exe.c b/arch/um/kernel/skas/stub_exe.c
+index 7c34aca910b4..deac21daa08d 100644
+--- a/arch/um/kernel/skas/stub_exe.c
++++ b/arch/um/kernel/skas/stub_exe.c
+@@ -120,6 +120,11 @@ noinline static void real_init(void)
+ 	if (res != sizeof(init_data))
+ 		stub_syscall1(__NR_exit, 10);
+ 
++	/* Spares forked by a zygote inherit this. */
++	if (init_data.cpumask)
++		stub_syscall3(__NR_sched_setaffinity, 0, sizeof(init_data.cpumask),
++			      (unsigned long)&init_data.cpumask);
++
+ 	/* In SECCOMP mode, FD 0 is a socket and is later used for FD passing */
+ 	if (init_data.zygote)
+ 		zygote_loop(&init_data);	/* returns in a new stub */
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index d3be0657d1a5..cc3ade2292ec 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -147,6 +147,19 @@ static int __init uml_seccomp_spin_setup(char *line, int *add)
+ 	return 0;
+ }
+ 
++static unsigned int seccomp_spin_backoff = STUB_SPIN_BACKOFF;
++
++static int __init uml_seccomp_spin_backoff_setup(char *line, int *add)
++{
++	*add = 0;
++	seccomp_spin_backoff = strtoul(line, NULL, 0);
++	return 0;
++}
++__uml_setup("seccomp_spin_backoff=", uml_seccomp_spin_backoff_setup,
++"seccomp_spin_backoff=<n>\n"
++"    After a handoff spin misses, sleep straight away for the next n waits.\n"
++"    Default: 16.\n\n");
++
+ __uml_setup("seccomp_spin=", uml_seccomp_spin_setup,
+ "seccomp_spin=<microseconds>\n"
+ "    In SECCOMP mode, busy-poll the stub<->kernel handoff word this long\n"
+@@ -220,9 +233,18 @@ void wait_stub_done_seccomp(struct mm_id *mm_idp, int running, int wait_sigsys)
+ 						data->spin_ticks);
+ 		futex_val = stub_futex_spin(&data->futex, FUTEX_IN_CHILD,
+ 					    budget);
+-		if (budget)
+-			stub_futex_spin_result(&data->kern_spin,
+-					       STUB_FUTEX_OWNER(futex_val) == FUTEX_IN_KERN);
++		if (budget) {
++			int hit = STUB_FUTEX_OWNER(futex_val) == FUTEX_IN_KERN;
++
++			stub_futex_spin_result(&data->kern_spin, hit,
++					       data->spin_backoff);
++			if (hit)
++				data->k_hit++;
++			else
++				data->k_miss++;
++		} else {
++			data->k_skip++;
++		}
+ 
+ 		/*
+ 		 * Going to sleep: advertise it via the waiter bit so the
+@@ -368,6 +390,48 @@ struct tramp_data {
+ #define CLOSE_RANGE_CLOEXEC	(1U << 2)
+ #endif
+ 
++/*
++ * stub_pin=1: keep the kernel's host thread on one CPU (the highest it may use,
++ * usually the biggest core) and every stub off it, so a spinning handoff never
++ * has to wait for the other side to be scheduled on the same CPU.
++ */
++static int stub_pin = 1;
++static int umstat_on;
++static unsigned long stub_cpumask;
++
++static int __init uml_stub_pin_setup(char *line, int *add)
++{
++	*add = 0;
++	stub_pin = strtoul(line, NULL, 0) != 0;
++	return 0;
++}
++__uml_setup("stub_pin=", uml_stub_pin_setup,
++"stub_pin=<0|1>\n"
++"    Pin the kernel thread to one host CPU and the stubs to the others.\n"
++"    Default: 1.\n\n");
++
++static unsigned long stub_pin_mask(void)
++{
++	static int done;
++	unsigned long m = 0, k;
++	int cpu;
++
++	if (!stub_pin || done)
++		return stub_cpumask;
++	done = 1;
++	if (syscall(__NR_sched_getaffinity, 0, sizeof(m), &m) < 0 ||
++	    __builtin_popcountl(m) < 2)
++		return 0;
++	cpu = 63 - __builtin_clzl(m);
++	k = 1UL << cpu;
++	if (syscall(__NR_sched_setaffinity, 0, sizeof(k), &k) < 0)
++		return 0;
++	stub_cpumask = m & ~k;
++	printk(UM_KERN_INFO "stub_pin: kernel on CPU %d, stubs on %lx\n",
++	       cpu, stub_cpumask);
++	return stub_cpumask;
++}
++
+ static void stub_fill_init_data(struct stub_init_data *init_data_p,
+ 				struct stub_data *stub_data)
+ {
+@@ -398,6 +462,7 @@ static void stub_fill_init_data(struct stub_init_data *init_data_p,
+ 	init_data.stub_data_fd = phys_mapping(uml_to_phys(stub_data),
+ 					      &offset);
+ 	init_data.stub_data_offset = MMAP_OFFSET(offset);
++	init_data.cpumask = stub_pin_mask();
+ 	init_data.spare_entry = STUB_CODE +
+ 				(unsigned long) stub_spare_wait -
+ 				(unsigned long) __syscall_stub_start;
+@@ -781,6 +846,9 @@ int start_userspace(struct mm_id *mm_id)
+ 	unsigned long long spawn_t0;
+ 	int status, n, err;
+ 
++	/* In the kernel's own thread, before any clone() can call it. */
++	stub_pin_mask();
++
+ 	/* setup a temporary stack page */
+ 	stack = mmap(NULL, UM_KERN_PAGE_SIZE,
+ 		     PROT_READ | PROT_WRITE | PROT_EXEC,
+@@ -818,6 +886,7 @@ int start_userspace(struct mm_id *mm_id)
+ 	 * meaningless and the register read is not even guaranteed to be legal.
+ 	 * See check_stub_cycles().
+ 	 */
++	proc_data->spin_backoff = seccomp_spin_backoff;
+ 	proc_data->spin_ticks = have_stub_cycles ?
+ 		seccomp_spin_us * stub_cycles_per_us() : 0;
+ 	}
+@@ -887,7 +956,7 @@ int start_userspace(struct mm_id *mm_id)
+ 		static unsigned int cnt;
+ 
+ 		tot += os_nsecs() - spawn_t0;
+-		if (++cnt % 256 == 0) {
++		if (++cnt % 256 == 0 && umstat_on) {
+ 			printk(UM_KERN_INFO "umstat: %u stub spawns, avg %llu us\n",
+ 			       cnt, tot / 256 / 1000);
+ 			tot = 0;
+@@ -947,9 +1016,51 @@ static int at_syscall_insn(int pid, unsigned long pc)
+ }
+ #endif
+ 
++/*
++ * UMSTAT: where a guest page fault's time goes. hand = stub signal handler
++ * entry -> kernel sees it; work = kernel fault handling; map = the stub's
++ * queued mmap()s on the way back (measured at the next fault).
++ */
++static int __init uml_umstat_setup(char *line, int *add)
++{
++	*add = 0;
++	umstat_on = strtoul(line, NULL, 0) != 0;
++	return 0;
++}
++__uml_setup("umstat=", uml_umstat_setup,
++"umstat=<0|1>\n"
++"    Print stub spawn and guest page fault timing now and then. Default: 0.\n\n");
++
++static void umstat_fault(struct mm_id *mm_id, unsigned long t_a)
++{
++	static unsigned long long hand, work, map, nmap;
++	static unsigned int cnt;
++	struct stub_data *d = (void *)mm_id->stack;
++	unsigned long now = stub_cycles(), cpu = stub_cycles_per_us();
++
++	hand += t_a - d->ts_sig;
++	work += now - t_a;
++	if (d->ts_sc1 > d->ts_sc0) {
++		map += d->ts_sc1 - d->ts_sc0;
++		nmap += d->sc_n;
++	}
++	d->ts_sc0 = d->ts_sc1 = 0;
++	if (++cnt % 4096 == 0 && cpu && umstat_on) {
++		printk(UM_KERN_INFO "umstat: %u faults, avg us: hand %llu.%02llu work %llu.%02llu map %llu.%02llu (%llu.%02llu ops) | this mm spin kern hit/miss/skip %u/%u/%u stub %u/%u/%u\n",
++		       cnt, hand / 4096 / cpu, hand * 100 / 4096 / cpu % 100,
++		       work / 4096 / cpu, work * 100 / 4096 / cpu % 100,
++		       map / 4096 / cpu, map * 100 / 4096 / cpu % 100,
++		       nmap / 4096, nmap * 100 / 4096 % 100,
++		       d->k_hit, d->k_miss, d->k_skip,
++		       d->s_hit, d->s_miss, d->s_skip);
++		hand = work = map = nmap = 0;
++	}
++}
++
+ void userspace(struct uml_pt_regs *regs)
+ {
+ 	int err, status, op;
++	unsigned long fstat_t_a = 0;
+ 	siginfo_t si_local;
+ 	siginfo_t *si;
+ 	int sig;
+@@ -1012,6 +1123,7 @@ void userspace(struct uml_pt_regs *regs)
+ 			proc_data->syscall_data_len = mm_id->syscall_data_len;
+ 
+ 			wait_stub_done_seccomp(mm_id, 0, 0);
++			fstat_t_a = stub_cycles();	/* UMSTAT */
+ 
+ 			sig = proc_data->signal;
+ 
+@@ -1290,6 +1402,8 @@ void userspace(struct uml_pt_regs *regs)
+ 							     regs, NULL);
+ 				else
+ 					segv(regs->faultinfo, 0, 1, NULL, NULL);
++				if (using_seccomp)
++					umstat_fault(mm_id, fstat_t_a);
+ 
+ 				break;
+ 			case SIGSYS:
+-- 
+2.43.0
+
+From bb5bff45121b48dc19017e60064af53b93afb90f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 20 Nov 2026 07:55:48 +0000
+Subject: [PATCH 5/6] um: our options default on (seccomp=auto, stub_exe next
+ to the binary, physmem_memfd=)
+
+---
+ arch/um/os-Linux/mem.c          | 17 +++++++++++++++--
+ arch/um/os-Linux/skas/process.c | 23 +++++++++++++++++++++++
+ arch/um/os-Linux/start_up.c     |  5 +++--
+ 3 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/arch/um/os-Linux/mem.c b/arch/um/os-Linux/mem.c
+index 0c2b92c8ec82..8cabcffa43e2 100644
+--- a/arch/um/os-Linux/mem.c
++++ b/arch/um/os-Linux/mem.c
+@@ -130,15 +130,28 @@ static char * __init choose_tempdir(void)
+  * On Android the only writable tempdir is usually on f2fs, where every guest
+  * page would be file-backed flash with writeback behind it. Falls back to the
+  * tempdir if memfds are missing or cannot be mapped executable (W^X hosts).
+- * UML_NO_MEMFD in the environment forces the tempdir.
++ * physmem_memfd=0 (or UML_NO_MEMFD in the environment) forces the tempdir.
+  */
++static int physmem_memfd = 1;
++
++static int __init uml_physmem_memfd_setup(char *line, int *add)
++{
++	*add = 0;
++	physmem_memfd = strtoul(line, NULL, 0) != 0;
++	return 0;
++}
++__uml_setup("physmem_memfd=", uml_physmem_memfd_setup,
++"physmem_memfd=<0|1>\n"
++"    Back guest memory with a memfd instead of a file in the tempdir.\n"
++"    Default: 1.\n\n");
++
+ static int __init make_memfd(void)
+ {
+ 	static int state;	/* 0 untested, 1 usable, -1 not */
+ 	void *addr;
+ 	int fd;
+ 
+-	if (state < 0 || getenv("UML_NO_MEMFD"))
++	if (state < 0 || !physmem_memfd || getenv("UML_NO_MEMFD"))
+ 		return -1;
+ 
+ 	fd = syscall(__NR_memfd_create, "uml-physmem", 1 /* MFD_CLOEXEC */);
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index cc3ade2292ec..d0c29566e575 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -554,6 +554,29 @@ static int __init init_stub_exe_fd(void)
+ 	 * An explicit path bypasses the memfd entirely -- there is nothing to
+ 	 * write, because the file already holds the stub.
+ 	 */
++	/*
++	 * No stub_exe= given: use a stub_exe sitting next to this binary, if
++	 * there is one. Hosts that refuse to exec a memfd (Android) then need
++	 * no option at all.
++	 */
++	if (!stub_exe_path) {
++		static char self[4096];
++		ssize_t n = readlink("/proc/self/exe", self, sizeof(self) - 16);
++		char *slash;
++
++		if (n > 0) {
++			self[n] = 0;
++			slash = strrchr(self, '/');
++			if (slash) {
++				strcpy(slash + 1, "stub_exe");
++				if (access(self, R_OK | X_OK) == 0) {
++					stub_exe_path = self;
++					os_info("Using %s\n", self);
++				}
++			}
++		}
++	}
++
+ 	if (stub_exe_path) {
+ 		stub_exe_fd = open(stub_exe_path, O_RDONLY | O_CLOEXEC);
+ 		if (stub_exe_fd < 0)
+diff --git a/arch/um/os-Linux/start_up.c b/arch/um/os-Linux/start_up.c
+index bc129f59cb7e..0683b9e5fe04 100644
+--- a/arch/um/os-Linux/start_up.c
++++ b/arch/um/os-Linux/start_up.c
+@@ -829,7 +829,7 @@ void  __init get_host_cpu_features(int (*line_helper_func)(char *line))
+ 	}
+ }
+ 
+-static int seccomp_config __initdata;
++static int seccomp_config __initdata = 1;	/* auto */
+ 
+ static int __init uml_seccomp_config(char *line, int *add)
+ {
+@@ -865,7 +865,8 @@ __uml_setup("seccomp=", uml_seccomp_config,
+ "    processes could also trick the stub into disabling SIGALRM which\n"
+ "    prevents it from being interrupted for scheduling purposes.\n"
+ "\n"
+-"    This is insecure and should only be used with a trusted userspace\n\n"
++"    This is insecure and should only be used with a trusted userspace.\n"
++"    Default: auto (SECCOMP if the host supports it, else ptrace).\n\n"
+ );
+ 
+ extern long elf_aux_min_sigstack;
+-- 
+2.43.0
+
+From d45f97a7f1fb413bb0680245c7740e8408ad7713 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 20 Nov 2026 09:02:27 +0000
+Subject: [PATCH 6/6] um: SMP build (NR_CPUS 8): serialize start_userspace, no
+ stub_pin with ncpus>1
+
+---
+ arch/um/kernel/skas/mmu.c       | 7 +++++++
+ arch/um/os-Linux/skas/process.c | 4 ++++
+ harness/build-bionic-termux.sh  | 2 +-
+ 3 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/arch/um/kernel/skas/mmu.c b/arch/um/kernel/skas/mmu.c
+index 5ed098f4564b..49353ae6a927 100644
+--- a/arch/um/kernel/skas/mmu.c
++++ b/arch/um/kernel/skas/mmu.c
+@@ -21,6 +21,7 @@
+ static_assert(sizeof(struct stub_data) == STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
+ 
+ static spinlock_t mm_list_lock;
++static DEFINE_MUTEX(start_userspace_lock);
+ static struct list_head mm_list;
+ 
+ struct mutex *__get_turnstile(struct mm_id *mm_id)
+@@ -76,7 +77,13 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
+ 		list_add(&mm->context.list, &mm_list);
+ 	}
+ 
++	/*
++	 * Serialized: the stub zygote's spare queue and socket, and the
++	 * one-time stub_pin setup, are shared by every vCPU.
++	 */
++	mutex_lock(&start_userspace_lock);
+ 	ret = start_userspace(new_id);
++	mutex_unlock(&start_userspace_lock);
+ 	if (ret < 0) {
+ 		printk(KERN_ERR "%s: start_userspace failed: %d\n",
+ 		       __func__, ret);
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index d0c29566e575..b49db9ab2eec 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -29,6 +29,7 @@
+ #include <skas.h>
+ #include <sysdep/stub.h>
+ #include <stub-futex.h>
++#include <smp.h>
+ #include <sysdep/mcontext.h>
+ #include <linux/futex.h>
+ #include <linux/threads.h>
+@@ -419,6 +420,9 @@ static unsigned long stub_pin_mask(void)
+ 	if (!stub_pin || done)
+ 		return stub_cpumask;
+ 	done = 1;
++	/* SMP: the vCPU threads use the host CPUs; leave placement to the host. */
++	if (uml_ncpus > 1)
++		return 0;
+ 	if (syscall(__NR_sched_getaffinity, 0, sizeof(m), &m) < 0 ||
+ 	    __builtin_popcountl(m) < 2)
+ 		return 0;
+diff --git a/harness/build-bionic-termux.sh b/harness/build-bionic-termux.sh
+index 3948eaaa56ce..7d59e8dc57f8 100755
+--- a/harness/build-bionic-termux.sh
++++ b/harness/build-bionic-termux.sh
+@@ -28,7 +28,7 @@ common=(
+ )
+ 
+ make "${common[@]}" defconfig
+-scripts/config --file "$OUT/.config" -e STATIC_LINK -e UML_NET_VECTOR -e NET_9P -e 9P_FS
++scripts/config --file "$OUT/.config" -e STATIC_LINK -e UML_NET_VECTOR -e NET_9P -e 9P_FS -e SMP --set-val NR_CPUS 8
+ make "${common[@]}" olddefconfig
+ make "${common[@]}" -j"$JOBS"
+ 
+-- 
+2.43.0
+
