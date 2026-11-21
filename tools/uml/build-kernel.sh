@@ -84,7 +84,7 @@ rm -f "$MS/lib/modules/$REL/build" "$MS/lib/modules/$REL/source"
 
 # busybox, static arm64 (glibc cross gcc: gcc-aarch64-linux-gnu).
 BB=busybox-$BUSYBOX_VER
-if [ ! -x "$WORK/$BB/busybox" ]; then
+if [ ! -x "$WORK/$BB/busybox" ] || [ ! -f "$WORK/$BB/busybox.links" ]; then
     [ -f "$WORK/$BB.tar.bz2" ] || curl -sSfL -o "$WORK/$BB.tar.bz2" "https://busybox.net/downloads/$BB.tar.bz2"
     echo "$BUSYBOX_SHA256  $WORK/$BB.tar.bz2" | sha256sum -c - >/dev/null
     rm -rf "$WORK/$BB" && tar xjf "$WORK/$BB.tar.bz2" -C "$WORK"
@@ -93,7 +93,7 @@ if [ ! -x "$WORK/$BB/busybox" ]; then
                -e 's/^CONFIG_TC=y/# CONFIG_TC is not set/' \
                -e 's/^CONFIG_SHA1_HWACCEL=y/# CONFIG_SHA1_HWACCEL is not set/' \
                -e 's/^CONFIG_SHA256_HWACCEL=y/# CONFIG_SHA256_HWACCEL is not set/' .config &&
-        make -j"$JOBS" CROSS_COMPILE=aarch64-linux-gnu- >/dev/null 2>&1) ||
+        make -j"$JOBS" CROSS_COMPILE=aarch64-linux-gnu- busybox busybox.links >/dev/null 2>&1) ||
         { echo "busybox build failed" >&2; exit 1; }
 fi
 {
@@ -104,7 +104,10 @@ fi
     echo "dir /sys 0755 0 0"
     echo "dir /bin 0755 0 0"
     echo "file /bin/busybox $WORK/$BB/busybox 0755 0 0"
-    echo "slink /bin/sh busybox 0777 0 0"
+    # Every applet as /bin/<name> -> busybox, made here rather than with
+    # `busybox --install` at boot (that needs /proc/self/exe).
+    sed 's|.*/||' "$WORK/$BB/busybox.links" | LC_ALL=C sort -u | grep -vx busybox |
+        while read -r a; do echo "slink /bin/$a busybox 0777 0 0"; done
     echo "file /init $HERE/initramfs-init.sh 0755 0 0"
     echo "dir /lib 0755 0 0"
     (cd "$MS" && find lib -mindepth 1 | LC_ALL=C sort | while read -r f; do

@@ -5,7 +5,6 @@
 # /usr/lib/modules/<release>, so the disk itself is never written), then
 # switch_root to systemd. "rtinit=shell" on the command line stops in a shell.
 export PATH=/bin
-busybox --install -s /bin
 mkdir -p /dev /proc /sys /root
 mount -t devtmpfs devtmpfs /dev
 mount -t proc proc /proc
