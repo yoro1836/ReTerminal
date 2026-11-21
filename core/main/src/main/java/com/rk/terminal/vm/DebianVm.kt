@@ -28,7 +28,7 @@ import java.util.zip.GZIPInputStream
  */
 object DebianVm {
     /** Bump with the image; an older disk is then reinstalled. */
-    private const val IMAGE = 2
+    private const val IMAGE = 4
     private const val IMAGE_URL = "https://github.com/yoro1836/ReTerminal/releases/download/rt-debian-$IMAGE/rt-debian-$IMAGE.ext4.gz"
 
     internal fun lib(ctx: Context, n: String) = File(ctx.applicationInfo.nativeLibraryDir, n)
@@ -133,6 +133,28 @@ object DebianVm {
     fun autoExpand(ctx: Context) = prefs(ctx).getBoolean("auto_expand", true)
     fun setAutoExpand(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("auto_expand", on).apply()
     /** Mount the phone's shared storage at /mnt/media (hostfs); needs all-files access. */
+    /**
+     * Ports forwarded from the phone's 127.0.0.1 to the guest, as "8080" or
+     * "8080:80" (phone:guest), comma separated; applied at the next boot.
+     */
+    fun forwardsText(ctx: Context) = prefs(ctx).getString("ports", "") ?: ""
+    fun forwards(ctx: Context) = parseForwards(forwardsText(ctx)).getOrDefault(emptyList())
+
+    /** Normalised list, or an error to show; phone ports must be 1024..65535 (no root). */
+    fun parseForwards(text: String): Result<List<String>> = runCatching {
+        text.split(',', ' ', '\n').map { it.trim() }.filter { it.isNotEmpty() }.map { t ->
+            val m = Regex("^(\\d+)(?::(\\d+))?$").matchEntire(t) ?: error("\"$t\" is not a port or phone:guest pair")
+            val host = m.groupValues[1].toInt()
+            val guest = m.groupValues[2].ifEmpty { m.groupValues[1] }.toInt()
+            require(host in 1024..65535) { "Phone port $host must be 1024-65535" }
+            require(guest in 1..65535) { "VM port $guest must be 1-65535" }
+            require(host != X11.PORT) { "Phone port ${X11.PORT} is used for the X11 display" }
+            if (host == guest) "$host" else "$host:$guest"
+        }.distinctBy { it.substringBefore(':') }
+    }
+
+    fun setForwards(ctx: Context, text: String) = prefs(ctx).edit().putString("ports", text).apply()
+
     fun shareStorage(ctx: Context) = prefs(ctx).getBoolean("share_storage", false)
     fun setShareStorage(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("share_storage", on).apply()
     fun storageAccess() = android.os.Build.VERSION.SDK_INT < 30 || android.os.Environment.isExternalStorageManager()
@@ -236,7 +258,7 @@ object DebianVm {
         } else if (disk(app).length() < want) RandomAccessFile(disk(app), "rw").use { it.setLength(want) }
         val cmd = listOf(
             lib(app, "libumnet.so").path, "--passt", lib(app, "libpasst.so").path,
-            "--tcp", "127.0.0.1/$port:22", "--",
+            "--tcp", "127.0.0.1/" + (listOf("$port:22") + forwards(app)).joinToString(","), "--",
             lib(app, "libuml.so").path, "mem=${sp.memMb}M", "ncpus=${sp.cpus}",
             "con=null", "con0=fd:0,fd:1",
             "stub_exe=" + lib(app, "libumstub.so").path,

@@ -92,3 +92,24 @@ rebuild with a warm cache took 38 s instead of 7.5 min in the sandbox, same outp
 The `UML kernel` workflow runs it on GitHub (manually, or on pushes touching `tools/uml/`)
 and uploads the four libs and the stamp as the `uml-kernel` artifact. It caches the NDK and
 the ccache directory between runs.
+
+## Port forwarding
+
+Settings > Debian VM > Forwarded ports (e.g. `8080, 3000:80`) adds phone
+`127.0.0.1` ports to passt's `-t` list next to the SSH port; applied at the
+next boot. The other direction needs nothing: the guest reaches the phone's
+loopback at its gateway address.
+
+## X11 (Termux:X11)
+
+The display button in the drawer's Debian VM row (`vm/X11.kt`) starts the
+Termux:X11 X server in this app (`app_process` with the Termux:X11 APK as
+`CLASSPATH`, `com.termux.x11.CmdEntryPoint :0`, `TMPDIR` and
+`XKB_CONFIG_ROOT` under `files/x11`), relays its unix socket to
+`127.0.0.1:6000`, and opens the Termux:X11 app. In the guest,
+`/etc/profile.d/reterminal-display.sh` (image `rt-debian-4`) sets
+`DISPLAY=<gateway>:0`. XKB data: `assets/xkb.zip`, made from Debian's xkb-data
+by `tools/x11/make-xkb-zip.sh`.
+
+Anland is not supported: it passes GPU buffers (dmabuf fds) between the
+Android app and a compositor on the same kernel, which a UML guest is not.

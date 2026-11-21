@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Usb
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -278,6 +279,14 @@ fun TerminalDrawer(
                             Icon(imageVector = Icons.Outlined.Usb, contentDescription = "USB devices")
                         }
                         if (showUsb) com.rk.terminal.vm.UsbDialog { showUsb = false }
+                        val drawerCtx = androidx.compose.ui.platform.LocalContext.current
+                        IconButton(onClick = {
+                            com.rk.terminal.vm.X11.open(drawerCtx)?.let {
+                                android.widget.Toast.makeText(drawerCtx, it, android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        }) {
+                            Icon(imageVector = Icons.Outlined.DesktopWindows, contentDescription = "Display (Termux:X11)")
+                        }
                         IconButton(enabled = !vmStopping, onClick = { showRestartConfirm = true }) {
                             Icon(imageVector = Icons.Outlined.RestartAlt, contentDescription = stringResource(strings.restart_vm_title))
                         }
