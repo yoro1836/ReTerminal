@@ -28,7 +28,7 @@ import java.util.zip.GZIPInputStream
  */
 object DebianVm {
     /** Bump with the image; an older disk is then reinstalled. */
-    private const val IMAGE = 1
+    private const val IMAGE = 2
     private const val IMAGE_URL = "https://github.com/yoro1836/ReTerminal/releases/download/rt-debian-$IMAGE/rt-debian-$IMAGE.ext4.gz"
 
     internal fun lib(ctx: Context, n: String) = File(ctx.applicationInfo.nativeLibraryDir, n)
@@ -46,7 +46,8 @@ object DebianVm {
     /** Another app (or a stale VM) may hold any fixed port, so take a free one. */
     internal fun freePort() = java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { it.localPort }
     fun installed(ctx: Context) = try {
-        File(dir(ctx), ".ready").readText().trim() == "rt-$IMAGE"
+        // Any rt-N disk: a newer image is only for new installs, never re-downloaded over one.
+        File(dir(ctx), ".ready").readText().trim().startsWith("rt-")
     } catch (_: Exception) { false }
 
     // ---- spec (applied on the next boot)
