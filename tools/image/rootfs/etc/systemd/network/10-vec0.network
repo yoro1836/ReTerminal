@@ -1,0 +1,5 @@
+[Match]
+Name=vec0
+
+[Network]
+DHCP=ipv4

@@ -1,0 +1,13 @@
+[Unit]
+Description=ReTerminal: settings from the app
+Before=ssh.service
+After=systemd-remount-fs.service
+DefaultDependencies=no
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/reterminal-boot
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,41 @@
+name: Debian disk image
+
+# Builds rt-debian-N.ext4.gz with tools/image/build-image.sh and publishes it
+# as the release rt-debian-N, which DebianVm.kt downloads. N is DebianVm.kt's
+# IMAGE; an existing release is left alone.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+    paths: ["tools/image/**", ".github/workflows/disk-image.yml",
+            "core/main/src/main/java/com/rk/terminal/vm/DebianVm.kt"]
+
+permissions:
+  contents: write
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image number
+        id: n
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          N=$(sed -n 's/.*const val IMAGE = \([0-9]*\).*/\1/p' core/main/src/main/java/com/rk/terminal/vm/DebianVm.kt)
+          echo "n=$N" >> "$GITHUB_OUTPUT"
+          if gh release view "rt-debian-$N" >/dev/null 2>&1; then echo "skip=1" >> "$GITHUB_OUTPUT"; fi
+      - name: Build
+        if: steps.n.outputs.skip != '1'
+        run: sudo tools/image/build-image.sh "rt-debian-${{ steps.n.outputs.n }}.ext4.gz"
+      - name: Release
+        if: steps.n.outputs.skip != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          N: ${{ steps.n.outputs.n }}
+        run: |
+          gh release create "rt-debian-$N" "rt-debian-$N.ext4.gz" \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Debian disk image rt-debian-$N" \
+            --notes "Debian trixie arm64 disk image for the UML Debian VM (hostname reterm, user debian). Built by tools/image/build-image.sh."

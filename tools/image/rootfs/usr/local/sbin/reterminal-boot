@@ -1,0 +1,33 @@
+#!/bin/sh
+# Settings from the app, on the kernel command line:
+#   rtkey=<base64 ssh public key>  for root and debian
+#   rtswap=<MB>                    swap file size, 0 = none
+swap=0
+for a in $(cat /proc/cmdline); do
+	case "$a" in
+	rtkey=*)
+		key=$(echo "${a#rtkey=}" | base64 -d)
+		for u in root debian; do
+			h=$(getent passwd $u | cut -d: -f6) || continue
+			install -d -m 700 -o $u -g $u "$h/.ssh"
+			echo "$key" > "$h/.ssh/authorized_keys"
+			chown $u:$u "$h/.ssh/authorized_keys"
+			chmod 600 "$h/.ssh/authorized_keys"
+		done ;;
+	rtswap=*) swap=${a#rtswap=} ;;
+	esac
+done
+# The app grows the disk file; take the space.
+resize2fs /dev/ubda >/dev/null 2>&1 || true
+# Swap file, resized to what the app asks for.
+have=0
+[ -f /swapfile ] && have=$(( $(stat -c %s /swapfile) / 1048576 ))
+if [ "$have" != "$swap" ]; then
+	swapoff /swapfile 2>/dev/null
+	rm -f /swapfile
+	if [ "$swap" -gt 0 ]; then
+		fallocate -l ${swap}M /swapfile && chmod 600 /swapfile && mkswap /swapfile >/dev/null
+	fi
+fi
+[ -f /swapfile ] && swapon /swapfile 2>/dev/null
+exit 0

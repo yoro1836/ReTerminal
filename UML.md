@@ -47,8 +47,11 @@ resolved) + openssh-server, sudo, e2fsprogs; hostname `reterm`, user
 `debian` (passwordless sudo), root autologin on the console.
 `reterminal-boot.service` reads the app's settings from the kernel command
 line: `rtkey=` (base64 SSH public key, for root and debian) and `rtswap=` (swap
-file MB), and grows the filesystem into the sparse disk. It was derived from
-claude-phone's `cp-debian-2` by renaming its `claude` user and boot service.
+file MB), and grows the filesystem into the sparse disk. It is built by
+`tools/image/build-image.sh` (files added to the rootfs are in
+`tools/image/rootfs/`) and published as the GitHub release `rt-debian-N` by the
+"Debian disk image" workflow (run it with the new N, then bump `IMAGE` in
+`DebianVm.kt`; installed disks are kept).
 
 ## Kernel modules (initramfs)
 
