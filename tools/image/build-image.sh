@@ -44,6 +44,9 @@ echo reterm > /etc/hostname
 sed -i 's/^127\.0\.1\.1.*/127.0.1.1\treterm/' /etc/hosts
 grep -q reterm /etc/hosts || printf '127.0.1.1\treterm\n' >> /etc/hosts
 rm -f /etc/ssh/ssh_host_*
+# No login banner (Debian's motd text and the uname line).
+: > /etc/motd
+rm -f /etc/update-motd.d/10-uname
 systemctl enable reterminal-boot.service ssh.service console-getty.service
 rm -f /etc/systemd/system/getty.target.wants/getty@tty1.service
 for u in systemd-networkd-wait-online.service fstrim.timer systemd-pstore.service \

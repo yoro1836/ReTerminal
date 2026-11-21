@@ -31,6 +31,7 @@ trim() {
   ( "$DB" dbclient -y -i "$D/id_dropbear" -p "$p" -T root@127.0.0.1 "fstrim -a" </dev/null >/dev/null 2>&1 & )
 }
 
+E=$(printf '\033'); BEL=$(printf '\007')
 shown=0
 console() {
   c=$(wc -l < "$D/console.log" 2>/dev/null)
@@ -38,7 +39,10 @@ console() {
   [ "$c" -lt "$shown" ] && shown=0
   if [ "$c" -gt "$shown" ]; then
     printf '\r\033[K'
-    sed -n "$((shown + 1)),${c}p" "$D/console.log"
+    # Drop the guest's terminal queries (DSR, DA, OSC ...;?): the terminal would
+    # answer them into this tab's input, and the login shell would get them.
+    sed -n "$((shown + 1)),${c}p" "$D/console.log" |
+      sed -E -e "s/${E}\[[0-9;>?=]*[cnt]//g" -e "s/${E}\][0-9]+;\?[^${E}${BEL}]*(${BEL}|${E}\\\\)//g"
     shown=$c
   fi
 }
@@ -77,6 +81,9 @@ wait_ready() {
 
 while :; do
   wait_ready
+  # Throw away anything typed (or answered by the terminal) while waiting.
+  old=$(stty -g 2>/dev/null) && stty -icanon min 0 time 0 2>/dev/null && cat >/dev/null 2>&1
+  [ -n "$old" ] && stty "$old" 2>/dev/null
   "$DB" dbclient -y -i "$D/id_dropbear" -p "$(cat "$D/port")" -t debian@127.0.0.1 "$@"
   rc=$?
   [ "$(cat "$D/status" 2>/dev/null)" = ready ] && exit $rc
