@@ -21,7 +21,8 @@ import com.rk.terminal.vm.DebianVm
 /**
  * Drawn over the terminal area only (the top bar and drawer stay usable):
  * "no tabs" after the last tab is closed, and for a Debian tab the VM being
- * off or booting. "Show log" hides it to see the kernel console in the tab.
+ * off or booting. "Show log" shows the VM's console (files/vm/console.log)
+ * here; the tab itself prints nothing until the login.
  */
 @Composable
 fun TerminalOverlay(service: SessionService, onNewTab: () -> Unit, modifier: Modifier = Modifier) {
@@ -36,6 +37,7 @@ fun TerminalOverlay(service: SessionService, onNewTab: () -> Unit, modifier: Mod
 
     Box(modifier.fillMaxSize()) {
         if (vmTab && peek) {
+            BootLog(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
             FilledTonalButton(onClick = { peek = false }, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
                 Text("Hide log")
             }
@@ -87,6 +89,41 @@ fun TerminalOverlay(service: SessionService, onNewTab: () -> Unit, modifier: Mod
                     TextButton(onClick = { peek = true }) { Text("Show log") }
                 }
             }
+        }
+    }
+}
+
+private val ansi = Regex("\u001B(\\[[0-9;?>=]*[ -/]*[@-~]|\\][^\u0007\u001B]*(\u0007|\u001B\\\\)?|[()][0-9A-Za-z]|[=>c78])")
+
+/** The tail of the VM console log, refreshed every second, scrolled to the end. */
+@Composable
+private fun BootLog(modifier: Modifier) {
+    val ctx = LocalContext.current
+    var lines by remember { mutableStateOf(emptyList<String>()) }
+    LaunchedEffect(Unit) {
+        val f = java.io.File(DebianVm.dir(ctx), "console.log")
+        while (true) {
+            lines = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching {
+                    java.io.RandomAccessFile(f, "r").use { r ->
+                        val n = minOf(r.length(), 64L * 1024)
+                        r.seek(r.length() - n)
+                        val b = ByteArray(n.toInt()); r.readFully(b)
+                        String(b).replace(ansi, "").replace("\r", "").lines().takeLast(400)
+                    }
+                }.getOrDefault(emptyList())
+            }
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+    val state = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(lines.size) { if (lines.isNotEmpty()) state.scrollToItem(lines.size - 1) }
+    androidx.compose.foundation.lazy.LazyColumn(modifier.padding(horizontal = 8.dp), state = state,
+        contentPadding = PaddingValues(top = 56.dp, bottom = 8.dp)) {
+        items(lines.size) { i ->
+            Text(lines[i], color = MaterialTheme.colorScheme.onBackground,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                style = MaterialTheme.typography.bodySmall)
         }
     }
 }

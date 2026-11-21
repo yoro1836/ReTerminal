@@ -13,7 +13,7 @@ sshd as `debian`, which passt forwards to a free `127.0.0.1` port picked at boot
 it when the first Debian tab opens; while the VM is off or booting, a Debian tab
 shows that over the terminal area (`TerminalOverlay.kt`, state from
 `DebianVm.state`; "ready" = guest sshd answers), and its login script waits and
-reconnects after a restart. Cores, memory, swap and disk are in Settings.
+reconnects after a restart. The tab prints nothing before the login; "Show log" on the overlay shows `console.log`. Cores, memory, swap and disk are in Settings.
 
 Prebuilt binaries in `core/main/src/main/jniLibs/arm64-v8a/` (an app may only
 exec from its native lib dir, hence the `lib*.so` names):
