@@ -74,5 +74,8 @@ USB core and vhci_hcd are built in; device drivers are modules (`kmod` + udev lo
 with `reterminal.config`, packs the modules tar, builds umusb, and copies the results into
 `jniLibs/arm64-v8a` (plus `assets/uml-modules.stamp`; `--no-install` skips that). Needs NDK
 r29 (`NDK=`) and clang, flex, bison, bc, libelf-dev, kmod. Work dir: `build/uml`.
+With `ccache` installed the kernel compiles go through it (`CCACHE=0` disables): a full
+rebuild with a warm cache took 38 s instead of 7.5 min in the sandbox, same output md5.
 The `UML kernel` workflow runs it on GitHub (manually, or on pushes touching `tools/uml/`)
-and uploads the four libs and the stamp as the `uml-kernel` artifact.
+and uploads the four libs and the stamp as the `uml-kernel` artifact. It caches the NDK and
+the ccache directory between runs.

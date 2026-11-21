@@ -15,18 +15,37 @@ jobs:
   kernel:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 1G
     steps:
       - uses: actions/checkout@v4
 
       - name: Host packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang lld llvm flex bison bc libelf-dev libssl-dev kmod file
+          sudo apt-get install -y --no-install-recommends clang lld llvm flex bison bc libelf-dev libssl-dev kmod file ccache
+
+      - name: Cache NDK
+        id: ndk
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/lib/android/sdk/ndk/29.0.13846066
+          key: ndk-29.0.13846066
 
       - name: Android NDK r29
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;29.0.13846066" >/dev/null
+          [ -x "$ANDROID_HOME/ndk/29.0.13846066/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" ] ||
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;29.0.13846066" >/dev/null
           echo "NDK=$ANDROID_HOME/ndk/29.0.13846066" >> "$GITHUB_ENV"
+
+      # Compiler cache: a new entry per run, restored from the latest one.
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: uml-ccache-${{ github.run_id }}
+          restore-keys: uml-ccache-
 
       - name: Build
         run: tools/uml/build-kernel.sh

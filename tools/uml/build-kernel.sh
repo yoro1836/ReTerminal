@@ -34,11 +34,34 @@ if [ -z "${SRC:-}" ]; then
     fi
 fi
 
+# ccache, when installed: build-bionic.sh calls $NDK/.../bin/clang by absolute
+# path, so hand it an NDK whose clang is a ccache wrapper (everything else is a
+# symlink to the real NDK). Content-hashed compiler check, so a freshly
+# installed NDK on CI still hits. CCACHE=0 turns it off.
+KNDK=$NDK
+if [ "${CCACHE:-1}" != 0 ] && command -v ccache >/dev/null; then
+    KNDK=$WORK/ndk-ccache
+    P=toolchains/llvm/prebuilt/linux-x86_64
+    rm -rf "$KNDK"
+    mkdir -p "$KNDK/$P/bin"
+    for e in "$NDK"/*; do [ "$(basename "$e")" = toolchains ] || ln -s "$e" "$KNDK/"; done
+    for e in "$NDK/$P"/*; do [ "$(basename "$e")" = bin ] || ln -s "$e" "$KNDK/$P/"; done
+    for e in "$NDK/$P/bin"/*; do ln -s "$e" "$KNDK/$P/bin/"; done
+    for c in clang clang++; do
+        rm "$KNDK/$P/bin/$c"
+        printf '#!/bin/sh\nexec ccache %s "$@"\n' "$NDK/$P/bin/$c" > "$KNDK/$P/bin/$c"
+        chmod +x "$KNDK/$P/bin/$c"
+    done
+    export CCACHE_COMPILERCHECK=content CCACHE_BASEDIR=$WORK CCACHE_NOHASHDIR=1
+    export CCACHE_SLOPPINESS=time_macros,include_file_mtime,include_file_ctime
+    ccache -z >/dev/null
+fi
+
 # 2. Kernel (bionic static) with our config fragments.
 O=$WORK/out
 ART=$WORK/artifacts
 mkdir -p "$O" "$ART"
-(cd "$SRC" && NDK=$NDK O=$O ART=$ART JOBS=$JOBS \
+(cd "$SRC" && NDK=$KNDK O=$O ART=$ART JOBS=$JOBS \
     EXTRA_CONFIG="tools/um-arm64/config/docker.config $HERE/reterminal.config" \
     bash tools/um-arm64/harness/build-bionic.sh)
 LINUX=$ART/linux-bionic
@@ -64,6 +87,7 @@ UMUSB=$ART/umusb_bionic
 [ -f "$UMUSB" ] || { echo "umusb build failed" >&2; exit 1; }
 "$TOOL/llvm-strip" -o "$WORK/libumusb.so" "$UMUSB"
 
+[ "$KNDK" = "$NDK" ] || ccache -s | grep -iE "hits|misses" | head -3
 echo "kernel $REL: $(md5sum "$LINUX" | cut -c1-12)"
 if [ "$INSTALL" = 1 ]; then
     J=$ROOT/core/main/src/main/jniLibs/arm64-v8a
