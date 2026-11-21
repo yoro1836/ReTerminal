@@ -58,6 +58,20 @@ object DebianVm {
             r.split("-").let { if (it.size == 2) it[1].toInt() - it[0].toInt() + 1 else 1 }
         }
     } catch (_: Exception) { Runtime.getRuntime().availableProcessors() }
+    /** Each host CPU's max frequency in MHz (0 if unreadable), for the pinning chooser. */
+    fun cpuMaxMhz(): List<Int> = (0 until hostCpus.coerceAtMost(64)).map { i ->
+        runCatching {
+            File("/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_max_freq").readText().trim().toInt() / 1000
+        }.getOrDefault(0)
+    }
+
+    /**
+     * Host CPUs the whole VM (UML kernel, vCPU threads, stubs, passt) is pinned
+     * to, as a bit mask; 0 = no pinning. Applied at the next boot via taskset.
+     */
+    fun cpuMask(ctx: Context) = prefs(ctx).getLong("cpu_mask", 0L)
+    fun setCpuMask(ctx: Context, m: Long) = prefs(ctx).edit().putLong("cpu_mask", m).apply()
+
     /** The kernel is built with NR_CPUS=16. */
     val maxCpus get() = hostCpus.coerceIn(1, 16)
     fun hostMemMb(ctx: Context) = ActivityManager.MemoryInfo().also {
@@ -267,7 +281,10 @@ object DebianVm {
             "ubd0=" + disk(app).path, "root=/dev/ubda", "rw",
             "rtkey=$pub", "rtswap=${sp.swapMb}",
         ) + lib(app, "libumlinitrd.so").let { if (it.isFile) listOf("initrd=" + it.path) else emptyList() }
-        val pb = ProcessBuilder(cmd).directory(dir(app)).redirectErrorStream(true)
+        val mask = cpuMask(app)
+        val pinned = if (mask != 0L && File("/system/bin/taskset").exists())
+            listOf("/system/bin/taskset", java.lang.Long.toHexString(mask)) + cmd else cmd
+        val pb = ProcessBuilder(pinned).directory(dir(app)).redirectErrorStream(true)
             .redirectOutput(log(app))
         pb.environment().apply {
             put("TMPDIR", app.cacheDir.path)
