@@ -44,7 +44,6 @@ fun DebianVmSpec() {
         Slider(cpus.toFloat(), { cpus = it.roundToInt() }, Modifier.fillMaxWidth(),
             valueRange = 1f..maxCpus.toFloat(), steps = (maxCpus - 2).coerceAtLeast(0),
             onValueChangeFinished = ::save)
-        CpuPinning()
         Line("Memory", gb(mem))
         Slider(mem.toFloat(), { mem = (it / 512).roundToInt() * 512 }, Modifier.fillMaxWidth(),
             valueRange = 512f..maxMem.toFloat(), onValueChangeFinished = ::save)
@@ -159,47 +158,5 @@ private fun Action(label: String, desc: String, warn: Boolean, onClick: () -> Un
         Text(label, style = MaterialTheme.typography.bodyMedium)
         Text(desc, style = MaterialTheme.typography.bodySmall,
             color = if (warn) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-/** Choose the host CPUs the VM runs on (e.g. only the big cores); applied at the next boot. */
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-@Composable
-private fun CpuPinning() {
-    val ctx = LocalContext.current
-    val mhz = remember { DebianVm.cpuMaxMhz() }
-    var mask by remember { mutableStateOf(DebianVm.cpuMask(ctx)) }
-    fun set(m: Long) { mask = m; DebianVm.setCpuMask(ctx, m) }
-    val all = (1L shl mhz.size) - 1
-    // Clusters by max frequency, slowest first (cores with no readable frequency left out).
-    val clusters = mhz.indices.filter { mhz[it] > 0 }.groupBy { mhz[it] }.toSortedMap().values.toList()
-    Line("CPU pinning", if (mask == 0L) "Off (any core)" else
-        mhz.indices.filter { mask and (1L shl it) != 0L }.joinToString(",") { "$it" })
-    Text("Run the VM only on the chosen phone cores. Applies at the next boot. Android may still keep a background app on the little cores.",
-        style = MaterialTheme.typography.bodySmall)
-    androidx.compose.foundation.layout.FlowRow(
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
-    ) {
-        androidx.compose.material3.FilterChip(selected = mask == 0L, onClick = { set(0L) }, label = { Text("Off") })
-        if (clusters.size > 1) clusters.forEach { c ->
-            val cm = c.fold(0L) { a, cpu -> a or (1L shl cpu) }
-            // Toggles the whole cluster, so e.g. mid + big can be chosen together.
-            val on = mask != 0L && mask and cm == cm
-            androidx.compose.material3.FilterChip(selected = on,
-                onClick = { set((if (on) mask and cm.inv() else mask or cm).let { if (it == all) 0L else it }) },
-                label = { Text("%.2f GHz ×%d".format(mhz[c.first()] / 1000f, c.size)) })
-        }
-    }
-    androidx.compose.foundation.layout.FlowRow(
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
-    ) {
-        mhz.indices.forEach { cpu ->
-            val bit = 1L shl cpu
-            androidx.compose.material3.FilterChip(
-                selected = mask and bit != 0L,
-                onClick = { set((mask xor bit).let { if (it == all) 0L else it }) },
-                label = { Text("$cpu") },
-            )
-        }
     }
 }

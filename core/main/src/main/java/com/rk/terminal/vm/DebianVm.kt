@@ -69,8 +69,26 @@ object DebianVm {
      * Host CPUs the whole VM (UML kernel, vCPU threads, stubs, passt) is pinned
      * to, as a bit mask; 0 = no pinning. Applied at the next boot via taskset.
      */
-    fun cpuMask(ctx: Context) = prefs(ctx).getLong("cpu_mask", 0L)
-    fun setCpuMask(ctx: Context, m: Long) = prefs(ctx).edit().putLong("cpu_mask", m).apply()
+    fun cpuMask(ctx: Context) = if (cpuPinOn(ctx)) cpuSelection(ctx) else 0L
+    /** The chosen cores, kept while pinning is switched off. */
+    fun cpuSelection(ctx: Context) = prefs(ctx).getLong("cpu_mask", 0L)
+    fun setCpuSelection(ctx: Context, m: Long) = prefs(ctx).edit().putLong("cpu_mask", m).apply()
+    fun cpuPinOn(ctx: Context) = prefs(ctx).getBoolean("cpu_pin", prefs(ctx).getLong("cpu_mask", 0L) != 0L)
+    fun setCpuPinOn(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("cpu_pin", on).apply()
+    /** "4-9" style list of the cores in [mask]. */
+    fun cpuList(mask: Long): String {
+        val cpus = (0 until 64).filter { mask and (1L shl it) != 0L }
+        val out = mutableListOf<String>()
+        var i = 0
+        while (i < cpus.size) {
+            var j = i
+            while (j + 1 < cpus.size && cpus[j + 1] == cpus[j] + 1) j++
+            out += if (j > i) "${cpus[i]}-${cpus[j]}" else "${cpus[i]}"
+            i = j + 1
+        }
+        return out.joinToString(",")
+    }
+    @Volatile var bootedCpuMask = 0L
 
     /** The kernel is built with NR_CPUS=16. */
     val maxCpus get() = hostCpus.coerceIn(1, 16)
@@ -294,6 +312,7 @@ object DebianVm {
         proc = p
         bootedWith = sp
         bootedForwards = forwards(app)
+        bootedCpuMask = mask
         hold(app, true)
         status(app, "booted")
         // "ready" once the guest's sshd answers, so tabs (and the UI) know it is up.

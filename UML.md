@@ -118,8 +118,8 @@ Android app and a compositor on the same kernel, which a UML guest is not.
 
 ## CPU pinning
 
-Settings > Debian VM > CPU pinning picks the phone cores the whole VM runs on
-(chips per frequency cluster and per core; pref `cpu_mask`, 0 = off). At boot
+Settings > Debian VM > CPU pinning (`vm/CpuPinning.kt`, its own screen: a switch, then the cores grouped Little/Mid/Big by max frequency) picks the phone cores the whole VM runs on
+(prefs `cpu_pin` + `cpu_mask`). At boot
 the command is started under `/system/bin/taskset <mask>`, which umnet, passt,
 UML's vCPU threads and the stubs inherit. Android's cpusets still apply, so a
 backgrounded app can be held to the little cores regardless.

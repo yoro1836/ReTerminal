@@ -144,6 +144,20 @@ fun Settings(
                     )
                 }
             )
+            SettingsCard(
+                title = { Text("CPU pinning") },
+                description = { Text(DebianVm.cpuMask(context).let {
+                    if (it == 0L) "Off: the VM may run on any core" else "Cores " + DebianVm.cpuList(it)
+                }) },
+                onClick = { navController.navigate(MainActivityRoutes.CpuPinning.route) },
+                endWidget = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                        contentDescription = null,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            )
             DebianVmSpec()
         }
 

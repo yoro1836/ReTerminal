@@ -60,6 +60,11 @@ fun MainActivityNavHost(
             com.rk.terminal.vm.PortForwardingScreen(navController)
         }
 
+        composable(MainActivityRoutes.CpuPinning.route) {
+            UpdateStatusBar(mainActivity.window, true)
+            com.rk.terminal.vm.CpuPinningScreen(navController)
+        }
+
         composable(MainActivityRoutes.Customization.route) {
             UpdateStatusBar(mainActivity.window, true)
             Customization(mainActivity = mainActivity, navController = navController)
