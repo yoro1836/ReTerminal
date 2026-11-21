@@ -20,7 +20,7 @@ exec from its native lib dir, hence the `lib*.so` names):
 
 | file | what | from |
 |---|---|---|
-| `libuml.so`, `libumstub.so` | Linux 7.3.1 UML kernel + its process stub, bionic static | [Raymer8639/linux-um-arm64](https://github.com/Raymer8639/linux-um-arm64) `um-arm64-v0.4.2` + `tools/uml/uml-arm64-fastpath.patch` (fastpath, memfd, stub zygote, SMP) + `tools/uml/uml-arm64-modules.patch` (exports bionic string functions, modpost accepts `kernel_` renames), built by its `tools/um-arm64/harness/build-bionic.sh` (NDK r29) with `EXTRA_CONFIG="tools/um-arm64/config/docker.config <this repo>/tools/uml/reterminal.config"` |
+| `libuml.so`, `libumstub.so` | Linux 7.3.1 UML kernel + its process stub, bionic static | [Raymer8639/linux-um-arm64](https://github.com/Raymer8639/linux-um-arm64) `um-arm64-v0.4.2` + `tools/uml/uml-arm64-fastpath.patch` (fastpath, memfd, stub zygote, SMP, persistent physmem fd, stubs off little cores, deferred IPIs; `stub_pin=0` disables core selection) + `tools/uml/uml-arm64-modules.patch` (exports bionic string functions, modpost accepts `kernel_` renames), built by its `tools/um-arm64/harness/build-bionic.sh` (NDK r29) with `EXTRA_CONFIG="tools/um-arm64/config/docker.config <this repo>/tools/uml/reterminal.config"` |
 | `libumnet.so` | fd transport <-> passt framing | `tools/uml/umnet.c` in yoro1836/claude-phone |
 | `libumusb.so` | USB/IP server for one usbfs fd (USB passthrough) | Raymer `tools/um-arm64/harness/umusb.c`, built by its `build-usb-bionic.sh` (NDK r29), stripped |
 | `libpasst.so` | passt, the guest's userspace network | [Raymer8639/passt-android](https://github.com/Raymer8639/passt-android) v0.4.1 |

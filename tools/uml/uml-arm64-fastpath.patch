@@ -1,7 +1,7 @@
 From 122de0338bebb3e2117380206901c9d51aaa6ad2 Mon Sep 17 00:00:00 2001
 From: t <t@t>
 Date: Fri, 20 Nov 2026 06:29:49 +0000
-Subject: [PATCH 1/6] um/arm64: syscall-site fast path (wip)
+Subject: [PATCH 01/10] um/arm64: syscall-site fast path (wip)
 
 ---
  arch/arm64/um/Kconfig                       |  11 +
@@ -906,8 +906,8 @@ index 81fef1c9ad03..9d2abb89254a 100644
 From c8d8a77cb91ed96de8dbff4da1d2120b1243f350 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:17:58 +0000
-Subject: [PATCH 2/6] um/arm64: fastpath fixes (slot floor, stub-only stores),
- any svc site, memfd physmem, spin 200
+Subject: [PATCH 02/10] um/arm64: fastpath fixes (slot floor, stub-only
+ stores), any svc site, memfd physmem, spin 200
 
 ---
  arch/arm64/um/fastpath.c                    | 43 +++++++++++------
@@ -1215,7 +1215,7 @@ index e40bc4559003..9b900dab3408 100644
 From 2c1f4618bca1daa15e70da5e702ff5a65c10296f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:36:39 +0000
-Subject: [PATCH 3/6] um: stub zygote with pre-filtered spare stubs
+Subject: [PATCH 03/10] um: stub zygote with pre-filtered spare stubs
  (stub_zygote=), spawn timing stat
 
 ---
@@ -1744,7 +1744,7 @@ index 58f6010ade11..08e5938c0594 100644
 From bc2ab4b82f6acef01d0ede8bb123cc2771617c80 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:46:48 +0000
-Subject: [PATCH 4/6] um: stub_pin (kernel thread and stubs on separate host
+Subject: [PATCH 04/10] um: stub_pin (kernel thread and stubs on separate host
  CPUs, default on), spin backoff knob, umstat= timing
 
 ---
@@ -2075,7 +2075,7 @@ index d3be0657d1a5..cc3ade2292ec 100644
 From bb5bff45121b48dc19017e60064af53b93afb90f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:55:48 +0000
-Subject: [PATCH 5/6] um: our options default on (seccomp=auto, stub_exe next
+Subject: [PATCH 05/10] um: our options default on (seccomp=auto, stub_exe next
  to the binary, physmem_memfd=)
 
 ---
@@ -2182,8 +2182,8 @@ index bc129f59cb7e..0683b9e5fe04 100644
 From d45f97a7f1fb413bb0680245c7740e8408ad7713 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 09:02:27 +0000
-Subject: [PATCH 6/6] um: SMP build (NR_CPUS 8): serialize start_userspace, no
- stub_pin with ncpus>1
+Subject: [PATCH 06/10] um: SMP build (NR_CPUS 8): serialize start_userspace,
+ no stub_pin with ncpus>1
 
 ---
  arch/um/kernel/skas/mmu.c       | 7 +++++++
@@ -2252,6 +2252,743 @@ index 3948eaaa56ce..7d59e8dc57f8 100755
  make "${common[@]}" olddefconfig
  make "${common[@]}" -j"$JOBS"
  
+-- 
+2.43.0
+
+From e18c1a4b619b0a049af77ab7b1dba30305f0619c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 21 Nov 2026 04:11:36 +0000
+Subject: [PATCH 07/10] um: stubs keep physmem open (no SCM_RIGHTS per map
+ batch, no empty recvmsg); umstat per-syscall breakdown
+
+---
+ arch/um/include/shared/skas/stub-data.h | 11 ++++++
+ arch/um/kernel/skas/stub.c              | 20 +++++++---
+ arch/um/kernel/skas/stub_exe.c          |  8 +++-
+ arch/um/os-Linux/skas/mem.c             | 17 ++++++++-
+ arch/um/os-Linux/skas/process.c         | 51 ++++++++++++++++++++++++-
+ 5 files changed, 98 insertions(+), 9 deletions(-)
+
+diff --git a/arch/um/include/shared/skas/stub-data.h b/arch/um/include/shared/skas/stub-data.h
+index 0bba6ab11f5d..8bfb5c8226ca 100644
+--- a/arch/um/include/shared/skas/stub-data.h
++++ b/arch/um/include/shared/skas/stub-data.h
+@@ -122,10 +122,21 @@ struct stub_syscall {
+ 	enum stub_syscall_type syscall;
+ };
+ 
++/*
++ * Every SECCOMP stub keeps the guest-RAM file (physmem) open on this fd, so
++ * the common map -- RAM pages for a fault -- needs no SCM_RIGHTS round trip
++ * (sendmsg + recvmsg + close: three host syscalls and an fd install per
++ * batch). A queued mmap names it with mem.fd == STUB_FD_PHYSMEM.
++ */
++#define STUB_PHYSMEM_FD		3
++#define STUB_FD_PHYSMEM		(-1)
++
+ struct stub_data {
+ 	long err;
+ 
+ 	int syscall_data_len;
++	/* FDs the kernel sent with this batch; 0 = no recvmsg needed. */
++	int fd_count;
+ 
+ 	/*
+ 	 * Syscall-site fast path (UML_FASTPATH, arm64). fast_busy is set while
+diff --git a/arch/um/kernel/skas/stub.c b/arch/um/kernel/skas/stub.c
+index 6053013796f5..b329557ac8f9 100644
+--- a/arch/um/kernel/skas/stub.c
++++ b/arch/um/kernel/skas/stub.c
+@@ -44,10 +44,12 @@ static __always_inline int syscall_handler(int fd_map[STUB_MAX_FDS])
+ 
+ 		switch (sc->syscall) {
+ 		case STUB_SYSCALL_MMAP:
+-			if (fd_map)
+-				fd = fd_map[sc->mem.fd];
+-			else
++			if (!fd_map)
+ 				fd = sc->mem.fd;
++			else if (sc->mem.fd == STUB_FD_PHYSMEM)
++				fd = STUB_PHYSMEM_FD;
++			else
++				fd = fd_map[sc->mem.fd];
+ 
+ 			res = stub_syscall6(STUB_MMAP_NR,
+ 					    sc->mem.addr, sc->mem.length,
+@@ -192,7 +194,15 @@ stub_handoff(struct stub_data *d, int sig, siginfo_t *info, void *p)
+ 		}
+ 	}
+ 
+-	if (d->syscall_data_len) {
++	if (d->syscall_data_len && !d->fd_count) {
++		/* Nothing was sent: physmem is already open here. */
++		int none[1];
++
++		d->sc_n = d->syscall_data_len;
++		d->ts_sc0 = stub_cycles();
++		res = syscall_handler(none);
++		d->ts_sc1 = stub_cycles();
++	} else if (d->syscall_data_len) {
+ 		/* Read passed FDs (if any) */
+ 		do {
+ 			res = stub_syscall3(__NR_recvmsg, 0, (unsigned long)&msghdr, 0);
+@@ -299,8 +309,8 @@ stub_spare_wait(void)
+ 	if (res != init.stub_start + UM_KERN_PAGE_SIZE)
+ 		stub_syscall0(__NR_getpid);
+ 
++	/* fd 3 stays: it is physmem (STUB_PHYSMEM_FD). */
+ 	stub_syscall2(__NR_close, 4, 0);
+-	stub_syscall2(__NR_close, 3, 0);
+ }
+ 
+ void __section(".__syscall_stub")
+diff --git a/arch/um/kernel/skas/stub_exe.c b/arch/um/kernel/skas/stub_exe.c
+index deac21daa08d..a3feb673bf94 100644
+--- a/arch/um/kernel/skas/stub_exe.c
++++ b/arch/um/kernel/skas/stub_exe.c
+@@ -154,7 +154,13 @@ noinline static void real_init(void)
+ 
+ 	/* In SECCOMP mode, we only need the signalling FD from now on */
+ 	if (init_data.seccomp && init_data.zygote != 2) {
+-		res = stub_syscall3(__NR_close_range, 1, ~0U, 0);
++		/* ...and physmem, on a fixed fd (STUB_PHYSMEM_FD). */
++		if (init_data.stub_data_fd != STUB_PHYSMEM_FD &&
++		    stub_syscall3(__NR_dup3, init_data.stub_data_fd,
++				  STUB_PHYSMEM_FD, 0) != STUB_PHYSMEM_FD)
++			stub_syscall1(__NR_exit, 13);
++		res = stub_syscall3(__NR_close_range, 1, STUB_PHYSMEM_FD - 1, 0);
++		res |= stub_syscall3(__NR_close_range, STUB_PHYSMEM_FD + 1, ~0U, 0);
+ 		if (res != 0)
+ 			stub_syscall1(__NR_exit, 13);
+ 	}
+diff --git a/arch/um/os-Linux/skas/mem.c b/arch/um/os-Linux/skas/mem.c
+index 66eaddc0599e..c6e856d71f76 100644
+--- a/arch/um/os-Linux/skas/mem.c
++++ b/arch/um/os-Linux/skas/mem.c
+@@ -5,6 +5,7 @@
+  */
+ 
+ #include <stddef.h>
++#include <stdbool.h>
+ #include <unistd.h>
+ #include <errno.h>
+ #include <string.h>
+@@ -12,6 +13,7 @@
+ #include <init.h>
+ #include <as-layout.h>
+ #include <mm_id.h>
++#include <mem.h>
+ #include <os.h>
+ #include <ptrace_user.h>
+ #include <registers.h>
+@@ -260,10 +262,19 @@ static int get_stub_fd(struct mm_id *mm_idp, int fd)
+ 	return 0;
+ }
+ 
++/* The fd guest RAM lives in, which every SECCOMP stub holds open itself. */
++static int stub_physmem_fd(struct mm_id *mm_idp)
++{
++	unsigned long long off;
++
++	return phys_mapping(uml_to_phys((void *)mm_idp->stack), &off);
++}
++
+ int map(struct mm_id *mm_idp, unsigned long virt, unsigned long len, int prot,
+ 	int phys_fd, unsigned long long offset)
+ {
+ 	struct stub_syscall *sc;
++	bool physmem = using_seccomp && phys_fd == stub_physmem_fd(mm_idp);
+ 
+ 	/* Compress with previous syscall if that is possible */
+ 	sc = syscall_stub_get_previous(mm_idp, STUB_SYSCALL_MMAP, virt);
+@@ -272,7 +283,9 @@ int map(struct mm_id *mm_idp, unsigned long virt, unsigned long len, int prot,
+ 		int prev_fd = sc->mem.fd;
+ 
+ 		if (using_seccomp)
+-			prev_fd = mm_idp->syscall_fd_map[sc->mem.fd];
++			prev_fd = sc->mem.fd == STUB_FD_PHYSMEM ?
++				  stub_physmem_fd(mm_idp) :
++				  mm_idp->syscall_fd_map[sc->mem.fd];
+ 
+ 		if (phys_fd == prev_fd) {
+ 			sc->mem.length += len;
+@@ -280,7 +293,7 @@ int map(struct mm_id *mm_idp, unsigned long virt, unsigned long len, int prot,
+ 		}
+ 	}
+ 
+-	phys_fd = get_stub_fd(mm_idp, phys_fd);
++	phys_fd = physmem ? STUB_FD_PHYSMEM : get_stub_fd(mm_idp, phys_fd);
+ 
+ 	sc = syscall_stub_alloc(mm_idp);
+ 	sc->syscall = STUB_SYSCALL_MMAP;
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index b49db9ab2eec..edb488636459 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -211,6 +211,7 @@ void wait_stub_done_seccomp(struct mm_id *mm_idp, int running, int wait_sigsys)
+ 				CATCH_EINTR(syscall(__NR_sendmsg, mm_idp->sock,
+ 						&msgh, 0));
+ 			}
++			data->fd_count = mm_idp->syscall_fd_num;
+ 
+ 			data->signal = 0;
+ 			/*
+@@ -1084,6 +1085,49 @@ static void umstat_fault(struct mm_id *mm_id, unsigned long t_a)
+ 	}
+ }
+ 
++/*
++ * umstat=1: per guest syscall kind, where the time goes. "hand" is stub
++ * signal to kernel wakeup, "work" the kernel's handling up to the reply,
++ * "ops" the host mmap/munmap batch the stub ran when it took the previous
++ * reply (charged to this kind, which is what queued it, on the next entry).
++ */
++static void umstat_syscall(struct mm_id *mm_id, unsigned long t_a, long nr)
++{
++	static const char *const name[] = { "mmap", "munmap", "mprotect", "brk", "other" };
++	static unsigned long long hand[5], work[5], ops[5], nops[5], n[5];
++	static unsigned int cnt, last = 4;
++	struct stub_data *d = (void *)mm_id->stack;
++	unsigned long now = stub_cycles(), cpu = stub_cycles_per_us();
++	int k = nr == __NR_mmap ? 0 : nr == __NR_munmap ? 1 :
++		nr == __NR_mprotect ? 2 : nr == __NR_brk ? 3 : 4;
++	int i;
++
++	if (!umstat_on)
++		return;
++	if (d->ts_sc1 > d->ts_sc0) {
++		ops[last] += d->ts_sc1 - d->ts_sc0;
++		nops[last] += d->sc_n;
++	}
++	d->ts_sc0 = d->ts_sc1 = 0;
++	hand[k] += t_a - d->ts_sig;
++	work[k] += now - t_a;
++	n[k]++;
++	last = k;
++	if (++cnt % 16384 || !cpu)
++		return;
++	for (i = 0; i < 5; i++) {
++		if (!n[i])
++			continue;
++		printk(UM_KERN_INFO "umstat: %-8s n %llu avg us: hand %llu.%02llu work %llu.%02llu ops %llu.%02llu (%llu.%02llu host ops)\n",
++		       name[i], n[i],
++		       hand[i] / n[i] / cpu, hand[i] * 100 / n[i] / cpu % 100,
++		       work[i] / n[i] / cpu, work[i] * 100 / n[i] / cpu % 100,
++		       ops[i] / n[i] / cpu, ops[i] * 100 / n[i] / cpu % 100,
++		       nops[i] / n[i], nops[i] * 100 / n[i] % 100);
++		hand[i] = work[i] = ops[i] = nops[i] = n[i] = 0;
++	}
++}
++
+ void userspace(struct uml_pt_regs *regs)
+ {
+ 	int err, status, op;
+@@ -1433,9 +1477,14 @@ void userspace(struct uml_pt_regs *regs)
+ 					umstat_fault(mm_id, fstat_t_a);
+ 
+ 				break;
+-			case SIGSYS:
++			case SIGSYS: {
++				long nr = REGS_SYSCALL_NR(regs->gp);
++
+ 				handle_syscall(regs);
++				if (using_seccomp)
++					umstat_syscall(mm_id, fstat_t_a, nr);
+ 				break;
++			}
+ 			case SIGTRAP + 0x80:
+ 				handle_trap(regs);
+ 				break;
+-- 
+2.43.0
+
+From d69aea858f5832ae3a356a7b9333cf1c3c68c69b Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 21 Nov 2026 05:10:01 +0000
+Subject: [PATCH 08/10] um: stub_pin keeps stubs off little cores (capacity <
+ half of the best remaining)
+
+---
+ arch/um/os-Linux/skas/process.c | 63 ++++++++++++++++++++++++++++++++-
+ tools/um-arm64/harness/umnet.c  | 11 ++++--
+ 2 files changed, 70 insertions(+), 4 deletions(-)
+
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index edb488636459..7234568b1943 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -6,6 +6,7 @@
+  */
+ 
+ #include <stdlib.h>
++#include <stdio.h>
+ #include <stdbool.h>
+ #include <unistd.h>
+ #include <sched.h>
+@@ -412,6 +413,50 @@ __uml_setup("stub_pin=", uml_stub_pin_setup,
+ "    Pin the kernel thread to one host CPU and the stubs to the others.\n"
+ "    Default: 1.\n\n");
+ 
++/* The host's relative CPU strength (arm64 cpu_capacity, else max freq), 0 if unknown. */
++static int cpu_capacity(int cpu)
++{
++	static const char *const f[] = {
++		"/sys/devices/system/cpu/cpu%d/cpu_capacity",
++		"/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq",
++	};
++	char path[96], buf[24];
++	int i, fd, n;
++
++	for (i = 0; i < 2; i++) {
++		snprintf(path, sizeof(path), f[i], cpu);
++		fd = open(path, O_RDONLY | O_CLOEXEC);
++		if (fd < 0)
++			continue;
++		n = read(fd, buf, sizeof(buf) - 1);
++		close(fd);
++		if (n > 0) {
++			buf[n] = 0;
++			return strtoul(buf, NULL, 10);
++		}
++	}
++	return 0;
++}
++
++/* Strongest CPU in mask; ties (or no capacity info) go to the highest number. */
++static int fastest_cpu(unsigned long m)
++{
++	int c, best = -1, cap = -1;
++
++	for (c = 0; c < 64; c++) {
++		int v;
++
++		if (!(m >> c & 1))
++			continue;
++		v = cpu_capacity(c);
++		if (v >= cap) {
++			cap = v;
++			best = c;
++		}
++	}
++	return best;
++}
++
+ static unsigned long stub_pin_mask(void)
+ {
+ 	static int done;
+@@ -427,11 +472,27 @@ static unsigned long stub_pin_mask(void)
+ 	if (syscall(__NR_sched_getaffinity, 0, sizeof(m), &m) < 0 ||
+ 	    __builtin_popcountl(m) < 2)
+ 		return 0;
+-	cpu = 63 - __builtin_clzl(m);
++	cpu = fastest_cpu(m);
+ 	k = 1UL << cpu;
+ 	if (syscall(__NR_sched_setaffinity, 0, sizeof(k), &k) < 0)
+ 		return 0;
+ 	stub_cpumask = m & ~k;
++	/*
++	 * Keep stubs (guest code and the host mmap/munmap the stub runs) off
++	 * the little cores: there the same host munmap takes 13us vs 2-3us.
++	 * Only CPUs at least half as strong as the best one left are used.
++	 */
++	{
++		unsigned long fast = 0;
++		int best = cpu_capacity(fastest_cpu(stub_cpumask));
++		int c;
++
++		for (c = 0; c < 64 && best > 0; c++)
++			if ((stub_cpumask >> c & 1) && cpu_capacity(c) * 2 > best)
++				fast |= 1UL << c;
++		if (fast)
++			stub_cpumask = fast;
++	}
+ 	printk(UM_KERN_INFO "stub_pin: kernel on CPU %d, stubs on %lx\n",
+ 	       cpu, stub_cpumask);
+ 	return stub_cpumask;
+diff --git a/tools/um-arm64/harness/umnet.c b/tools/um-arm64/harness/umnet.c
+index 59a77a4d611c..b2049492a0ce 100644
+--- a/tools/um-arm64/harness/umnet.c
++++ b/tools/um-arm64/harness/umnet.c
+@@ -47,7 +47,7 @@
+  *
+  * Usage:
+  *   umnet [--passt PATH] [--passt-pid-file PATH] [--mac MAC] [--iface IF]
+- *         [--dns ADDR|none]
++ *         [--tcp SPEC] [--dns ADDR|none]
+  *         [--addr A] [--mask N] [--gw G]
+  *         [--ipv6 [--ipv6-addr A[/P]] [--ipv6-gw G] [--ipv6-dns ADDR|none]]
+  *         [--verbose] -- ./linux <uml args...>
+@@ -465,6 +465,9 @@ static char *dns_from_resolv_conf(bool want_v6)
+  * The -F descriptor is this process's end of the stream socket; the caller
+  * closes every other descriptor before calling this.
+  */
++/* --tcp SPEC: one inbound TCP forward, passt -t syntax (e.g. 127.0.0.1/2222:22). */
++static const char *tcp_fwd;
++
+ static void exec_passt(const char *path, int fd, const char *const *extra)
+ {
+ 	char fdbuf[16];
+@@ -493,7 +496,7 @@ static void exec_passt(const char *path, int fd, const char *const *extra)
+ 	 */
+ 	argv[n++] = "-f";
+ 	argv[n++] = "-F"; argv[n++] = fdbuf;
+-	argv[n++] = "-t"; argv[n++] = "none";
++	argv[n++] = "-t"; argv[n++] = tcp_fwd ? (char *)tcp_fwd : "none";
+ 	argv[n++] = "-u"; argv[n++] = "none";
+ 	for (i = 0; extra[i]; i++) {
+ 		if (n >= (int)(sizeof(argv) / sizeof(argv[0])) - 1)
+@@ -589,6 +592,8 @@ int main(int argc, char **argv)
+ 			passt_path = argv[++i];
+ 		else if (!strcmp(argv[i], "--passt-pid-file") && i + 1 < argc)
+ 			passt_pid_file = argv[++i];
++		else if (!strcmp(argv[i], "--tcp") && i + 1 < argc)
++			tcp_fwd = argv[++i];
+ 		else if (!strcmp(argv[i], "--mac") && i + 1 < argc)
+ 			mac = argv[++i];
+ 		else if (!strcmp(argv[i], "--iface") && i + 1 < argc)
+@@ -636,7 +641,7 @@ int main(int argc, char **argv)
+ 	if (i >= argc || strcmp(argv[i], "--")) {
+ 		fprintf(stderr,
+ 			"usage: umnet [--passt PATH] [--mac MAC] [--iface IF] "
+-			"[--passt-pid-file P] [--dns ADDR|none] [--addr A] [--mask N] "
++			"[--passt-pid-file P] [--tcp SPEC] [--dns ADDR|none] [--addr A] [--mask N] "
+ 			"[--gw G] [--ipv6 [--ipv6-addr A[/P]] [--ipv6-gw G] "
+ 			"[--ipv6-dns ADDR|none]] [--verbose] -- ./linux <args...>\n");
+ 		return 2;
+-- 
+2.43.0
+
+From 2bb6ebd05cfea65778aa0eec9e9bef6a02867b9e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 21 Nov 2026 05:13:06 +0000
+Subject: [PATCH 09/10] um: with SMP too, keep the kernel and stubs on the fast
+ CPUs (stub_pin)
+
+---
+ arch/um/include/shared/os.h     |  1 +
+ arch/um/kernel/smp.c            | 15 +++++-----
+ arch/um/os-Linux/skas/process.c | 52 +++++++++++++++++++++++----------
+ 3 files changed, 44 insertions(+), 24 deletions(-)
+
+diff --git a/arch/um/include/shared/os.h b/arch/um/include/shared/os.h
+index 24b56cde23a9..d3cf2ff3dc91 100644
+--- a/arch/um/include/shared/os.h
++++ b/arch/um/include/shared/os.h
+@@ -306,6 +306,7 @@ extern void *os_epoll_get_data_pointer(int index);
+ extern int os_epoll_triggered(int index, int events);
+ extern int os_event_mask(enum um_irq_type irq_type);
+ extern int os_nr_cpus_online(void);
++extern void os_pin_fast_cpus(void);
+ extern int os_setup_epoll(void);
+ extern int os_add_epoll_fd(int events, int fd, void *data);
+ extern int os_mod_epoll_fd(int events, int fd, void *data);
+diff --git a/arch/um/kernel/smp.c b/arch/um/kernel/smp.c
+index 6890b3bc14e1..63f91b424804 100644
+--- a/arch/um/kernel/smp.c
++++ b/arch/um/kernel/smp.c
+@@ -240,14 +240,13 @@ void __init um_ncpus_init(void)
+ {
+ 	int host;
+ 
+-	if (uml_ncpus)		/* ncpus= was given; the operator decides */
+-		return;
+-
+-	host = os_nr_cpus_online();
+-	uml_ncpus = clamp(host - 1, 1, NR_CPUS);
+-
+-	os_info("Using %d CPUs of the host's %d (ncpus= to override)\n",
+-		uml_ncpus, host);
++	if (!uml_ncpus) {	/* else ncpus= was given; the operator decides */
++		host = os_nr_cpus_online();
++		uml_ncpus = clamp(host - 1, 1, NR_CPUS);
++		os_info("Using %d CPUs of the host's %d (ncpus= to override)\n",
++			uml_ncpus, host);
++	}
++	os_pin_fast_cpus();
+ }
+ 
+ void __init prefill_possible_map(void)
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index 7234568b1943..26197dd3fc9b 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -457,6 +457,40 @@ static int fastest_cpu(unsigned long m)
+ 	return best;
+ }
+ 
++/*
++ * The CPUs in m at least half as strong as the best of them. Guest code and
++ * the host mmap/munmap a stub runs are several times slower on little cores
++ * (S24: host munmap 13us on A520, 3us on A720, 2us on X4).
++ */
++static unsigned long fast_cpus(unsigned long m)
++{
++	unsigned long fast = 0;
++	int best = cpu_capacity(fastest_cpu(m));
++	int c;
++
++	for (c = 0; c < 64 && best > 0; c++)
++		if ((m >> c & 1) && cpu_capacity(c) * 2 > best)
++			fast |= 1UL << c;
++	return fast ? fast : m;
++}
++
++/*
++ * stub_pin=1 with SMP: the whole kernel (vCPU threads, stubs) stays on the
++ * fast CPUs of the affinity it was started with. Called before any CPU
++ * thread or stub exists, so all of them inherit it.
++ */
++void os_pin_fast_cpus(void)
++{
++	unsigned long m = 0, f;
++
++	if (!stub_pin || uml_ncpus <= 1 ||
++	    syscall(__NR_sched_getaffinity, 0, sizeof(m), &m) < 0)
++		return;
++	f = fast_cpus(m);
++	if (f != m && syscall(__NR_sched_setaffinity, 0, sizeof(f), &f) == 0)
++		os_info("stub_pin: SMP on fast CPUs %lx\n", f);
++}
++
+ static unsigned long stub_pin_mask(void)
+ {
+ 	static int done;
+@@ -477,22 +511,8 @@ static unsigned long stub_pin_mask(void)
+ 	if (syscall(__NR_sched_setaffinity, 0, sizeof(k), &k) < 0)
+ 		return 0;
+ 	stub_cpumask = m & ~k;
+-	/*
+-	 * Keep stubs (guest code and the host mmap/munmap the stub runs) off
+-	 * the little cores: there the same host munmap takes 13us vs 2-3us.
+-	 * Only CPUs at least half as strong as the best one left are used.
+-	 */
+-	{
+-		unsigned long fast = 0;
+-		int best = cpu_capacity(fastest_cpu(stub_cpumask));
+-		int c;
+-
+-		for (c = 0; c < 64 && best > 0; c++)
+-			if ((stub_cpumask >> c & 1) && cpu_capacity(c) * 2 > best)
+-				fast |= 1UL << c;
+-		if (fast)
+-			stub_cpumask = fast;
+-	}
++	/* Stubs off the little cores too, see fast_cpus(). */
++	stub_cpumask = fast_cpus(stub_cpumask);
+ 	printk(UM_KERN_INFO "stub_pin: kernel on CPU %d, stubs on %lx\n",
+ 	       cpu, stub_cpumask);
+ 	return stub_cpumask;
+-- 
+2.43.0
+
+From 6f44d440009f7d5851b6ccdf06633aec1d3a367e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 21 Nov 2026 05:22:36 +0000
+Subject: [PATCH 10/10] um: SMP: defer IPIs in the handler while IRQs are off
+ instead of a host sigprocmask per local_irq_disable/enable
+
+---
+ arch/um/include/shared/os.h     |  9 ++++---
+ arch/um/os-Linux/signal.c       | 17 ++++++++++---
+ arch/um/os-Linux/skas/process.c |  2 +-
+ arch/um/os-Linux/smp.c          | 44 +++++++++++++++++++++------------
+ arch/um/os-Linux/time.c         | 12 ++++-----
+ 5 files changed, 53 insertions(+), 31 deletions(-)
+
+diff --git a/arch/um/include/shared/os.h b/arch/um/include/shared/os.h
+index d3cf2ff3dc91..e36fddf648b5 100644
+--- a/arch/um/include/shared/os.h
++++ b/arch/um/include/shared/os.h
+@@ -350,11 +350,12 @@ void os_init_smp(void);
+ int os_start_cpu_thread(int cpu);
+ void os_start_secondary(void *arg, jmp_buf *switch_buf);
+ int os_send_ipi(int cpu, int vector);
+-void os_local_ipi_enable(void);
+-void os_local_ipi_disable(void);
++int os_ipi_pending(void);
++void os_run_pending_ipis(void);
++void mark_ipi_pending(void);
+ #else /* !CONFIG_SMP */
+-static inline void os_local_ipi_enable(void) { }
+-static inline void os_local_ipi_disable(void) { }
++static inline int os_ipi_pending(void) { return 0; }
++static inline void os_run_pending_ipis(void) { }
+ #endif /* CONFIG_SMP */
+ 
+ #endif
+diff --git a/arch/um/os-Linux/signal.c b/arch/um/os-Linux/signal.c
+index 6c993bc8c78e..2c30dc6f44b4 100644
+--- a/arch/um/os-Linux/signal.c
++++ b/arch/um/os-Linux/signal.c
+@@ -67,6 +67,9 @@ static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
+ #define SIGCHLD_BIT 2
+ #define SIGCHLD_MASK (1 << SIGCHLD_BIT)
+ 
++#define SIGIPI_BIT 3
++#define SIGIPI_MASK (1 << SIGIPI_BIT)
++
+ __thread int signals_enabled;
+ #if IS_ENABLED(CONFIG_UML_TIME_TRAVEL_SUPPORT)
+ static int signals_blocked, signals_blocked_pending;
+@@ -267,8 +270,6 @@ static inline void __block_signals(void)
+ 	if (!signals_enabled)
+ 		return;
+ 
+-	os_local_ipi_disable();
+-	barrier();
+ 	signals_enabled = 0;
+ }
+ 
+@@ -278,10 +279,15 @@ static inline void __unblock_signals(void)
+ 		return;
+ 
+ 	signals_enabled = 1;
+-	barrier();
+-	os_local_ipi_enable();
+ }
+ 
++#if IS_ENABLED(CONFIG_SMP)
++void mark_ipi_pending(void)
++{
++	signals_pending |= SIGIPI_MASK;
++}
++#endif
++
+ void block_signals(void)
+ {
+ 	__block_signals();
+@@ -350,6 +356,9 @@ void unblock_signals(void)
+ 		if (save_pending & SIGIO_MASK)
+ 			sig_handler_common(SIGIO, NULL, NULL);
+ 
++		if (save_pending & SIGIPI_MASK)
++			os_run_pending_ipis();
++
+ 		if (save_pending & SIGCHLD_MASK) {
+ 			struct uml_pt_regs regs = {};
+ 
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index 26197dd3fc9b..851b0ebfe45c 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -1559,7 +1559,7 @@ void userspace(struct uml_pt_regs *regs)
+ 
+ 				break;
+ 			case SIGSYS: {
+-				long nr = REGS_SYSCALL_NR(regs->gp);
++				long nr = PT_SYSCALL_NR(regs->gp);
+ 
+ 				handle_syscall(regs);
+ 				if (using_seccomp)
+diff --git a/arch/um/os-Linux/smp.c b/arch/um/os-Linux/smp.c
+index 18d3858a7cd2..c03a3d9ae496 100644
+--- a/arch/um/os-Linux/smp.c
++++ b/arch/um/os-Linux/smp.c
+@@ -75,7 +75,8 @@ void os_start_secondary(void *arg, jmp_buf *switch_buf)
+ {
+ 	struct cpu_thread_data *data = arg;
+ 
+-	sigaddset(&data->sigset, IPI_SIGNAL);
++	/* IPI_SIGNAL stays unblocked: with IRQs off its handler defers it. */
++	sigdelset(&data->sigset, IPI_SIGNAL);
+ 	sigaddset(&data->sigset, SIGIO);
+ 
+ 	if (sigprocmask(SIG_SETMASK, &data->sigset, NULL) < 0)
+@@ -96,38 +97,49 @@ int os_send_ipi(int cpu, int vector)
+ 	return pthread_sigqueue(cpu_threads[cpu], IPI_SIGNAL, value);
+ }
+ 
+-static void __local_ipi_set(int enable)
+-{
+-	sigset_t sigset;
+-
+-	sigemptyset(&sigset);
+-	sigaddset(&sigset, IPI_SIGNAL);
+-
+-	if (sigprocmask(enable ? SIG_UNBLOCK : SIG_BLOCK, &sigset, NULL) < 0)
+-		panic("%s: sigprocmask failed, errno = %d", __func__, errno);
+-}
++/*
++ * IPIs that arrived while this CPU had IRQs off, one bit per vector. They
++ * used to be held off by blocking IPI_SIGNAL on the host, but that made
++ * every local_irq_disable()/enable() pair two host sigprocmask() calls.
++ * Now, like SIGIO and SIGALRM, the handler only notes them and
++ * unblock_signals() runs them.
++ */
++static __thread unsigned int ipi_pending;
+ 
+-void os_local_ipi_enable(void)
++int os_ipi_pending(void)
+ {
+-	__local_ipi_set(1);
++	return __atomic_load_n(&ipi_pending, __ATOMIC_RELAXED) != 0;
+ }
+ 
+-void os_local_ipi_disable(void)
++void os_run_pending_ipis(void)
+ {
+-	__local_ipi_set(0);
++	unsigned int v = __atomic_exchange_n(&ipi_pending, 0, __ATOMIC_RELAXED);
++	int i;
++
++	for (i = 0; v; i++, v >>= 1)
++		if (v & 1)
++			uml_ipi_handler(i);
+ }
+ 
+ static void ipi_sig_handler(int sig, siginfo_t *si, void *uc)
+ {
+ 	int save_errno = errno;
+ 
++	if (!signals_enabled) {
++		__atomic_fetch_or(&ipi_pending, 1U << si->si_value.sival_int,
++				  __ATOMIC_RELAXED);
++		mark_ipi_pending();
++		return;
++	}
++
+ 	signals_enabled = 0;
+ 	um_trace_signals_off();
+ 
+ 	uml_ipi_handler(si->si_value.sival_int);
+ 
+ 	um_trace_signals_on();
+-	signals_enabled = 1;
++	/* Also runs IPIs (and SIGIO, SIGALRM) that came in meanwhile. */
++	unblock_signals();
+ 
+ 	errno = save_errno;
+ }
+diff --git a/arch/um/os-Linux/time.c b/arch/um/os-Linux/time.c
+index 13ebc86918d4..9fcabde8c2c8 100644
+--- a/arch/um/os-Linux/time.c
++++ b/arch/um/os-Linux/time.c
+@@ -137,19 +137,19 @@ void os_idle_sleep(void)
+ 	sigset_t set;
+ 
+ 	/*
+-	 * Block SIGALRM while performing the need_resched check.
+-	 * Note that, because IRQs are disabled, the IPI signal is
+-	 * already blocked.
++	 * Block SIGALRM and the IPI signal while performing the need_resched
++	 * check, so either stays pending on the host for the signalfd.
+ 	 */
+ 	sigemptyset(&set);
+ 	sigaddset(&set, SIGALRM);
++	sigaddset(&set, IPI_SIGNAL);
+ 	sigprocmask(SIG_BLOCK, &set, NULL);
+ 
+ 	/*
+-	 * Because disabling IRQs does not block SIGALRM, it is also
+-	 * necessary to check for any pending timer alarms.
++	 * Disabling IRQs blocks neither of them on the host, so also check
++	 * for ones that already arrived and were deferred.
+ 	 */
+-	if (!uml_need_resched() && !timer_alarm_pending())
++	if (!uml_need_resched() && !timer_alarm_pending() && !os_ipi_pending())
+ 		os_poll(1, &wake_signals);
+ 
+ 	/* Restore the signal mask. */
 -- 
 2.43.0
 
