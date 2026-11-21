@@ -61,7 +61,7 @@ wait_ready() {
         if probe </dev/null >/dev/null 2>"$D/probe.err"; then
           err=$(share 2>&1) || err="Could not mount phone storage at /mnt/media: $err"
           trim
-          printf '\033[2J\033[H'
+          printf '\033c'  # full reset: clears the screen and the boot log in scrollback
           [ -z "$err" ] || printf '%s\n' "$err"
           return
         fi
