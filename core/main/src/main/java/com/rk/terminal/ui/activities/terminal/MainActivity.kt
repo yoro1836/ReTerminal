@@ -121,6 +121,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         viewModel.startAndBindService(this)
+        com.rk.terminal.vm.DebianVm.askBatteryOnce(this)
     }
 
     override fun onStop() {

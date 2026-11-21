@@ -97,6 +97,32 @@ object DebianVm {
     fun wakelock(ctx: Context) = prefs(ctx).getBoolean("wakelock", true)
     fun setWakelock(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("wakelock", on).apply()
     /** fstrim once after each boot (the tab script does it). */
+    fun batteryUnrestricted(ctx: Context) =
+        (ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager)
+            .isIgnoringBatteryOptimizations(ctx.packageName)
+
+    @android.annotation.SuppressLint("BatteryLife")
+    fun requestBatteryUnrestricted(ctx: Context) {
+        runCatching {
+            ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                android.net.Uri.parse("package:${ctx.packageName}")).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+    }
+
+    /** Android 12+ kills an app's child processes past 32; Developer options can turn it off. */
+    fun childProcessLimit(ctx: Context): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < 31) return false
+        val v = android.provider.Settings.Global.getString(ctx.contentResolver, "settings_enable_monitor_phantom_procs")
+        return v != "false"
+    }
+
+    /** Asked once per install, at app start, so the VM survives in the background. */
+    fun askBatteryOnce(ctx: Context) {
+        if (!supported(ctx) || batteryUnrestricted(ctx) || prefs(ctx).getBoolean("asked_battery", false)) return
+        prefs(ctx).edit().putBoolean("asked_battery", true).apply()
+        requestBatteryUnrestricted(ctx)
+    }
+
     /** Boot the VM when a Debian tab opens (e.g. the first tab at app start). */
     fun autoStart(ctx: Context) = prefs(ctx).getBoolean("auto_start", true)
     fun setAutoStart(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("auto_start", on).apply()
@@ -242,9 +268,12 @@ object DebianVm {
             p.waitFor()
             hold(app, false)
             UsbPassthrough.dropAll()
+            val code = p.exitValue()
+            // Why it stopped, for Show log (128+N = killed by signal N, e.g. 137 = SIGKILL).
+            runCatching { log(app).appendText("\n[ReTerminal] VM process exited with code $code\n") }
             if (proc === p) {
                 proc = null
-                status(app, "error: the VM stopped (exit ${p.exitValue()})")
+                status(app, "error: the VM stopped (exit $code)")
             }
         }.start()
     }

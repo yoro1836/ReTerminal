@@ -1,5 +1,6 @@
 package com.rk.terminal.vm
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -87,6 +88,7 @@ fun DebianVmSpec() {
             }
             share = it; DebianVm.setShareStorage(ctx, it)
         }
+        BackgroundRows()
         if (DebianVm.running) Row {
             var trimmed by remember { mutableStateOf<String?>(null) }
             TextButton(onClick = {
@@ -113,5 +115,48 @@ private fun Line(label: String, value: String) {
     Row {
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         Text(value, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/**
+ * What keeps the VM alive in the background: no battery optimisation for the
+ * app, and Android's child ("phantom") process limit off. UML runs one host
+ * process per guest process, so it passes that limit of 32 quickly.
+ */
+@Composable
+private fun BackgroundRows() {
+    val ctx = LocalContext.current
+    var tick by remember { mutableIntStateOf(0) }
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(owner) {
+        val o = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) tick++
+        }
+        owner.lifecycle.addObserver(o)
+        onDispose { owner.lifecycle.removeObserver(o) }
+    }
+    tick // re-read both states when coming back from the system screens
+    val battery = DebianVm.batteryUnrestricted(ctx)
+    Action("Unrestricted battery",
+        if (battery) "Allowed: Android won't put the app to sleep."
+        else "Not allowed: Android may stop the VM in the background. Tap to allow.",
+        !battery) { DebianVm.requestBatteryUnrestricted(ctx) }
+    val limit = DebianVm.childProcessLimit(ctx)
+    Action("Child process limit",
+        if (!limit) "Off: Android won't kill the VM's processes."
+        else "On: Android may kill the VM in the background. Tap, then turn on \"Disable child process restrictions\" in Developer options.",
+        limit) {
+        runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
+}
+
+@Composable
+private fun Action(label: String, desc: String, warn: Boolean, onClick: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp)
+        .then(if (warn) Modifier.clickable(onClick = onClick) else Modifier)) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Text(desc, style = MaterialTheme.typography.bodySmall,
+            color = if (warn) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
