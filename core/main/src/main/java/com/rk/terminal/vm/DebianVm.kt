@@ -295,8 +295,6 @@ object DebianVm {
             "--tcp", "127.0.0.1/" + (listOf("$port:22") + forwards(app)).joinToString(","), "--",
             lib(app, "libuml.so").path, "mem=${sp.memMb}M", "ncpus=${sp.cpus}",
             "con=null", "con0=fd:0,fd:1",
-            // Syscall-site fastpath has an intermittent crash (SEGV after syscall()); off until fixed.
-            "fastpath=0",
             "stub_exe=" + lib(app, "libumstub.so").path,
             "ubd0=" + disk(app).path, "root=/dev/ubda", "rw",
             "rtkey=$pub", "rtswap=${sp.swapMb}",
