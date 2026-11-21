@@ -23,7 +23,7 @@ jobs:
       - name: Host packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang lld llvm flex bison bc libelf-dev libssl-dev kmod file ccache
+          sudo apt-get install -y --no-install-recommends clang lld llvm flex bison bc libelf-dev libssl-dev kmod file ccache curl gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 
       - name: Cache NDK
         id: ndk

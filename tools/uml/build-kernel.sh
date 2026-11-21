@@ -6,10 +6,13 @@
 #
 # Env: NDK (Android NDK r29; default $ANDROID_HOME/ndk/29.0.13846066),
 #      SRC (Raymer linux-um-arm64 checkout to reuse; cloned to build/uml/linux if unset),
-#      JOBS. Host needs: clang, make, flex, bison, bc, libelf-dev, kmod (depmod), git.
+#      JOBS. Host needs: clang, make, flex, bison, bc, libelf-dev, kmod (depmod), git,
+#      curl, gcc-aarch64-linux-gnu + libc6-dev-arm64-cross (busybox).
 set -euo pipefail
 
 TAG=um-arm64-v0.4.2
+BUSYBOX_VER=1.37.0
+BUSYBOX_SHA256=3311dff32e746499f4df0d5df04d7eb396382d7e108bb9250e7b519b837043a4
 REPO=https://github.com/Raymer8639/linux-um-arm64
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
@@ -67,9 +70,10 @@ mkdir -p "$O" "$ART"
 LINUX=$ART/linux-bionic
 STUB=$ART/stub_exe_bionic
 
-# 3. initramfs: rt-init.c as /init + lib/modules/<release> (depmod'ed on the
-#    host). rt-init mounts the Debian disk and bind-mounts the modules over its
-#    /usr/lib/modules/<release>, so kernel and modules always boot together.
+# 3. initramfs: busybox + initramfs-init.sh as /init + lib/modules/<release>
+#    (depmod'ed on the host). /init mounts the Debian disk, copies the modules
+#    into a tmpfs over its /usr/lib/modules/<release> and switch_roots, so the
+#    kernel and its modules always boot together.
 MS=$WORK/modstage
 rm -rf "$MS"
 PATH="$TOOL:$PATH" make -C "$SRC" O="$O" ARCH=um SUBARCH=arm64 LLVM=1 \
@@ -77,17 +81,32 @@ PATH="$TOOL:$PATH" make -C "$SRC" O="$O" ARCH=um SUBARCH=arm64 LLVM=1 \
     -j"$JOBS" modules_install >/dev/null
 REL=$(ls "$MS/lib/modules")
 rm -f "$MS/lib/modules/$REL/build" "$MS/lib/modules/$REL/source"
-"$TOOL/clang" --target=aarch64-linux-gnu -Os -static -nostdlib -ffreestanding \
-    -fno-stack-protector -fno-builtin -fuse-ld=lld -Wall -Wextra \
-    -o "$WORK/rt-init" "$HERE/rt-init.c"
-"$TOOL/llvm-strip" "$WORK/rt-init"
+
+# busybox, static arm64 (glibc cross gcc: gcc-aarch64-linux-gnu).
+BB=busybox-$BUSYBOX_VER
+if [ ! -x "$WORK/$BB/busybox" ]; then
+    [ -f "$WORK/$BB.tar.bz2" ] || curl -sSfL -o "$WORK/$BB.tar.bz2" "https://busybox.net/downloads/$BB.tar.bz2"
+    echo "$BUSYBOX_SHA256  $WORK/$BB.tar.bz2" | sha256sum -c - >/dev/null
+    rm -rf "$WORK/$BB" && tar xjf "$WORK/$BB.tar.bz2" -C "$WORK"
+    (cd "$WORK/$BB" && make defconfig >/dev/null &&
+        sed -i -e 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' \
+               -e 's/^CONFIG_TC=y/# CONFIG_TC is not set/' \
+               -e 's/^CONFIG_SHA1_HWACCEL=y/# CONFIG_SHA1_HWACCEL is not set/' \
+               -e 's/^CONFIG_SHA256_HWACCEL=y/# CONFIG_SHA256_HWACCEL is not set/' .config &&
+        make -j"$JOBS" CROSS_COMPILE=aarch64-linux-gnu- >/dev/null 2>&1) ||
+        { echo "busybox build failed" >&2; exit 1; }
+fi
 {
     echo "dir /dev 0755 0 0"
     echo "nod /dev/console 0600 0 0 c 5 1"
     echo "dir /root 0755 0 0"
     echo "dir /proc 0755 0 0"
+    echo "dir /sys 0755 0 0"
+    echo "dir /bin 0755 0 0"
+    echo "file /bin/busybox $WORK/$BB/busybox 0755 0 0"
+    echo "slink /bin/sh busybox 0777 0 0"
+    echo "file /init $HERE/initramfs-init.sh 0755 0 0"
     echo "dir /lib 0755 0 0"
-    echo "file /init $WORK/rt-init 0755 0 0"
     (cd "$MS" && find lib -mindepth 1 | LC_ALL=C sort | while read -r f; do
         if [ -d "$f" ]; then echo "dir /$f 0755 0 0"
         else echo "file /$f $MS/$f 0644 0 0"; fi

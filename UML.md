@@ -52,14 +52,15 @@ claude-phone's `cp-debian-2` by renaming its `claude` user and boot service.
 
 ## Kernel modules (initramfs)
 
-`jniLibs/arm64-v8a/libumlinitrd.so` is a gzip'd cpio passed as `initrd=`: `/init` is
-`tools/uml/rt-init.c` (freestanding, no libc) and `lib/modules/<release>` is the
-`modules_install` (stripped, depmod'ed) of the same kernel build. rt-init mounts
-`/dev/ubda` on /root, bind-mounts the modules read-only over the disk's
-`/usr/lib/modules/<release>`, moves /dev, switches root and execs `/sbin/init`. Kernel and
-modules therefore always match, udev can load drivers from the first second, and the disk
-is not touched. Cost: the unpacked initramfs (~10 MB) stays in guest RAM. `modprobe` needs
-the `kmod` package in the guest.
+`jniLibs/arm64-v8a/libumlinitrd.so` is a gzip'd cpio passed as `initrd=`, an ordinary
+busybox initramfs: static arm64 busybox 1.37.0 (built from source by build-kernel.sh with
+`aarch64-linux-gnu-gcc`), `/init` = `tools/uml/initramfs-init.sh`, and `lib/modules/<release>`
+(`modules_install`, stripped, depmod'ed) of the same kernel build. `/init` mounts `/dev/ubda`
+(`root=`, `rootfstype=` honoured), copies the modules into a read-only tmpfs over the disk's
+`/usr/lib/modules/<release>`, moves /dev and `switch_root`s to `/sbin/init`. Kernel and
+modules always match, udev can load drivers from boot, and the disk is never written. Cost:
+the modules (~10 MB) stay in guest RAM. `rtinit=shell` on the kernel command line drops to a
+shell first. `modprobe` needs the `kmod` package in the guest.
 
 ## USB passthrough
 
@@ -77,7 +78,8 @@ USB core and vhci_hcd are built in; device drivers are modules (`kmod` + udev lo
 `uml-arm64-fastpath.patch` (git am) and `uml-arm64-modules.patch`, builds the bionic kernel
 with `reterminal.config`, packs the modules tar, builds umusb, and copies the results into
 `jniLibs/arm64-v8a` as libuml, libumstub, libumlinitrd and libumusb (`--no-install` skips that). Needs NDK
-r29 (`NDK=`) and clang, flex, bison, bc, libelf-dev, kmod. Work dir: `build/uml`.
+r29 (`NDK=`) and clang, flex, bison, bc, libelf-dev, kmod, curl, gcc-aarch64-linux-gnu,
+libc6-dev-arm64-cross. Work dir: `build/uml`.
 With `ccache` installed the kernel compiles go through it (`CCACHE=0` disables): a full
 rebuild with a warm cache took 38 s instead of 7.5 min in the sandbox, same output md5.
 The `UML kernel` workflow runs it on GitHub (manually, or on pushes touching `tools/uml/`)
