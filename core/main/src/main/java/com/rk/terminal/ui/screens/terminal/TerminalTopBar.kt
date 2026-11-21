@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -48,6 +49,16 @@ fun TerminalTopBar(
             }
         },
         actions = {
+            if (com.rk.terminal.vm.DebianVm.supported()) {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                IconButton(onClick = {
+                    com.rk.terminal.vm.X11.open(ctx)?.let {
+                        android.widget.Toast.makeText(ctx, it, android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }) {
+                    Icon(Icons.Outlined.DesktopWindows, "Display (Termux:X11)", tint = color)
+                }
+            }
             Box(
                 Modifier.size(48.dp).combinedClickable(onClick = onAddClick, onLongClick = onAddLongClick),
                 contentAlignment = Alignment.Center,

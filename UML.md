@@ -104,7 +104,7 @@ loopback at its gateway address.
 
 ## X11 (Termux:X11)
 
-The display button in the drawer's Debian VM row (`vm/X11.kt`) starts the
+The display button left of + in the terminal's top bar (`vm/X11.kt`) starts the
 Termux:X11 X server in this app (`app_process` with the Termux:X11 APK as
 `CLASSPATH`, `com.termux.x11.CmdEntryPoint :0`, `TMPDIR` and
 `XKB_CONFIG_ROOT` under `files/x11`), relays its unix socket to
