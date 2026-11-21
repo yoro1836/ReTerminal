@@ -66,20 +66,6 @@ fun DebianVmSpec() {
         Toggle("Start the VM with the app",
             "Boot Debian when the app opens. Off: Debian tabs show that the VM is off, with a Start button.",
             autoStart) { autoStart = it; DebianVm.setAutoStart(ctx, it) }
-        var ports by remember { mutableStateOf(DebianVm.forwardsText(ctx)) }
-        val portsErr = DebianVm.parseForwards(ports).exceptionOrNull()?.message
-        androidx.compose.material3.OutlinedTextField(
-            value = ports,
-            onValueChange = { ports = it; if (DebianVm.parseForwards(it).isSuccess) DebianVm.setForwards(ctx, it) },
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-            label = { Text("Forwarded ports") },
-            placeholder = { Text("8080, 3000:80") },
-            singleLine = true,
-            isError = portsErr != null,
-            supportingText = {
-                Text(portsErr ?: "Open a VM port on the phone at localhost: 8080 = same port, 3000:80 = phone 3000 to VM 80. Applies at the next boot.")
-            },
-        )
         var trimBoot by remember { mutableStateOf(DebianVm.trimAtBoot(ctx)) }
         Toggle("Trim at boot",
             "Run fstrim after each boot, so space freed inside Debian is given back to the phone.",

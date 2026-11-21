@@ -130,6 +130,20 @@ fun Settings(
         }
 
         if (DebianVm.supported(context)) PreferenceGroup(heading = "Debian VM") {
+            SettingsCard(
+                title = { Text("Port forwarding") },
+                description = { Text(DebianVm.forwards(context).let { f ->
+                    if (f.isEmpty()) "Open VM ports on the phone's localhost" else f.joinToString(", ") { "localhost:" + it.replace(":", " → ") }
+                }) },
+                onClick = { navController.navigate(MainActivityRoutes.PortForwarding.route) },
+                endWidget = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                        contentDescription = null,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            )
             DebianVmSpec()
         }
 

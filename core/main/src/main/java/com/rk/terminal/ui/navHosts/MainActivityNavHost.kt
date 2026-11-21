@@ -55,6 +55,11 @@ fun MainActivityNavHost(
             Settings(navController = navController, mainActivity = mainActivity)
         }
         
+        composable(MainActivityRoutes.PortForwarding.route) {
+            UpdateStatusBar(mainActivity.window, true)
+            com.rk.terminal.vm.PortForwardingScreen(navController)
+        }
+
         composable(MainActivityRoutes.Customization.route) {
             UpdateStatusBar(mainActivity.window, true)
             Customization(mainActivity = mainActivity, navController = navController)

@@ -95,9 +95,11 @@ the ccache directory between runs.
 
 ## Port forwarding
 
-Settings > Debian VM > Forwarded ports (e.g. `8080, 3000:80`) adds phone
-`127.0.0.1` ports to passt's `-t` list next to the SSH port; applied at the
-next boot. The other direction needs nothing: the guest reaches the phone's
+Settings > Debian VM > Port forwarding (`vm/PortForwarding.kt`) keeps rules
+phone port -> VM port (pref `ports`, e.g. `8080, 3000:80`), added to passt's
+`-t` list next to the SSH port at boot (a Restart VM prompt shows when they
+changed). It also lists the guest's TCP listeners (`ss -ltn` over root SSH)
+for one-tap adding. The other direction needs nothing: the guest reaches the phone's
 loopback at its gateway address.
 
 ## X11 (Termux:X11)

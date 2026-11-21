@@ -180,6 +180,8 @@ object DebianVm {
     }
 
     @Volatile var bootedWith: Spec? = null
+    /** Forward rules the running VM was booted with. */
+    @Volatile var bootedForwards: List<String> = emptyList()
         private set
 
     // ---- lifecycle
@@ -274,6 +276,7 @@ object DebianVm {
         val p = pb.start()
         proc = p
         bootedWith = sp
+        bootedForwards = forwards(app)
         hold(app, true)
         status(app, "booted")
         // "ready" once the guest's sshd answers, so tabs (and the UI) know it is up.
