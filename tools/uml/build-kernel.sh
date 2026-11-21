@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build the UML kernel, its modules and umusb for the app, then copy them into
-# core/main/src/main/jniLibs/arm64-v8a (+ assets/uml-modules.stamp).
+# core/main/src/main/jniLibs/arm64-v8a (libuml, libumstub, libumlinitrd, libumusb).
 #
 #   tools/uml/build-kernel.sh [--no-install]
 #
@@ -67,7 +67,9 @@ mkdir -p "$O" "$ART"
 LINUX=$ART/linux-bionic
 STUB=$ART/stub_exe_bionic
 
-# 3. Modules -> one tar (lib/modules/<release>), depmod'ed on the host.
+# 3. initramfs: rt-init.c as /init + lib/modules/<release> (depmod'ed on the
+#    host). rt-init mounts the Debian disk and bind-mounts the modules over its
+#    /usr/lib/modules/<release>, so kernel and modules always boot together.
 MS=$WORK/modstage
 rm -rf "$MS"
 PATH="$TOOL:$PATH" make -C "$SRC" O="$O" ARCH=um SUBARCH=arm64 LLVM=1 \
@@ -75,7 +77,23 @@ PATH="$TOOL:$PATH" make -C "$SRC" O="$O" ARCH=um SUBARCH=arm64 LLVM=1 \
     -j"$JOBS" modules_install >/dev/null
 REL=$(ls "$MS/lib/modules")
 rm -f "$MS/lib/modules/$REL/build" "$MS/lib/modules/$REL/source"
-tar cf "$WORK/libumlmodules.so" --owner=0 --group=0 -C "$MS/lib/modules" "$REL"
+"$TOOL/clang" --target=aarch64-linux-gnu -Os -static -nostdlib -ffreestanding \
+    -fno-stack-protector -fno-builtin -fuse-ld=lld -Wall -Wextra \
+    -o "$WORK/rt-init" "$HERE/rt-init.c"
+"$TOOL/llvm-strip" "$WORK/rt-init"
+{
+    echo "dir /dev 0755 0 0"
+    echo "nod /dev/console 0600 0 0 c 5 1"
+    echo "dir /root 0755 0 0"
+    echo "dir /proc 0755 0 0"
+    echo "dir /lib 0755 0 0"
+    echo "file /init $WORK/rt-init 0755 0 0"
+    (cd "$MS" && find lib -mindepth 1 | LC_ALL=C sort | while read -r f; do
+        if [ -d "$f" ]; then echo "dir /$f 0755 0 0"
+        else echo "file /$f $MS/$f 0644 0 0"; fi
+    done)
+} > "$WORK/initramfs.list"
+"$O/usr/gen_init_cpio" -t 0 "$WORK/initramfs.list" | gzip -9n > "$WORK/libumlinitrd.so"
 
 # 4. umusb (USB/IP server for USB passthrough).
 (cd "$SRC" && NDK=$NDK SRC=$SRC/tools/um-arm64/harness/umusb.c O=$WORK/umusb ART=$ART \
@@ -93,8 +111,8 @@ if [ "$INSTALL" = 1 ]; then
     J=$ROOT/core/main/src/main/jniLibs/arm64-v8a
     cp "$LINUX" "$J/libuml.so"
     cp "$STUB" "$J/libumstub.so"
-    cp "$WORK/libumlmodules.so" "$J/libumlmodules.so"
+    cp "$WORK/libumlinitrd.so" "$J/libumlinitrd.so"
+    rm -f "$J/libumlmodules.so" "$ROOT/core/main/src/main/assets/uml-modules.stamp"
     cp "$WORK/libumusb.so" "$J/libumusb.so"
-    md5sum "$LINUX" | cut -c1-12 > "$ROOT/core/main/src/main/assets/uml-modules.stamp"
     echo "installed into $J"
 fi

@@ -50,12 +50,16 @@ line: `rtkey=` (base64 SSH public key, for root and debian) and `rtswap=` (swap
 file MB), and grows the filesystem into the sparse disk. It was derived from
 claude-phone's `cp-debian-2` by renaming its `claude` user and boot service.
 
-## Kernel modules
+## Kernel modules (initramfs)
 
-`jniLibs/arm64-v8a/libumlmodules.so` (a plain tar; an asset copy did not work on the phone) is `make modules_install INSTALL_MOD_STRIP=1` of the same
-build (`lib/modules/<release>`, `build` link removed); `assets/uml-modules.stamp` is the
-first 12 hex of the kernel's md5. `vm-login.sh` unpacks it into the guest's `/lib/modules` as root when the
-guest's `/lib/modules/.rt-stamp` differs. `modprobe` needs the `kmod` package.
+`jniLibs/arm64-v8a/libumlinitrd.so` is a gzip'd cpio passed as `initrd=`: `/init` is
+`tools/uml/rt-init.c` (freestanding, no libc) and `lib/modules/<release>` is the
+`modules_install` (stripped, depmod'ed) of the same kernel build. rt-init mounts
+`/dev/ubda` on /root, bind-mounts the modules read-only over the disk's
+`/usr/lib/modules/<release>`, moves /dev, switches root and execs `/sbin/init`. Kernel and
+modules therefore always match, udev can load drivers from the first second, and the disk
+is not touched. Cost: the unpacked initramfs (~10 MB) stays in guest RAM. `modprobe` needs
+the `kmod` package in the guest.
 
 ## USB passthrough
 
@@ -69,10 +73,10 @@ USB core and vhci_hcd are built in; device drivers are modules (`kmod` + udev lo
 
 ## Rebuilding the kernel
 
-`tools/uml/build-kernel.sh` does the whole thing: clones Raymer's `um-arm64-v0.4.2`, applies
+`tools/uml/build-kernel.sh` does the whole thing (kernel, initramfs with modules, umusb): clones Raymer's `um-arm64-v0.4.2`, applies
 `uml-arm64-fastpath.patch` (git am) and `uml-arm64-modules.patch`, builds the bionic kernel
 with `reterminal.config`, packs the modules tar, builds umusb, and copies the results into
-`jniLibs/arm64-v8a` (plus `assets/uml-modules.stamp`; `--no-install` skips that). Needs NDK
+`jniLibs/arm64-v8a` as libuml, libumstub, libumlinitrd and libumusb (`--no-install` skips that). Needs NDK
 r29 (`NDK=`) and clang, flex, bison, bc, libelf-dev, kmod. Work dir: `build/uml`.
 With `ccache` installed the kernel compiles go through it (`CCACHE=0` disables): a full
 rebuild with a warm cache took 38 s instead of 7.5 min in the sandbox, same output md5.

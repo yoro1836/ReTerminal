@@ -1,8 +1,7 @@
 name: UML kernel
 
-# Builds libuml.so, libumstub.so, libumlmodules.so and libumusb.so with
-# tools/uml/build-kernel.sh and uploads them (plus uml-modules.stamp) as an
-# artifact. Copy them into core/main/src/main/jniLibs/arm64-v8a to use them.
+# Builds libuml.so, libumstub.so, libumlinitrd.so and libumusb.so with
+# tools/uml/build-kernel.sh and uploads them as an artifact. Copy them into core/main/src/main/jniLibs/arm64-v8a to use them.
 on:
   workflow_dispatch:
   push:
@@ -53,8 +52,7 @@ jobs:
       - name: Collect
         run: |
           mkdir -p out
-          cp core/main/src/main/jniLibs/arm64-v8a/{libuml.so,libumstub.so,libumlmodules.so,libumusb.so} out/
-          cp core/main/src/main/assets/uml-modules.stamp out/
+          cp core/main/src/main/jniLibs/arm64-v8a/{libuml.so,libumstub.so,libumlinitrd.so,libumusb.so} out/
 
       - uses: actions/upload-artifact@v4
         with:

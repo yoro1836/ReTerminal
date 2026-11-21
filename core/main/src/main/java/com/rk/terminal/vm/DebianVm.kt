@@ -36,16 +36,6 @@ object DebianVm {
 
     fun dir(ctx: Context) = File(ctx.filesDir, "vm")
 
-    /**
-     * Kernel modules for the guest ship as jniLibs/libumlmodules.so (a tar of
-     * lib/modules/<release>; extracted with the other native libs, so nothing is
-     * copied). vm-login.sh unpacks it as root. Returns the build stamp, or null.
-     */
-    fun modules(ctx: Context): String? {
-        if (!File(ctx.applicationInfo.nativeLibraryDir, "libumlmodules.so").isFile) return null
-        return runCatching { ctx.assets.open("uml-modules.stamp").bufferedReader().use { it.readText().trim() } }
-            .getOrNull()
-    }
     private fun disk(ctx: Context) = File(dir(ctx), "debian.ext4")
     private fun log(ctx: Context) = File(dir(ctx), "console.log")
     fun key(ctx: Context) = File(dir(ctx), "id_dropbear")
@@ -212,7 +202,7 @@ object DebianVm {
             "stub_exe=" + lib(app, "libumstub.so").path,
             "ubd0=" + disk(app).path, "root=/dev/ubda", "rw",
             "rtkey=$pub", "rtswap=${sp.swapMb}",
-        )
+        ) + lib(app, "libumlinitrd.so").let { if (it.isFile) listOf("initrd=" + it.path) else emptyList() }
         val pb = ProcessBuilder(cmd).directory(dir(app)).redirectErrorStream(true)
             .redirectOutput(log(app))
         pb.environment().apply {

@@ -22,18 +22,6 @@ n=$(getent group "$g" | cut -d: -f1)
 usermod -aG "$n" debian' | "$DB" dbclient -y -i "$D/id_dropbear" -p "$(cat "$D/port")" -T root@127.0.0.1 sh -s "$VM_SHARE"
 }
 
-# Kernel modules: unpack $NATIVE_LIB_DIR/libumlmodules.so (a tar) into /lib/modules when the
-# guest's copy is from another kernel build (stamp in /lib/modules/.rt-stamp).
-modules() {
-  [ -n "$VM_MODULES" ] && [ -f "$NATIVE_LIB_DIR/libumlmodules.so" ] || return 0
-  "$DB" dbclient -y -i "$D/id_dropbear" -p "$(cat "$D/port")" -T root@127.0.0.1 \
-    "[ \"\$(cat /lib/modules/.rt-stamp 2>/dev/null)\" = '$VM_MODULES' ] || {
-       rm -rf /lib/modules/\$(uname -r) && mkdir -p /lib/modules && tar xf - -C /lib/modules &&
-       echo '$VM_MODULES' > /lib/modules/.rt-stamp &&
-       { command -v depmod >/dev/null || [ -x /usr/sbin/depmod ] || echo 'Kernel modules installed; for modprobe run: sudo apt update && sudo apt install kmod'; }
-     }" < "$NATIVE_LIB_DIR/libumlmodules.so"
-}
-
 # fstrim once per boot (the port changes every boot), in the background.
 trim() {
   [ -n "$VM_TRIM" ] || return 0
@@ -68,12 +56,9 @@ while :; do
       console
       if probe </dev/null >/dev/null 2>"$D/probe.err"; then
         err=$(share 2>&1) || err="Could not mount phone storage at /mnt/media: $err"
-        merr=$(modules 2>&1) || merr="Could not install kernel modules: $merr"
-        printf "%s\n" "$merr" > "$D/modules.log"
         trim
         printf '\033[2J\033[H'
         [ -z "$err" ] || printf '%s\n' "$err"
-        [ -z "$merr" ] || printf '%s\n' "$merr"
         break
       fi
       n=$((n + 1))
