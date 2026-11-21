@@ -128,7 +128,8 @@ class SessionService : Service() {
             sessionOrder.remove(id)
             if (sessions.isEmpty()) allClosed.value = true
             // The VM outlives its tabs; stop it from the drawer or the notification.
-            if (sessions.isEmpty() && !com.rk.terminal.vm.DebianVm.running) {
+            val vm = com.rk.terminal.vm.DebianVm
+            if (sessions.isEmpty() && !vm.running && vm.isOff(vm.state.value)) {
                 stopSelf()
             } else {
                 updateNotification()
