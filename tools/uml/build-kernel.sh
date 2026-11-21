@@ -57,8 +57,12 @@ tar cf "$WORK/libumlmodules.so" --owner=0 --group=0 -C "$MS/lib/modules" "$REL"
 # 4. umusb (USB/IP server for USB passthrough).
 (cd "$SRC" && NDK=$NDK SRC=$SRC/tools/um-arm64/harness/umusb.c O=$WORK/umusb ART=$ART \
     bash tools/um-arm64/harness/build-usb-bionic.sh) || true
-[ -x "$WORK/umusb/umusb" ] || { echo "umusb build failed" >&2; exit 1; }
-"$TOOL/llvm-strip" -o "$WORK/libumusb.so" "$WORK/umusb/umusb"
+# It copies the binary to $ART/umusb_bionic and deletes its O on success; its
+# `file`-based check fails with some `file` versions and then leaves O alone.
+UMUSB=$ART/umusb_bionic
+[ -f "$UMUSB" ] || UMUSB=$WORK/umusb/umusb
+[ -f "$UMUSB" ] || { echo "umusb build failed" >&2; exit 1; }
+"$TOOL/llvm-strip" -o "$WORK/libumusb.so" "$UMUSB"
 
 echo "kernel $REL: $(md5sum "$LINUX" | cut -c1-12)"
 if [ "$INSTALL" = 1 ]; then
