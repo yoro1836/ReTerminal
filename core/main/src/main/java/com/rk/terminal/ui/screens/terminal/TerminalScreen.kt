@@ -113,6 +113,15 @@ fun TerminalScreen(
         )
     }
 
+    // New tab of the default kind (the Debian VM), like the AVF build.
+    val newTab: () -> Unit = newTab@{
+        val binder = sessionBinder ?: return@newTab
+        val terminal = terminalViewModel.terminalView ?: return@newTab
+        val id = generateUniqueSessionId(binder.getService().sessionList.keys.toList())
+        binder.createSession(id, TerminalBackEnd(terminal, mainActivity) { terminalViewModel.terminalImeView }, Settings.working_Mode)
+        terminalViewModel.changeSession(context, binder, id)
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = drawerState.isOpen || !terminalViewModel.showToolbar,
@@ -121,6 +130,9 @@ fun TerminalScreen(
                 drawerWidth = drawerWidth,
                 sessionBinder = sessionBinder,
                 navController = navController,
+                onCloseSession = { id ->
+                    sessionBinder?.let { terminalViewModel.closeSession(context, it, id) }
+                },
                 onAddSession = { showAddDialog = true },
                 onSessionSelected = { id ->
                     sessionBinder?.let { terminalViewModel.changeSession(context, it, id) }
@@ -150,14 +162,7 @@ fun TerminalScreen(
                     TerminalTopBar(
                         sessionBinder = sessionBinder,
                         onMenuClick = { scope.launch { drawerState.open() } },
-                        onAddClick = {
-                            // New tab of the default kind (the Debian VM), like the AVF build.
-                            val binder = sessionBinder ?: return@TerminalTopBar
-                            val terminal = terminalViewModel.terminalView ?: return@TerminalTopBar
-                            val id = generateUniqueSessionId(binder.getService().sessionList.keys.toList())
-                            binder.createSession(id, TerminalBackEnd(terminal, mainActivity) { terminalViewModel.terminalImeView }, Settings.working_Mode)
-                            terminalViewModel.changeSession(context, binder, id)
-                        },
+                        onAddClick = newTab,
                         onAddLongClick = { showAddDialog = true },
                         color = TerminalUtils.getComposeColor()
                     )
@@ -169,16 +174,21 @@ fun TerminalScreen(
                 }
 
                 if (sessionBinder != null) {
-                    TerminalViewLayout(
-                        viewModel = terminalViewModel,
-                        mainActivity = mainActivity,
-                        sessionBinder = sessionBinder,
-                        modifier = Modifier
+                    Box(
+                        Modifier
                             .imePadding()
                             .navigationBarsPadding()
                             .padding(top = topPadding)
                             .fillMaxSize()
-                    )
+                    ) {
+                        TerminalViewLayout(
+                            viewModel = terminalViewModel,
+                            mainActivity = mainActivity,
+                            sessionBinder = sessionBinder,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        TerminalOverlay(sessionBinder.getService(), onNewTab = newTab)
+                    }
                 }
             }
         }

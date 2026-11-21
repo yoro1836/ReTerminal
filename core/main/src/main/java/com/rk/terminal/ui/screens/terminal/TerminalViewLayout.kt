@@ -50,7 +50,7 @@ fun TerminalViewLayout(
                     val service = sessionBinder.getService()
 
                     val session = sessionBinder.getSession(service.currentSession.value.first)
-                        ?: run {
+                        ?: if (service.allClosed.value) null else run {
                             val custom = service.currentCustomSession
                             if (custom != null) {
                                 val pendingCommand = MkSession.buildCustomPendingCommand(ctx, custom)
@@ -69,8 +69,8 @@ fun TerminalViewLayout(
                             }
                         }
 
-                    session.updateTerminalSessionClient(client)
-                    attachSession(session)
+                    session?.updateTerminalSessionClient(client)
+                    session?.let { attachSession(it) }
                     setTerminalViewClient(client)
                     setTypeface(TerminalUtils.typeface)
                     compositionRenderer.attach(this)

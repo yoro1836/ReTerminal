@@ -43,32 +43,43 @@ console() {
   fi
 }
 
-last=""
-n=0
+# Wait for the VM (the app shows its state over the tab), log in, and when the
+# VM goes away (stop, restart, crash) wait for it again. Exiting the login
+# shell while the VM keeps running ends the tab.
+wait_ready() {
+  last=""
+  n=0
+  while :; do
+    s=$(cat "$D/status" 2>/dev/null)
+    case "$s" in
+      ready)
+        console
+        if probe </dev/null >/dev/null 2>"$D/probe.err"; then
+          err=$(share 2>&1) || err="Could not mount phone storage at /mnt/media: $err"
+          trim
+          printf '\033[2J\033[H'
+          [ -z "$err" ] || printf '%s\n' "$err"
+          return
+        fi
+        n=$((n + 1))
+        if [ $((n % 20)) -eq 0 ]; then
+          printf '\r\033[K[ssh not ready, try %s: %s]\n' "$n" "$(tail -n 1 "$D/probe.err")"
+        fi ;;
+      booting|booted)
+        console ;;
+      *)
+        [ "$s" = "$last" ] || printf '\r\033[K%s\n' "$s" ;;
+    esac
+    last="$s"
+    sleep 1
+  done
+}
+
 while :; do
-  s=$(cat "$D/status" 2>/dev/null)
-  case "$s" in
-    error*|stopped)
-      console
-      printf '\r\033[K%s\n' "$s"
-      exit 1 ;;
-    booted)
-      console
-      if probe </dev/null >/dev/null 2>"$D/probe.err"; then
-        err=$(share 2>&1) || err="Could not mount phone storage at /mnt/media: $err"
-        trim
-        printf '\033[2J\033[H'
-        [ -z "$err" ] || printf '%s\n' "$err"
-        break
-      fi
-      n=$((n + 1))
-      if [ $((n % 20)) -eq 0 ]; then
-        printf '\r\033[K[ssh not ready, try %s: %s]\n' "$n" "$(tail -n 1 "$D/probe.err")"
-      fi ;;
-    *)
-      [ "$s" = "$last" ] || printf '\r\033[K%s' "$s" ;;
-  esac
-  last="$s"
-  sleep 1
+  wait_ready
+  "$DB" dbclient -y -i "$D/id_dropbear" -p "$(cat "$D/port")" -t debian@127.0.0.1 "$@"
+  rc=$?
+  [ "$(cat "$D/status" 2>/dev/null)" = ready ] && exit $rc
+  shown=0
+  printf '\r\n'
 done
-exec "$DB" dbclient -y -i "$D/id_dropbear" -p "$(cat "$D/port")" -t debian@127.0.0.1 "$@"

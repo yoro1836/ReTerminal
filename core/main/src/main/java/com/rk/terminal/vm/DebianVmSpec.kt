@@ -61,6 +61,10 @@ fun DebianVmSpec() {
         Toggle("Automatic storage expansion",
             "At each boot, grow the disk into the phone's free space (keeps 2 GB for Android). Turn off to set the size by hand.",
             expand) { expand = it; DebianVm.setAutoExpand(ctx, it) }
+        var autoStart by remember { mutableStateOf(DebianVm.autoStart(ctx)) }
+        Toggle("Start the VM with the app",
+            "Boot Debian when the app opens. Off: Debian tabs show that the VM is off, with a Start button.",
+            autoStart) { autoStart = it; DebianVm.setAutoStart(ctx, it) }
         var trimBoot by remember { mutableStateOf(DebianVm.trimAtBoot(ctx)) }
         Toggle("Trim at boot",
             "Run fstrim after each boot, so space freed inside Debian is given back to the phone.",

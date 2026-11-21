@@ -8,8 +8,12 @@ Linux, arm64) as plain app processes: no root, no proot. Code:
 The first tab downloads the disk image (`rt-debian-N.ext4.gz`, ~170 MB) into
 `files/vm/debian.ext4` (sparse) and boots the VM once. Every tab is an SSH
 session (dropbear `dbclient`, key in `files/vm/id_dropbear`) to the guest's
-sshd as `debian`, which passt forwards to a free `127.0.0.1` port picked at boot (`files/vm/port`). The VM powers off when the
-last session closes. Cores, memory, swap and disk are in Settings.
+sshd as `debian`, which passt forwards to a free `127.0.0.1` port picked at boot (`files/vm/port`). The VM outlives its tabs
+(Stop/Restart are in the drawer). "Start the VM with the app" (default on) boots
+it when the first Debian tab opens; while the VM is off or booting, a Debian tab
+shows that over the terminal area (`TerminalOverlay.kt`, state from
+`DebianVm.state`; "ready" = guest sshd answers), and its login script waits and
+reconnects after a restart. Cores, memory, swap and disk are in Settings.
 
 Prebuilt binaries in `core/main/src/main/jniLibs/arm64-v8a/` (an app may only
 exec from its native lib dir, hence the `lib*.so` names):

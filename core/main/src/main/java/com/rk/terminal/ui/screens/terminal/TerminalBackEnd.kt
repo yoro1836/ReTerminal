@@ -135,15 +135,7 @@ class TerminalBackEnd(
         if (keyCode == KeyEvent.KEYCODE_ENTER && !session.isRunning) {
             val binder = activity.viewModel.sessionBinder ?: return false
             val service = binder.getService()
-            val currentId = service.currentSession.value.first
-            
-            binder.terminateSession(currentId)
-            
-            if (service.sessionList.isEmpty()) {
-                activity.finish()
-            } else {
-                terminalViewModel.changeSession(activity, binder, service.sessionList.keys.first())
-            }
+            terminalViewModel.closeSession(activity, binder, service.currentSession.value.first)
             return true
         }
         return false

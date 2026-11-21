@@ -48,6 +48,18 @@ class TerminalViewModel : ViewModel() {
         }
     }
 
+    /** Close a tab, switching to a neighbour first if it is the current one. */
+    fun closeSession(context: Context, sessionBinder: SessionService.SessionBinder, sessionId: String) {
+        val service = sessionBinder.getService()
+        val keys = service.sessionOrder.toList().ifEmpty { service.sessionList.keys.toList() }
+        if (sessionId == service.currentSession.value.first) {
+            val i = keys.indexOf(sessionId)
+            val next = keys.getOrNull(i + 1) ?: keys.getOrNull(i - 1) ?: keys.firstOrNull { it != sessionId }
+            if (next != null && next != sessionId) changeSession(context, sessionBinder, next)
+        }
+        sessionBinder.terminateSession(sessionId)
+    }
+
     fun changeSession(context: Context, sessionBinder: SessionService.SessionBinder, sessionId: String) {
         val terminal = terminalView ?: return
         val activity = context as? MainActivity ?: return

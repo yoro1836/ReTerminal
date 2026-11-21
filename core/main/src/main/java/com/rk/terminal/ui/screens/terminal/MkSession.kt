@@ -55,7 +55,7 @@ object MkSession {
                 env.add("VM_DIR=${DebianVm.dir(this).absolutePath}")
                 DebianVm.sharedDir(this)?.let { env.add("VM_SHARE=$it") }
                 if (DebianVm.trimAtBoot(this)) env.add("VM_TRIM=1")
-                DebianVm.ensure(this)
+                if (DebianVm.autoStart(this)) DebianVm.ensure(this)
             }
 
             val args: Array<String>

@@ -97,6 +97,10 @@ object DebianVm {
     fun wakelock(ctx: Context) = prefs(ctx).getBoolean("wakelock", true)
     fun setWakelock(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("wakelock", on).apply()
     /** fstrim once after each boot (the tab script does it). */
+    /** Boot the VM when a Debian tab opens (e.g. the first tab at app start). */
+    fun autoStart(ctx: Context) = prefs(ctx).getBoolean("auto_start", true)
+    fun setAutoStart(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("auto_start", on).apply()
+
     fun trimAtBoot(ctx: Context) = prefs(ctx).getBoolean("trim_boot", true)
     fun setTrimAtBoot(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("trim_boot", on).apply()
     /** Grow the disk to the phone's free space at each boot (never shrinks). */
@@ -136,7 +140,16 @@ object DebianVm {
     @Volatile private var starting = false
     val running get() = proc?.isAlive == true
 
+    /**
+     * The VM's state for the UI: "stopped", "starting", "booting", "booted" (kernel
+     * up), "ready" (sshd answers), "error: ...", or an install step's text.
+     */
+    val state = androidx.compose.runtime.mutableStateOf("stopped")
+    fun isOff(s: String) = s == "stopped" || s.startsWith("error")
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+
     private fun status(ctx: Context, s: String) {
+        main.post { state.value = s }
         dir(ctx).mkdirs()
         val f = statusFile(ctx)
         val tmp = File(f.path + ".tmp")
@@ -215,6 +228,16 @@ object DebianVm {
         bootedWith = sp
         hold(app, true)
         status(app, "booted")
+        // "ready" once the guest's sshd answers, so tabs (and the UI) know it is up.
+        Thread {
+            while (proc === p && p.isAlive) {
+                if (sshTrue(app, port)) {
+                    if (proc === p) status(app, "ready")
+                    break
+                }
+                Thread.sleep(1000)
+            }
+        }.start()
         Thread {
             p.waitFor()
             hold(app, false)
@@ -292,6 +315,15 @@ object DebianVm {
             then?.invoke()
         }.start()
     }
+
+    private fun sshTrue(app: Context, port: Int) = try {
+        val p = ProcessBuilder(
+            lib(app, "libdropbear.so").path, "dbclient", "-y", "-i", key(app).path,
+            "-p", "$port", "-T", "root@127.0.0.1", "true",
+        ).also { it.environment()["HOME"] = dir(app).path }
+            .redirectErrorStream(true).redirectOutput(File("/dev/null")).start()
+        if (!p.waitFor(8, TimeUnit.SECONDS)) { p.destroyForcibly(); false } else p.exitValue() == 0
+    } catch (_: Exception) { false }
 
     fun restart(ctx: Context) = stop(ctx) { ensure(ctx) }
 

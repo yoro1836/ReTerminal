@@ -38,6 +38,7 @@ fun TerminalDrawer(
     drawerWidth: Dp,
     sessionBinder: SessionService.SessionBinder?,
     navController: NavController,
+    onCloseSession: (String) -> Unit,
     onAddSession: () -> Unit,
     onSessionSelected: (String) -> Unit
 ) {
@@ -191,10 +192,10 @@ fun TerminalDrawer(
                                     )
                                 }
 
-                                // Delete Button (if not only session)
-                                if (!isSelected || sessions.size > 1) {
+                                // Delete Button (the last tab too)
+                                run {
                                     IconButton(
-                                        onClick = { sessionBinder?.terminateSession(sessionId) },
+                                        onClick = { onCloseSession(sessionId) },
                                         modifier = Modifier.size(32.dp)
                                     ) {
                                         Icon(
@@ -261,14 +262,19 @@ fun TerminalDrawer(
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text("Debian VM", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            val vmState by com.rk.terminal.vm.DebianVm.state
                             Text(
-                                if (com.rk.terminal.vm.DebianVm.running) "Running" else "Off",
+                                when {
+                                    vmState == "ready" -> "Running"
+                                    com.rk.terminal.vm.DebianVm.isOff(vmState) -> "Off"
+                                    else -> "Starting…"
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         var showUsb by remember { mutableStateOf(false) }
-                        IconButton(enabled = com.rk.terminal.vm.DebianVm.running, onClick = { showUsb = true }) {
+                        IconButton(enabled = com.rk.terminal.vm.DebianVm.state.value == "ready", onClick = { showUsb = true }) {
                             Icon(imageVector = Icons.Outlined.Usb, contentDescription = "USB devices")
                         }
                         if (showUsb) com.rk.terminal.vm.UsbDialog { showUsb = false }

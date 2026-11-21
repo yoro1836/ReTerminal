@@ -56,24 +56,8 @@ object KeyShortcutHandler {
     private fun handleCloseSession(activity: MainActivity, viewModel: TerminalViewModel): Boolean {
         val binder = activity.viewModel.sessionBinder ?: return true
         val service = binder.getService()
-        val currentId = service.currentSession.value.first
-        val sessionKeys = service.sessionList.keys.toList()
-
-        if (sessionKeys.size <= 1) {
-            binder.terminateSession(currentId)
-            if (service.sessionList.isEmpty()) {
-                activity.finish()
-            }
-        } else {
-            val currentIndex = sessionKeys.indexOf(currentId)
-            val nextId = if (currentIndex < sessionKeys.size - 1) {
-                sessionKeys[currentIndex + 1]
-            } else {
-                sessionKeys[currentIndex - 1]
-            }
-            viewModel.changeSession(activity, binder, nextId)
-            binder.terminateSession(currentId)
-        }
+        if (service.sessionList.isEmpty()) return true
+        viewModel.closeSession(activity, binder, service.currentSession.value.first)
         return true
     }
 

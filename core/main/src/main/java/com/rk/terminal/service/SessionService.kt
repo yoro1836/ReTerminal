@@ -31,6 +31,8 @@ class SessionService : Service() {
     private val initialMode = CustomSessions.resolveDefaultSession()
     var currentSession = mutableStateOf(Pair("main", initialMode.first))
     var currentCustomSession = initialMode.second
+    /** The user closed every tab: show "no tabs" instead of opening a new one. */
+    val allClosed = mutableStateOf(false)
 
     inner class SessionBinder : Binder() {
         fun getService(): SessionService = this@SessionService
@@ -58,6 +60,7 @@ class SessionService : Service() {
             ).also {
                 sessions[id] = it
                 sessionList[id] = workingMode
+                allClosed.value = false
                 if (!sessionOrder.contains(id)) {
                     sessionOrder.add(id)
                 }
@@ -123,6 +126,7 @@ class SessionService : Service() {
             sessions.remove(id)
             sessionList.remove(id)
             sessionOrder.remove(id)
+            if (sessions.isEmpty()) allClosed.value = true
             // The VM outlives its tabs; stop it from the drawer or the notification.
             if (sessions.isEmpty() && !com.rk.terminal.vm.DebianVm.running) {
                 stopSelf()
