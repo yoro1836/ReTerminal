@@ -1,7 +1,7 @@
 From 122de0338bebb3e2117380206901c9d51aaa6ad2 Mon Sep 17 00:00:00 2001
 From: t <t@t>
 Date: Fri, 20 Nov 2026 06:29:49 +0000
-Subject: [PATCH 01/10] um/arm64: syscall-site fast path (wip)
+Subject: [PATCH 01/13] um/arm64: syscall-site fast path (wip)
 
 ---
  arch/arm64/um/Kconfig                       |  11 +
@@ -906,7 +906,7 @@ index 81fef1c9ad03..9d2abb89254a 100644
 From c8d8a77cb91ed96de8dbff4da1d2120b1243f350 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:17:58 +0000
-Subject: [PATCH 02/10] um/arm64: fastpath fixes (slot floor, stub-only
+Subject: [PATCH 02/13] um/arm64: fastpath fixes (slot floor, stub-only
  stores), any svc site, memfd physmem, spin 200
 
 ---
@@ -1215,7 +1215,7 @@ index e40bc4559003..9b900dab3408 100644
 From 2c1f4618bca1daa15e70da5e702ff5a65c10296f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:36:39 +0000
-Subject: [PATCH 03/10] um: stub zygote with pre-filtered spare stubs
+Subject: [PATCH 03/13] um: stub zygote with pre-filtered spare stubs
  (stub_zygote=), spawn timing stat
 
 ---
@@ -1744,7 +1744,7 @@ index 58f6010ade11..08e5938c0594 100644
 From bc2ab4b82f6acef01d0ede8bb123cc2771617c80 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:46:48 +0000
-Subject: [PATCH 04/10] um: stub_pin (kernel thread and stubs on separate host
+Subject: [PATCH 04/13] um: stub_pin (kernel thread and stubs on separate host
  CPUs, default on), spin backoff knob, umstat= timing
 
 ---
@@ -2075,7 +2075,7 @@ index d3be0657d1a5..cc3ade2292ec 100644
 From bb5bff45121b48dc19017e60064af53b93afb90f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:55:48 +0000
-Subject: [PATCH 05/10] um: our options default on (seccomp=auto, stub_exe next
+Subject: [PATCH 05/13] um: our options default on (seccomp=auto, stub_exe next
  to the binary, physmem_memfd=)
 
 ---
@@ -2182,7 +2182,7 @@ index bc129f59cb7e..0683b9e5fe04 100644
 From d45f97a7f1fb413bb0680245c7740e8408ad7713 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 09:02:27 +0000
-Subject: [PATCH 06/10] um: SMP build (NR_CPUS 8): serialize start_userspace,
+Subject: [PATCH 06/13] um: SMP build (NR_CPUS 8): serialize start_userspace,
  no stub_pin with ncpus>1
 
 ---
@@ -2258,7 +2258,7 @@ index 3948eaaa56ce..7d59e8dc57f8 100755
 From e18c1a4b619b0a049af77ab7b1dba30305f0619c Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 04:11:36 +0000
-Subject: [PATCH 07/10] um: stubs keep physmem open (no SCM_RIGHTS per map
+Subject: [PATCH 07/13] um: stubs keep physmem open (no SCM_RIGHTS per map
  batch, no empty recvmsg); umstat per-syscall breakdown
 
 ---
@@ -2505,7 +2505,7 @@ index b49db9ab2eec..edb488636459 100644
 From d69aea858f5832ae3a356a7b9333cf1c3c68c69b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:10:01 +0000
-Subject: [PATCH 08/10] um: stub_pin keeps stubs off little cores (capacity <
+Subject: [PATCH 08/13] um: stub_pin keeps stubs off little cores (capacity <
  half of the best remaining)
 
 ---
@@ -2661,7 +2661,7 @@ index 59a77a4d611c..b2049492a0ce 100644
 From 2bb6ebd05cfea65778aa0eec9e9bef6a02867b9e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:13:06 +0000
-Subject: [PATCH 09/10] um: with SMP too, keep the kernel and stubs on the fast
+Subject: [PATCH 09/13] um: with SMP too, keep the kernel and stubs on the fast
  CPUs (stub_pin)
 
 ---
@@ -2784,7 +2784,7 @@ index 7234568b1943..26197dd3fc9b 100644
 From 6f44d440009f7d5851b6ccdf06633aec1d3a367e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:22:36 +0000
-Subject: [PATCH 10/10] um: SMP: defer IPIs in the handler while IRQs are off
+Subject: [PATCH 10/13] um: SMP: defer IPIs in the handler while IRQs are off
  instead of a host sigprocmask per local_irq_disable/enable
 
 ---
@@ -2989,6 +2989,235 @@ index 13ebc86918d4..9fcabde8c2c8 100644
  		os_poll(1, &wake_signals);
  
  	/* Restore the signal mask. */
+-- 
+2.43.0
+
+From b5c842c3ef50edcc8882acf11d281a91ec85bca8 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 21 Nov 2026 05:41:39 +0000
+Subject: [PATCH 11/13] um: stub_pin falls back to /proc/cpuinfo CPU part when
+ sysfs CPU capacity is unreadable
+
+---
+ arch/um/os-Linux/skas/process.c | 47 ++++++++++++++++++++++++++++++++-
+ 1 file changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index 851b0ebfe45c..ae927dfac43a 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -413,6 +413,49 @@ __uml_setup("stub_pin=", uml_stub_pin_setup,
+ "    Pin the kernel thread to one host CPU and the stubs to the others.\n"
+ "    Default: 1.\n\n");
+ 
++/*
++ * Fallback when sysfs is not readable (an app's SELinux domain may deny it):
++ * "CPU part" from /proc/cpuinfo, with Arm's in-order little cores ranked low.
++ */
++static int cpuinfo_capacity(int cpu)
++{
++	static const unsigned int little[] = {
++		0xd03, 0xd04, 0xd05, 0xd46, 0xd80,	/* A53 A35 A55 A510 A520 */
++	};
++	static short cap[64];
++	static int done;
++
++	if (!done) {
++		static char buf[32768];
++		int fd = open("/proc/cpuinfo", O_RDONLY | O_CLOEXEC);
++		int n = 0, r, cur = -1;
++		char *l;
++
++		done = 1;
++		if (fd < 0)
++			return 0;
++		while (n < (int)sizeof(buf) - 1 &&
++		       (r = read(fd, buf + n, sizeof(buf) - 1 - n)) > 0)
++			n += r;
++		close(fd);
++		buf[n] = 0;
++		for (l = buf; l && *l; l = strchr(l, '\n'), l = l ? l + 1 : NULL) {
++			unsigned int part, k;
++
++			if (sscanf(l, "processor : %d", &cur) == 1)
++				continue;
++			if (cur < 0 || cur >= 64 ||
++			    sscanf(l, "CPU part : %x", &part) != 1)
++				continue;
++			cap[cur] = 1024;
++			for (k = 0; k < sizeof(little) / sizeof(little[0]); k++)
++				if (part == little[k])
++					cap[cur] = 256;
++		}
++	}
++	return cap[cpu];
++}
++
+ /* The host's relative CPU strength (arm64 cpu_capacity, else max freq), 0 if unknown. */
+ static int cpu_capacity(int cpu)
+ {
+@@ -423,6 +466,8 @@ static int cpu_capacity(int cpu)
+ 	char path[96], buf[24];
+ 	int i, fd, n;
+ 
++	if (cpu < 0 || cpu >= 64)
++		return 0;
+ 	for (i = 0; i < 2; i++) {
+ 		snprintf(path, sizeof(path), f[i], cpu);
+ 		fd = open(path, O_RDONLY | O_CLOEXEC);
+@@ -435,7 +480,7 @@ static int cpu_capacity(int cpu)
+ 			return strtoul(buf, NULL, 10);
+ 		}
+ 	}
+-	return 0;
++	return cpuinfo_capacity(cpu);
+ }
+ 
+ /* Strongest CPU in mask; ties (or no capacity info) go to the highest number. */
+-- 
+2.43.0
+
+From 8d43843d827c864c5c3b4001893c985c6c3a78f8 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 21 Nov 2026 05:42:16 +0000
+Subject: [PATCH 12/13] um: stub_pin: don't squeeze more vCPUs than fast host
+ CPUs onto them
+
+---
+ arch/um/os-Linux/skas/process.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index ae927dfac43a..a992391cf98b 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -532,7 +532,15 @@ void os_pin_fast_cpus(void)
+ 	    syscall(__NR_sched_getaffinity, 0, sizeof(m), &m) < 0)
+ 		return;
+ 	f = fast_cpus(m);
+-	if (f != m && syscall(__NR_sched_setaffinity, 0, sizeof(f), &f) == 0)
++	if (f == m)
++		return;
++	/* More vCPUs than fast cores: squeezing them in would be worse. */
++	if (uml_ncpus > __builtin_popcountl(f)) {
++		os_info("stub_pin: %d CPUs > %d fast host CPUs (%lx), not pinning\n",
++			uml_ncpus, __builtin_popcountl(f), f);
++		return;
++	}
++	if (syscall(__NR_sched_setaffinity, 0, sizeof(f), &f) == 0)
+ 		os_info("stub_pin: SMP on fast CPUs %lx\n", f);
+ }
+ 
+-- 
+2.43.0
+
+From 847586991054563aa3dfa9812b5168213db56ec1 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 21 Nov 2026 05:51:45 +0000
+Subject: [PATCH 13/13] um: handoff spin yields every ~3us so a peer on the
+ same host CPU can run (sched_yield allowed for stubs)
+
+---
+ arch/um/include/shared/skas/stub-futex.h | 20 ++++++++++++++++----
+ arch/um/kernel/skas/stub_exe.c           | 21 ++++++++++++---------
+ 2 files changed, 28 insertions(+), 13 deletions(-)
+
+diff --git a/arch/um/include/shared/skas/stub-futex.h b/arch/um/include/shared/skas/stub-futex.h
+index cc196aaafb8a..137084ee296f 100644
+--- a/arch/um/include/shared/skas/stub-futex.h
++++ b/arch/um/include/shared/skas/stub-futex.h
+@@ -92,18 +92,30 @@ stub_futex_spin(volatile unsigned int *futex, unsigned int while_owner,
+ 		unsigned long ticks)
+ {
+ 	unsigned int val = stub_futex_load_acquire(futex);
+-	unsigned long start;
++	unsigned long start, last, now;
+ 
+ 	if (STUB_FUTEX_OWNER(val) != while_owner || !ticks)
+ 		return val;
+ 
+-	start = stub_cycles();
+-	do {
++	start = last = stub_cycles();
++	for (;;) {
+ 		stub_relax();
+ 		val = stub_futex_load_acquire(futex);
+ 		if (STUB_FUTEX_OWNER(val) != while_owner)
+ 			break;
+-	} while (stub_cycles() - start < ticks);
++		now = stub_cycles();
++		if (now - start >= ticks)
++			break;
++		/*
++		 * The host scheduler may have put the peer on this very CPU
++		 * (it packs light tasks together), where spinning only keeps
++		 * it from running: every few microseconds, let it.
++		 */
++		if (now - last >= (ticks >> 6)) {
++			stub_syscall0(__NR_sched_yield);
++			last = stub_cycles();
++		}
++	}
+ 
+ 	return val;
+ }
+diff --git a/arch/um/kernel/skas/stub_exe.c b/arch/um/kernel/skas/stub_exe.c
+index a3feb673bf94..4a6a2fbf9d5b 100644
+--- a/arch/um/kernel/skas/stub_exe.c
++++ b/arch/um/kernel/skas/stub_exe.c
+@@ -269,17 +269,17 @@ noinline static void real_init(void)
+ 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+ 				 offsetof(struct seccomp_data, nr)),
+ 
+-			/* [10-17] Check against permitted syscalls */
++			/* [10-18] Check against permitted syscalls */
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_futex,
+-				 8, 0),
++				 9, 0),
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,__NR_recvmsg,
+-				 7, 0),
++				 8, 0),
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,__NR_close,
+-				 6, 0),
++				 7, 0),
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, STUB_MMAP_NR,
+-				 5, 0),
++				 6, 0),
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_munmap,
+-				 4, 0),
++				 5, 0),
+ 			/*
+ 			 * The syscall the stub needs in order to reinstate
+ 			 * guest TLS, which is architecture-specific:
+@@ -292,7 +292,7 @@ noinline static void real_init(void)
+ 			 */
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,
+ 				 (unsigned int)STUB_SECCOMP_TLS_SYSCALL,
+-				 3, 0),
++				 4, 0),
+ 			/*
+ 			 * One more arch-specific call, -1 (inert) unless the
+ 			 * subarch needs it: the arm64 syscall-site fast path
+@@ -300,14 +300,17 @@ noinline static void real_init(void)
+ 			 */
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,
+ 				 (unsigned int)STUB_SECCOMP_EXTRA_SYSCALL,
++				 3, 0),
++			/* The handoff spin yields to a peer on the same CPU. */
++			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_sched_yield,
+ 				 2, 0),
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_rt_sigreturn,
+ 				 1, 0),
+ 
+-			/* [18] Not one of the permitted syscalls */
++			/* [19] Not one of the permitted syscalls */
+ 			BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
+ 
+-			/* [19] Permitted call for the stub */
++			/* [20] Permitted call for the stub */
+ 			BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
+ 		};
+ 		struct sock_fprog prog = {
 -- 
 2.43.0
 
