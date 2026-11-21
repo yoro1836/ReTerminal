@@ -1,7 +1,7 @@
 From 122de0338bebb3e2117380206901c9d51aaa6ad2 Mon Sep 17 00:00:00 2001
 From: t <t@t>
 Date: Fri, 20 Nov 2026 06:29:49 +0000
-Subject: [PATCH 01/14] um/arm64: syscall-site fast path (wip)
+Subject: [PATCH 01/15] um/arm64: syscall-site fast path (wip)
 
 ---
  arch/arm64/um/Kconfig                       |  11 +
@@ -906,7 +906,7 @@ index 81fef1c9ad03..9d2abb89254a 100644
 From c8d8a77cb91ed96de8dbff4da1d2120b1243f350 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:17:58 +0000
-Subject: [PATCH 02/14] um/arm64: fastpath fixes (slot floor, stub-only
+Subject: [PATCH 02/15] um/arm64: fastpath fixes (slot floor, stub-only
  stores), any svc site, memfd physmem, spin 200
 
 ---
@@ -1215,7 +1215,7 @@ index e40bc4559003..9b900dab3408 100644
 From 2c1f4618bca1daa15e70da5e702ff5a65c10296f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:36:39 +0000
-Subject: [PATCH 03/14] um: stub zygote with pre-filtered spare stubs
+Subject: [PATCH 03/15] um: stub zygote with pre-filtered spare stubs
  (stub_zygote=), spawn timing stat
 
 ---
@@ -1744,7 +1744,7 @@ index 58f6010ade11..08e5938c0594 100644
 From bc2ab4b82f6acef01d0ede8bb123cc2771617c80 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:46:48 +0000
-Subject: [PATCH 04/14] um: stub_pin (kernel thread and stubs on separate host
+Subject: [PATCH 04/15] um: stub_pin (kernel thread and stubs on separate host
  CPUs, default on), spin backoff knob, umstat= timing
 
 ---
@@ -2075,7 +2075,7 @@ index d3be0657d1a5..cc3ade2292ec 100644
 From bb5bff45121b48dc19017e60064af53b93afb90f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:55:48 +0000
-Subject: [PATCH 05/14] um: our options default on (seccomp=auto, stub_exe next
+Subject: [PATCH 05/15] um: our options default on (seccomp=auto, stub_exe next
  to the binary, physmem_memfd=)
 
 ---
@@ -2182,7 +2182,7 @@ index bc129f59cb7e..0683b9e5fe04 100644
 From d45f97a7f1fb413bb0680245c7740e8408ad7713 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 09:02:27 +0000
-Subject: [PATCH 06/14] um: SMP build (NR_CPUS 8): serialize start_userspace,
+Subject: [PATCH 06/15] um: SMP build (NR_CPUS 8): serialize start_userspace,
  no stub_pin with ncpus>1
 
 ---
@@ -2258,7 +2258,7 @@ index 3948eaaa56ce..7d59e8dc57f8 100755
 From e18c1a4b619b0a049af77ab7b1dba30305f0619c Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 04:11:36 +0000
-Subject: [PATCH 07/14] um: stubs keep physmem open (no SCM_RIGHTS per map
+Subject: [PATCH 07/15] um: stubs keep physmem open (no SCM_RIGHTS per map
  batch, no empty recvmsg); umstat per-syscall breakdown
 
 ---
@@ -2505,7 +2505,7 @@ index b49db9ab2eec..edb488636459 100644
 From d69aea858f5832ae3a356a7b9333cf1c3c68c69b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:10:01 +0000
-Subject: [PATCH 08/14] um: stub_pin keeps stubs off little cores (capacity <
+Subject: [PATCH 08/15] um: stub_pin keeps stubs off little cores (capacity <
  half of the best remaining)
 
 ---
@@ -2661,7 +2661,7 @@ index 59a77a4d611c..b2049492a0ce 100644
 From 2bb6ebd05cfea65778aa0eec9e9bef6a02867b9e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:13:06 +0000
-Subject: [PATCH 09/14] um: with SMP too, keep the kernel and stubs on the fast
+Subject: [PATCH 09/15] um: with SMP too, keep the kernel and stubs on the fast
  CPUs (stub_pin)
 
 ---
@@ -2784,7 +2784,7 @@ index 7234568b1943..26197dd3fc9b 100644
 From 6f44d440009f7d5851b6ccdf06633aec1d3a367e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:22:36 +0000
-Subject: [PATCH 10/14] um: SMP: defer IPIs in the handler while IRQs are off
+Subject: [PATCH 10/15] um: SMP: defer IPIs in the handler while IRQs are off
  instead of a host sigprocmask per local_irq_disable/enable
 
 ---
@@ -2995,7 +2995,7 @@ index 13ebc86918d4..9fcabde8c2c8 100644
 From b5c842c3ef50edcc8882acf11d281a91ec85bca8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:41:39 +0000
-Subject: [PATCH 11/14] um: stub_pin falls back to /proc/cpuinfo CPU part when
+Subject: [PATCH 11/15] um: stub_pin falls back to /proc/cpuinfo CPU part when
  sysfs CPU capacity is unreadable
 
 ---
@@ -3080,7 +3080,7 @@ index 851b0ebfe45c..ae927dfac43a 100644
 From 8d43843d827c864c5c3b4001893c985c6c3a78f8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:42:16 +0000
-Subject: [PATCH 12/14] um: stub_pin: don't squeeze more vCPUs than fast host
+Subject: [PATCH 12/15] um: stub_pin: don't squeeze more vCPUs than fast host
  CPUs onto them
 
 ---
@@ -3114,7 +3114,7 @@ index ae927dfac43a..a992391cf98b 100644
 From 847586991054563aa3dfa9812b5168213db56ec1 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:51:45 +0000
-Subject: [PATCH 13/14] um: handoff spin yields every ~3us so a peer on the
+Subject: [PATCH 13/15] um: handoff spin yields every ~3us so a peer on the
  same host CPU can run (sched_yield allowed for stubs)
 
 ---
@@ -3224,7 +3224,7 @@ index a3feb673bf94..4a6a2fbf9d5b 100644
 From f400252e028f1b0494259cad3b1c624f6ee6dba4 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:08:37 +0000
-Subject: [PATCH 14/14] um: keep one PROT_NONE anchor per 2MB of each stub so
+Subject: [PATCH 14/15] um: keep one PROT_NONE anchor per 2MB of each stub so
  the host keeps page tables between unmap and map (tlb_anchor=)
 
 ---
@@ -3505,6 +3505,123 @@ index c6e856d71f76..bc8942ac199d 100644
  int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len)
  {
  	struct stub_syscall *sc;
+-- 
+2.43.0
+
+From 16fdaab6a64632e525ea6c7bc52a8526239f6876 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 21 Nov 2026 06:17:10 +0000
+Subject: [PATCH 15/15] um: also anchor a 2MB chunk when an upper-level table
+ was unmapped
+
+Lone mappings (e.g. mmap/munmap loops) free the guest pmd/pud on munmap, so
+the host unmap took the upper-level path and never got an anchor.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ arch/um/kernel/tlb.c | 60 ++++++++++++++++++++++++++++++++------------
+ 1 file changed, 44 insertions(+), 16 deletions(-)
+
+diff --git a/arch/um/kernel/tlb.c b/arch/um/kernel/tlb.c
+index c58d950e6de0..5fd93232042a 100644
+--- a/arch/um/kernel/tlb.c
++++ b/arch/um/kernel/tlb.c
+@@ -81,6 +81,46 @@ static void um_tlb_anchor(struct vm_ops *ops, pmd_t *pmd, unsigned long addr)
+ 	}
+ }
+ 
++/*
++ * An upper-level table went away, so the guest has nothing mapped in its
++ * whole span (always >= one chunk). If only part of addr's chunk was
++ * unmapped on the host, anchor a page of that chunk outside [addr, end).
++ */
++static void um_tlb_anchor_hole(struct vm_ops *ops, unsigned long addr,
++			       unsigned long end)
++{
++	unsigned long chunk = addr & ~(ANCHOR_CHUNK - 1), va;
++	unsigned long *slot = anchor_slot(ops->mm, addr);
++
++	BUILD_BUG_ON(PMD_SIZE < ANCHOR_CHUNK);
++
++	if (*slot && (*slot & ~(ANCHOR_CHUNK - 1)) == chunk)
++		return;
++	if (chunk < ANCHOR_FLOOR || chunk + ANCHOR_CHUNK > TASK_SIZE)
++		return;
++
++	if (addr > chunk)
++		va = chunk;
++	else if (end < chunk + ANCHOR_CHUNK)
++		va = chunk + ANCHOR_CHUNK - PAGE_SIZE;
++	else
++		return;
++
++	if (!ops->anchor(ops->mm_idp, va, PAGE_SIZE))
++		*slot = va;
++}
++
++static void um_tlb_unmap_hole(struct vm_ops *ops, unsigned long addr,
++			      unsigned long end, int *ret)
++{
++	*ret = ops->unmap(ops->mm_idp, addr, end - addr);
++	if (!ops->anchor)
++		return;
++	anchors_forget(ops->mm, addr, end);
++	if (!*ret)
++		um_tlb_anchor_hole(ops, addr, end);
++}
++
+ static int kern_map(struct mm_id *mm_idp,
+ 		    unsigned long virt, unsigned long len, int prot,
+ 		    int phys_fd, unsigned long long offset)
+@@ -162,10 +202,7 @@ static inline int update_pmd_range(pud_t *pud, unsigned long addr,
+ 		next = pmd_addr_end(addr, end);
+ 		if (!pmd_present(*pmd)) {
+ 			if (pmd_needsync(*pmd)) {
+-				ret = ops->unmap(ops->mm_idp, addr,
+-						 next - addr);
+-				if (ops->anchor)
+-					anchors_forget(ops->mm, addr, next);
++				um_tlb_unmap_hole(ops, addr, next, &ret);
+ 				pmd_mkuptodate(*pmd);
+ 			}
+ 		}
+@@ -187,10 +224,7 @@ static inline int update_pud_range(p4d_t *p4d, unsigned long addr,
+ 		next = pud_addr_end(addr, end);
+ 		if (!pud_present(*pud)) {
+ 			if (pud_needsync(*pud)) {
+-				ret = ops->unmap(ops->mm_idp, addr,
+-						 next - addr);
+-				if (ops->anchor)
+-					anchors_forget(ops->mm, addr, next);
++				um_tlb_unmap_hole(ops, addr, next, &ret);
+ 				pud_mkuptodate(*pud);
+ 			}
+ 		}
+@@ -212,10 +246,7 @@ static inline int update_p4d_range(pgd_t *pgd, unsigned long addr,
+ 		next = p4d_addr_end(addr, end);
+ 		if (!p4d_present(*p4d)) {
+ 			if (p4d_needsync(*p4d)) {
+-				ret = ops->unmap(ops->mm_idp, addr,
+-						 next - addr);
+-				if (ops->anchor)
+-					anchors_forget(ops->mm, addr, next);
++				um_tlb_unmap_hole(ops, addr, next, &ret);
+ 				p4d_mkuptodate(*p4d);
+ 			}
+ 		} else
+@@ -268,10 +299,7 @@ int um_tlb_sync(struct mm_struct *mm)
+ 		next = pgd_addr_end(addr, mm->context.sync_tlb_range_to);
+ 		if (!pgd_present(*pgd)) {
+ 			if (pgd_needsync(*pgd)) {
+-				ret = ops.unmap(ops.mm_idp, addr,
+-						next - addr);
+-				if (ops.anchor)
+-					anchors_forget(mm, addr, next);
++				um_tlb_unmap_hole(&ops, addr, next, &ret);
+ 				pgd_mkuptodate(*pgd);
+ 			}
+ 		} else
 -- 
 2.43.0
 
