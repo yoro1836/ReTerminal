@@ -43,7 +43,7 @@ llvm-strip -o libdropbear.so dropbearmulti
 ```
 
 The image (`rt-debian-1`) is LXC Debian trixie arm64 (systemd, networkd,
-resolved) + openssh-server, sudo, e2fsprogs; hostname `reterminal`, user
+resolved) + openssh-server, sudo, e2fsprogs; hostname `reterm` (vm-login renames older `reterminal` disks), user
 `debian` (passwordless sudo), root autologin on the console.
 `reterminal-boot.service` reads the app's settings from the kernel command
 line: `rtkey=` (base64 SSH public key, for root and debian) and `rtswap=` (swap
