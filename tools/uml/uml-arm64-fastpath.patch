@@ -1,7 +1,7 @@
 From 122de0338bebb3e2117380206901c9d51aaa6ad2 Mon Sep 17 00:00:00 2001
 From: t <t@t>
 Date: Fri, 20 Nov 2026 06:29:49 +0000
-Subject: [PATCH 01/13] um/arm64: syscall-site fast path (wip)
+Subject: [PATCH 01/14] um/arm64: syscall-site fast path (wip)
 
 ---
  arch/arm64/um/Kconfig                       |  11 +
@@ -906,7 +906,7 @@ index 81fef1c9ad03..9d2abb89254a 100644
 From c8d8a77cb91ed96de8dbff4da1d2120b1243f350 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:17:58 +0000
-Subject: [PATCH 02/13] um/arm64: fastpath fixes (slot floor, stub-only
+Subject: [PATCH 02/14] um/arm64: fastpath fixes (slot floor, stub-only
  stores), any svc site, memfd physmem, spin 200
 
 ---
@@ -1215,7 +1215,7 @@ index e40bc4559003..9b900dab3408 100644
 From 2c1f4618bca1daa15e70da5e702ff5a65c10296f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:36:39 +0000
-Subject: [PATCH 03/13] um: stub zygote with pre-filtered spare stubs
+Subject: [PATCH 03/14] um: stub zygote with pre-filtered spare stubs
  (stub_zygote=), spawn timing stat
 
 ---
@@ -1744,7 +1744,7 @@ index 58f6010ade11..08e5938c0594 100644
 From bc2ab4b82f6acef01d0ede8bb123cc2771617c80 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:46:48 +0000
-Subject: [PATCH 04/13] um: stub_pin (kernel thread and stubs on separate host
+Subject: [PATCH 04/14] um: stub_pin (kernel thread and stubs on separate host
  CPUs, default on), spin backoff knob, umstat= timing
 
 ---
@@ -2075,7 +2075,7 @@ index d3be0657d1a5..cc3ade2292ec 100644
 From bb5bff45121b48dc19017e60064af53b93afb90f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:55:48 +0000
-Subject: [PATCH 05/13] um: our options default on (seccomp=auto, stub_exe next
+Subject: [PATCH 05/14] um: our options default on (seccomp=auto, stub_exe next
  to the binary, physmem_memfd=)
 
 ---
@@ -2182,7 +2182,7 @@ index bc129f59cb7e..0683b9e5fe04 100644
 From d45f97a7f1fb413bb0680245c7740e8408ad7713 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 09:02:27 +0000
-Subject: [PATCH 06/13] um: SMP build (NR_CPUS 8): serialize start_userspace,
+Subject: [PATCH 06/14] um: SMP build (NR_CPUS 8): serialize start_userspace,
  no stub_pin with ncpus>1
 
 ---
@@ -2258,7 +2258,7 @@ index 3948eaaa56ce..7d59e8dc57f8 100755
 From e18c1a4b619b0a049af77ab7b1dba30305f0619c Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 04:11:36 +0000
-Subject: [PATCH 07/13] um: stubs keep physmem open (no SCM_RIGHTS per map
+Subject: [PATCH 07/14] um: stubs keep physmem open (no SCM_RIGHTS per map
  batch, no empty recvmsg); umstat per-syscall breakdown
 
 ---
@@ -2505,7 +2505,7 @@ index b49db9ab2eec..edb488636459 100644
 From d69aea858f5832ae3a356a7b9333cf1c3c68c69b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:10:01 +0000
-Subject: [PATCH 08/13] um: stub_pin keeps stubs off little cores (capacity <
+Subject: [PATCH 08/14] um: stub_pin keeps stubs off little cores (capacity <
  half of the best remaining)
 
 ---
@@ -2661,7 +2661,7 @@ index 59a77a4d611c..b2049492a0ce 100644
 From 2bb6ebd05cfea65778aa0eec9e9bef6a02867b9e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:13:06 +0000
-Subject: [PATCH 09/13] um: with SMP too, keep the kernel and stubs on the fast
+Subject: [PATCH 09/14] um: with SMP too, keep the kernel and stubs on the fast
  CPUs (stub_pin)
 
 ---
@@ -2784,7 +2784,7 @@ index 7234568b1943..26197dd3fc9b 100644
 From 6f44d440009f7d5851b6ccdf06633aec1d3a367e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:22:36 +0000
-Subject: [PATCH 10/13] um: SMP: defer IPIs in the handler while IRQs are off
+Subject: [PATCH 10/14] um: SMP: defer IPIs in the handler while IRQs are off
  instead of a host sigprocmask per local_irq_disable/enable
 
 ---
@@ -2995,7 +2995,7 @@ index 13ebc86918d4..9fcabde8c2c8 100644
 From b5c842c3ef50edcc8882acf11d281a91ec85bca8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:41:39 +0000
-Subject: [PATCH 11/13] um: stub_pin falls back to /proc/cpuinfo CPU part when
+Subject: [PATCH 11/14] um: stub_pin falls back to /proc/cpuinfo CPU part when
  sysfs CPU capacity is unreadable
 
 ---
@@ -3080,7 +3080,7 @@ index 851b0ebfe45c..ae927dfac43a 100644
 From 8d43843d827c864c5c3b4001893c985c6c3a78f8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:42:16 +0000
-Subject: [PATCH 12/13] um: stub_pin: don't squeeze more vCPUs than fast host
+Subject: [PATCH 12/14] um: stub_pin: don't squeeze more vCPUs than fast host
  CPUs onto them
 
 ---
@@ -3114,7 +3114,7 @@ index ae927dfac43a..a992391cf98b 100644
 From 847586991054563aa3dfa9812b5168213db56ec1 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:51:45 +0000
-Subject: [PATCH 13/13] um: handoff spin yields every ~3us so a peer on the
+Subject: [PATCH 13/14] um: handoff spin yields every ~3us so a peer on the
  same host CPU can run (sched_yield allowed for stubs)
 
 ---
@@ -3218,6 +3218,293 @@ index a3feb673bf94..4a6a2fbf9d5b 100644
  			BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
  		};
  		struct sock_fprog prog = {
+-- 
+2.43.0
+
+From f400252e028f1b0494259cad3b1c624f6ee6dba4 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 21 Nov 2026 06:08:37 +0000
+Subject: [PATCH 14/14] um: keep one PROT_NONE anchor per 2MB of each stub so
+ the host keeps page tables between unmap and map (tlb_anchor=)
+
+---
+ arch/um/include/asm/mmu.h               |  8 +++
+ arch/um/include/shared/os.h             |  1 +
+ arch/um/include/shared/skas/stub-data.h |  2 +
+ arch/um/kernel/skas/mmu.c               |  1 +
+ arch/um/kernel/skas/stub.c              | 13 ++++
+ arch/um/kernel/tlb.c                    | 87 ++++++++++++++++++++++++-
+ arch/um/os-Linux/skas/mem.c             | 12 ++++
+ 7 files changed, 123 insertions(+), 1 deletion(-)
+
+diff --git a/arch/um/include/asm/mmu.h b/arch/um/include/asm/mmu.h
+index 3781f75006c3..ff772843a6b4 100644
+--- a/arch/um/include/asm/mmu.h
++++ b/arch/um/include/asm/mmu.h
+@@ -35,6 +35,14 @@ typedef struct mm_context {
+ 	unsigned long prefault_next;
+ 	unsigned int prefault_level;
+ 
++	/*
++	 * Host 2MB chunks of this mm that hold a PROT_NONE anchor mapping, by
++	 * anchor address (0 = empty), see um_tlb_anchor() in tlb.c. Guarded
++	 * by page_table_lock like the rest of the TLB sync.
++	 */
++#define UM_ANCHORS 16
++	unsigned long anchors[UM_ANCHORS];
++
+ #ifdef CONFIG_UML_FASTPATH
+ 	/* Syscall-site fast path state, arch/arm64/um/fastpath.c */
+ 	struct um_fastpath *fastpath;
+diff --git a/arch/um/include/shared/os.h b/arch/um/include/shared/os.h
+index e36fddf648b5..45509b25e243 100644
+--- a/arch/um/include/shared/os.h
++++ b/arch/um/include/shared/os.h
+@@ -287,6 +287,7 @@ int map(struct mm_id *mm_idp, unsigned long virt,
+ 	unsigned long len, int prot, int phys_fd,
+ 	unsigned long long offset);
+ int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len);
++int anchor(struct mm_id *mm_idp, unsigned long addr, unsigned long len);
+ 
+ /* skas/process.c */
+ extern int is_skas_winch(int pid, int fd, void *data);
+diff --git a/arch/um/include/shared/skas/stub-data.h b/arch/um/include/shared/skas/stub-data.h
+index 8bfb5c8226ca..4442a9c6d257 100644
+--- a/arch/um/include/shared/skas/stub-data.h
++++ b/arch/um/include/shared/skas/stub-data.h
+@@ -108,6 +108,8 @@ enum stub_syscall_type {
+ 	STUB_SYSCALL_UNSET = 0,
+ 	STUB_SYSCALL_MMAP,
+ 	STUB_SYSCALL_MUNMAP,
++	/* PROT_NONE anonymous placeholder, see um_tlb_anchor() */
++	STUB_SYSCALL_ANCHOR,
+ };
+ 
+ struct stub_syscall {
+diff --git a/arch/um/kernel/skas/mmu.c b/arch/um/kernel/skas/mmu.c
+index 49353ae6a927..32982aaf073e 100644
+--- a/arch/um/kernel/skas/mmu.c
++++ b/arch/um/kernel/skas/mmu.c
+@@ -56,6 +56,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
+ 	 */
+ 	mm->context.prefault_next = 0;
+ 	mm->context.prefault_level = 0;
++	memset(mm->context.anchors, 0, sizeof(mm->context.anchors));
+ #ifdef CONFIG_UML_FASTPATH
+ 	/* fork copies the parent's context; the site table is not inherited */
+ 	mm->context.fastpath = NULL;
+diff --git a/arch/um/kernel/skas/stub.c b/arch/um/kernel/skas/stub.c
+index b329557ac8f9..019f9683a4f3 100644
+--- a/arch/um/kernel/skas/stub.c
++++ b/arch/um/kernel/skas/stub.c
+@@ -62,6 +62,19 @@ static __always_inline int syscall_handler(int fd_map[STUB_MAX_FDS])
+ 				return -1;
+ 			}
+ 			break;
++		case STUB_SYSCALL_ANCHOR:
++			res = stub_syscall6(STUB_MMAP_NR,
++					    sc->mem.addr, sc->mem.length,
++					    PROT_NONE,
++					    MAP_PRIVATE | MAP_ANONYMOUS |
++					    MAP_FIXED | MAP_NORESERVE,
++					    -1, 0);
++			if (res != sc->mem.addr) {
++				d->err = res;
++				d->syscall_data_len = i;
++				return -1;
++			}
++			break;
+ 		case STUB_SYSCALL_MUNMAP:
+ 			res = stub_syscall2(__NR_munmap,
+ 					    sc->mem.addr, sc->mem.length);
+diff --git a/arch/um/kernel/tlb.c b/arch/um/kernel/tlb.c
+index 1f175716b474..c58d950e6de0 100644
+--- a/arch/um/kernel/tlb.c
++++ b/arch/um/kernel/tlb.c
+@@ -14,17 +14,73 @@
+ #include <os.h>
+ #include <skas.h>
+ #include <kern_util.h>
++#include <init.h>
+ 
+ struct vm_ops {
+ 	struct mm_id *mm_idp;
++	struct mm_struct *mm;
+ 
+ 	int (*mmap)(struct mm_id *mm_idp,
+ 		    unsigned long virt, unsigned long len, int prot,
+ 		    int phys_fd, unsigned long long offset);
+ 	int (*unmap)(struct mm_id *mm_idp,
+ 		     unsigned long virt, unsigned long len);
++	int (*anchor)(struct mm_id *mm_idp,
++		      unsigned long virt, unsigned long len);
+ };
+ 
++/*
++ * Host page tables. When a stub unmaps the last mapping in a 2MB region the
++ * host frees that page table, and the next map there allocates it again:
++ * that made a single-page munmap/mmap pair 2-3x slower in the sparse address
++ * spaces stubs have (measured on an S24: munmap 10.4 vs 4.6us, map+touch 15.3
++ * vs 8.7us). So after a page-level unmap, each 2MB chunk gets one PROT_NONE
++ * anonymous "anchor" mapping, placed on a guest page with nothing mapped (a
++ * guest access there faults just like a hole would, and a later map simply
++ * replaces it). One extra host VMA per chunk; anchors are only remembered in
++ * a small per-mm cache, a forgotten one costs nothing but a VMA.
++ */
++#define ANCHOR_CHUNK	(2UL << 20)
++#define ANCHOR_FLOOR	(1UL << 20)	/* stay above any host mmap_min_addr */
++
++static inline unsigned long *anchor_slot(struct mm_struct *mm, unsigned long a)
++{
++	return &mm->context.anchors[(a / ANCHOR_CHUNK) % UM_ANCHORS];
++}
++
++static void anchors_forget(struct mm_struct *mm, unsigned long from,
++			   unsigned long to)
++{
++	int i;
++
++	for (i = 0; i < UM_ANCHORS; i++)
++		if (mm->context.anchors[i] >= from &&
++		    mm->context.anchors[i] < to)
++			mm->context.anchors[i] = 0;
++}
++
++static void um_tlb_anchor(struct vm_ops *ops, pmd_t *pmd, unsigned long addr)
++{
++	unsigned long chunk = addr & ~(ANCHOR_CHUNK - 1), va;
++	unsigned long *slot = anchor_slot(ops->mm, addr);
++	pte_t *pte;
++
++	if (*slot && (*slot & ~(ANCHOR_CHUNK - 1)) == chunk)
++		return;
++	if (chunk < ANCHOR_FLOOR || chunk + ANCHOR_CHUNK > TASK_SIZE)
++		return;
++
++	pte = pte_offset_kernel(pmd, chunk);
++	for (va = chunk; va < chunk + ANCHOR_CHUNK; va += PAGE_SIZE, pte++) {
++		/* Not the page just unmapped: it is the one likely reused. */
++		if (va == addr || pte_present(*pte) || pte_needsync(*pte))
++			continue;
++		if (!ops->anchor(ops->mm_idp, va, PAGE_SIZE))
++			*slot = va;
++		return;
++	}
++}
++
+ static int kern_map(struct mm_id *mm_idp,
+ 		    unsigned long virt, unsigned long len, int prot,
+ 		    int phys_fd, unsigned long long offset)
+@@ -80,8 +136,13 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
+ 
+ 			ret = ops->mmap(ops->mm_idp, addr, PAGE_SIZE,
+ 					prot, fd, offset);
+-		} else
++			if (ops->anchor && *anchor_slot(ops->mm, addr) == addr)
++				*anchor_slot(ops->mm, addr) = 0;
++		} else {
+ 			ret = ops->unmap(ops->mm_idp, addr, PAGE_SIZE);
++			if (!ret && ops->anchor)
++				um_tlb_anchor(ops, pmd, addr);
++		}
+ 
+ 		*pte = pte_mkuptodate(*pte);
+ 	} while (pte++, addr += PAGE_SIZE, ((addr < end) && !ret));
+@@ -103,6 +164,8 @@ static inline int update_pmd_range(pud_t *pud, unsigned long addr,
+ 			if (pmd_needsync(*pmd)) {
+ 				ret = ops->unmap(ops->mm_idp, addr,
+ 						 next - addr);
++				if (ops->anchor)
++					anchors_forget(ops->mm, addr, next);
+ 				pmd_mkuptodate(*pmd);
+ 			}
+ 		}
+@@ -126,6 +189,8 @@ static inline int update_pud_range(p4d_t *p4d, unsigned long addr,
+ 			if (pud_needsync(*pud)) {
+ 				ret = ops->unmap(ops->mm_idp, addr,
+ 						 next - addr);
++				if (ops->anchor)
++					anchors_forget(ops->mm, addr, next);
+ 				pud_mkuptodate(*pud);
+ 			}
+ 		}
+@@ -149,6 +214,8 @@ static inline int update_p4d_range(pgd_t *pgd, unsigned long addr,
+ 			if (p4d_needsync(*p4d)) {
+ 				ret = ops->unmap(ops->mm_idp, addr,
+ 						 next - addr);
++				if (ops->anchor)
++					anchors_forget(ops->mm, addr, next);
+ 				p4d_mkuptodate(*p4d);
+ 			}
+ 		} else
+@@ -157,6 +224,19 @@ static inline int update_p4d_range(pgd_t *pgd, unsigned long addr,
+ 	return ret;
+ }
+ 
++static int um_anchor_on = 1;
++
++static int __init um_anchor_setup(char *line, int *add)
++{
++	*add = 0;
++	um_anchor_on = simple_strtoul(line, NULL, 0) != 0;
++	return 0;
++}
++__uml_setup("tlb_anchor=", um_anchor_setup,
++"tlb_anchor=<0|1>\n"
++"    Keep one PROT_NONE mapping per 2MB of each guest address space so the\n"
++"    host keeps its page tables between unmap and map. Default: 1.\n\n");
++
+ int um_tlb_sync(struct mm_struct *mm)
+ {
+ 	pgd_t *pgd;
+@@ -171,12 +251,15 @@ int um_tlb_sync(struct mm_struct *mm)
+ 		return 0;
+ 
+ 	ops.mm_idp = &mm->context.id;
++	ops.mm = mm;
+ 	if (mm == &init_mm) {
+ 		ops.mmap = kern_map;
+ 		ops.unmap = kern_unmap;
++		ops.anchor = NULL;
+ 	} else {
+ 		ops.mmap = map;
+ 		ops.unmap = unmap;
++		ops.anchor = um_anchor_on ? anchor : NULL;
+ 	}
+ 
+ 	addr = mm->context.sync_tlb_range_from;
+@@ -187,6 +270,8 @@ int um_tlb_sync(struct mm_struct *mm)
+ 			if (pgd_needsync(*pgd)) {
+ 				ret = ops.unmap(ops.mm_idp, addr,
+ 						next - addr);
++				if (ops.anchor)
++					anchors_forget(mm, addr, next);
+ 				pgd_mkuptodate(*pgd);
+ 			}
+ 		} else
+diff --git a/arch/um/os-Linux/skas/mem.c b/arch/um/os-Linux/skas/mem.c
+index c6e856d71f76..bc8942ac199d 100644
+--- a/arch/um/os-Linux/skas/mem.c
++++ b/arch/um/os-Linux/skas/mem.c
+@@ -306,6 +306,18 @@ int map(struct mm_id *mm_idp, unsigned long virt, unsigned long len, int prot,
+ 	return 0;
+ }
+ 
++/* A PROT_NONE anonymous mapping where the guest has nothing mapped. */
++int anchor(struct mm_id *mm_idp, unsigned long addr, unsigned long len)
++{
++	struct stub_syscall *sc = syscall_stub_alloc(mm_idp);
++
++	sc->syscall = STUB_SYSCALL_ANCHOR;
++	sc->mem.addr = addr;
++	sc->mem.length = len;
++
++	return 0;
++}
++
+ int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len)
+ {
+ 	struct stub_syscall *sc;
 -- 
 2.43.0
 
