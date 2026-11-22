@@ -10,10 +10,11 @@
 #      curl, gcc-aarch64-linux-gnu + libc6-dev-arm64-cross (busybox).
 set -euo pipefail
 
-TAG=um-arm64-v0.4.2
+# yoro1836/linux-um-arm64: Raymer8639's um-arm64-v0.4.2 merged with Linux v7.3.5.
+REF=e4a8288cd9d6db1457f70ce9f827bb6145b32c76
 BUSYBOX_VER=1.37.0
 BUSYBOX_SHA256=3311dff32e746499f4df0d5df04d7eb396382d7e108bb9250e7b519b837043a4
-REPO=https://github.com/Raymer8639/linux-um-arm64
+REPO=https://github.com/yoro1836/linux-um-arm64
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
 WORK=${WORK:-$ROOT/build/uml}
@@ -26,14 +27,18 @@ INSTALL=1
 TOOL=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin
 mkdir -p "$WORK"
 
-# 1. Source: Raymer's tag + our patches (fastpath/SMP/zygote, module exports).
+# 1. Source: the fork at REF + our patches (fastpath/SMP/zygote/hostdev,
+#    module exports, release name "<version>-reterm").
 if [ -z "${SRC:-}" ]; then
     SRC=$WORK/linux
     if [ ! -d "$SRC/.git" ]; then
-        git clone --depth 1 --branch "$TAG" "$REPO" "$SRC"
+        git init -q "$SRC"
+        git -C "$SRC" fetch -q --depth 1 "$REPO" "$REF"
+        git -C "$SRC" checkout -q FETCH_HEAD
         git -C "$SRC" -c user.email=build@reterminal -c user.name=build \
             am -q "$HERE/uml-arm64-fastpath.patch"
         git -C "$SRC" apply "$HERE/uml-arm64-modules.patch"
+        git -C "$SRC" apply "$HERE/uml-arm64-reterm-version.patch"
     fi
 fi
 
