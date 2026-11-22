@@ -28,7 +28,7 @@ import java.util.zip.GZIPInputStream
  */
 object DebianVm {
     /** Bump with the image; an older disk is then reinstalled. */
-    private const val IMAGE = 5
+    private const val IMAGE = 6
     private const val IMAGE_URL = "https://github.com/yoro1836/ReTerminal/releases/download/rt-debian-$IMAGE/rt-debian-$IMAGE.ext4.gz"
 
     internal fun lib(ctx: Context, n: String) = File(ctx.applicationInfo.nativeLibraryDir, n)

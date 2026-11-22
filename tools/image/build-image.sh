@@ -54,7 +54,8 @@ sh /tmp/radv/*/install.sh
 rm -rf /tmp/radv /tmp/radv.zip
 apt-get clean
 rm -rf /var/lib/apt/lists/*
-useradd -m -s /bin/bash -G sudo debian
+groupadd -f render; groupadd -f video
+useradd -m -s /bin/bash -G sudo,render,video debian
 passwd -d root; passwd -d debian
 echo reterm > /etc/hostname
 sed -i 's/^127\.0\.1\.1.*/127.0.1.1\treterm/' /etc/hosts

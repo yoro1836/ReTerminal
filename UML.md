@@ -123,7 +123,7 @@ Settings > Debian VM > "GPU acceleration" (off by default) adds two kernel args
 `hostdev=/dev/dri/renderD128,dri/renderD128,226:128,drm` gives the guest the
 phone's render node, and `hostdev=<files/x11/tmp/.X11-unix/X0>,hostx11,240:0,sock`
 makes `/dev/hostx11` a connection to the in-app Termux:X11 server per open
-(`/dev/hostshm`, 4-byte host memfds, is always there). In the image (rt-debian-5+):
+(`/dev/hostshm`, 4-byte host memfds, is always there). In the image (rt-debian-5+; user debian in render/video from rt-debian-6):
 RADV Xclipse ([JimVulkan/radv-xclipse](https://github.com/JimVulkan/radv-xclipse)
 v1.9.0 glibc build, sha256-checked) with libvulkan1/vulkan-tools, and from
 `tools/image/gpu/` (compiled by build-image.sh): `xbridge` (systemd unit
