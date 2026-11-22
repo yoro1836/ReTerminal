@@ -67,6 +67,10 @@ fun DebianVmSpec() {
             "Boot Debian when the app opens. Off: Debian tabs show that the VM is off, with a Start button.",
             autoStart) { autoStart = it; DebianVm.setAutoStart(ctx, it) }
         var trimBoot by remember { mutableStateOf(DebianVm.trimAtBoot(ctx)) }
+        var gpu by remember { mutableStateOf(DebianVm.gpu(ctx)) }
+        Toggle("GPU acceleration",
+            "Pass the phone GPU (${DebianVm.GPU_NODE}) into the VM for Vulkan (RADV Xclipse in the image) and show X apps on Termux:X11 without copying. Applies at the next boot. Experimental.",
+            gpu) { gpu = it; DebianVm.setGpu(ctx, it) }
         Toggle("Trim at boot",
             "Run fstrim after each boot, so space freed inside Debian is given back to the phone.",
             trimBoot) { trimBoot = it; DebianVm.setTrimAtBoot(ctx, it) }

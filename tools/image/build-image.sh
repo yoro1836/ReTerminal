@@ -28,6 +28,13 @@ R=$W/r
 cp -a "$HERE/rootfs/." "$R/"
 chown -R 0:0 "$R/etc" "$R/usr/local"
 chmod 0440 "$R/etc/sudoers.d/debian"
+# GPU/X bridge for the guest (tools/image/gpu): xbridge forwards the guest X
+# socket to the phone's X server with DRI3 fds; the xshmfence replacement puts
+# fences in host memory. CC: native gcc on arm64, else aarch64-linux-gnu-gcc.
+CC=${CC:-$( [ "$(uname -m)" = aarch64 ] && echo gcc || echo aarch64-linux-gnu-gcc )}
+mkdir -p "$R/usr/lib/xclipse/shim"
+$CC -O2 -static -pthread -o "$R/usr/lib/xclipse/xbridge" "$HERE/gpu/xbridge.c"
+$CC -O2 -shared -fPIC -Wl,-soname,libxshmfence.so.1 -o "$R/usr/lib/xclipse/shim/libxshmfence.so.1" "$HERE/gpu/xshmfence.c"
 rc=$(readlink "$R/etc/resolv.conf" || true)
 rm -f "$R/etc/resolv.conf"; cp /etc/resolv.conf "$R/etc/resolv.conf"
 mount -t proc proc "$R/proc"; mount --rbind --make-rslave /dev "$R/dev"; mount -t sysfs sys "$R/sys"
@@ -35,7 +42,16 @@ chroot "$R" /bin/sh -eux <<'EOF'
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
 apt-get install -y -q --no-install-recommends openssh-server sudo ca-certificates \
-    curl git less procps python3 socat util-linux xz-utils unzip e2fsprogs
+    curl git less procps python3 socat util-linux xz-utils unzip e2fsprogs \
+    libvulkan1 vulkan-tools libxcb-dri3-0 libxcb-present0 libxcb-xfixes0 libxcb-sync1 \
+    libxcb-randr0 libxcb-shm0 libxshmfence1 libx11-xcb1 libwayland-client0
+# Vulkan driver for the phone GPU (Exynos Xclipse) when the app passes it in
+# (Settings > GPU acceleration): RADV Xclipse, glibc build.
+curl -sSfL -o /tmp/radv.zip https://github.com/JimVulkan/radv-xclipse/releases/download/v1.9.0/radv-xclipse-glibc-27.0.0-devel-cc87fdf.zip
+echo "6ed6b66c4bac0b3f97f26e3117d5e99e5856db50b389bda246ec937e1d9e4d1b  /tmp/radv.zip" | sha256sum -c -
+unzip -q /tmp/radv.zip -d /tmp/radv
+sh /tmp/radv/*/install.sh
+rm -rf /tmp/radv /tmp/radv.zip
 apt-get clean
 rm -rf /var/lib/apt/lists/*
 useradd -m -s /bin/bash -G sudo debian
@@ -44,7 +60,7 @@ echo reterm > /etc/hostname
 sed -i 's/^127\.0\.1\.1.*/127.0.1.1\treterm/' /etc/hosts
 grep -q reterm /etc/hosts || printf '127.0.1.1\treterm\n' >> /etc/hosts
 rm -f /etc/ssh/ssh_host_*
-systemctl enable reterminal-boot.service ssh.service console-getty.service
+systemctl enable reterminal-boot.service ssh.service console-getty.service reterminal-xbridge.service
 rm -f /etc/systemd/system/getty.target.wants/getty@tty1.service
 for u in systemd-networkd-wait-online.service fstrim.timer systemd-pstore.service \
     e2scrub_reap.service getty@tty1.service apt-daily.timer apt-daily-upgrade.timer; do

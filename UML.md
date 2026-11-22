@@ -116,6 +116,23 @@ by `tools/x11/make-xkb-zip.sh`.
 Anland is not supported: it passes GPU buffers (dmabuf fds) between the
 Android app and a compositor on the same kernel, which a UML guest is not.
 
+## GPU (Vulkan) and zero-copy X
+
+Settings > Debian VM > "GPU acceleration" (off by default) adds two kernel args
+(the kernel's hostdev passthrough, see `tools/uml/uml-arm64-fastpath.patch`):
+`hostdev=/dev/dri/renderD128,dri/renderD128,226:128,drm` gives the guest the
+phone's render node, and `hostdev=<files/x11/tmp/.X11-unix/X0>,hostx11,240:0,sock`
+makes `/dev/hostx11` a connection to the in-app Termux:X11 server per open
+(`/dev/hostshm`, 4-byte host memfds, is always there). In the image (rt-debian-5+):
+RADV Xclipse ([JimVulkan/radv-xclipse](https://github.com/JimVulkan/radv-xclipse)
+v1.9.0 glibc build, sha256-checked) with libvulkan1/vulkan-tools, and from
+`tools/image/gpu/` (compiled by build-image.sh): `xbridge` (systemd unit
+reterminal-xbridge, only when /dev/hostx11 exists) serving the guest
+`/tmp/.X11-unix/X0` and forwarding DRI3 fds, and a libxshmfence in
+`/usr/lib/xclipse/shim` that puts fences in host memory. profile.d then sets
+`DISPLAY=:0` and that `LD_LIBRARY_PATH`. Kernel debug: `hostdev_debug=1`,
+`hostdev:` lines in dmesg.
+
 ## CPU pinning
 
 Settings > Debian VM > CPU pinning (`vm/CpuPinning.kt`, its own screen: a switch, then the cores grouped Little/Mid/Big by max frequency) picks the phone cores the whole VM runs on

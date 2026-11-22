@@ -29,7 +29,7 @@ object X11 {
     fun installed(ctx: Context) = runCatching { ctx.packageManager.getApplicationInfo(PKG, 0) }.isSuccess
 
     private fun dir(ctx: Context) = File(ctx.filesDir, "x11")
-    private fun socket(ctx: Context) = File(dir(ctx), "tmp/.X11-unix/X0")
+    fun socket(ctx: Context) = File(dir(ctx), "tmp/.X11-unix/X0")
 
     /** Start the X server and relay if needed, then show Termux:X11. Null on success, else an error. */
     fun open(context: Context): String? {

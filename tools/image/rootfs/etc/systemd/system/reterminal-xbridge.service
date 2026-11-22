@@ -1,0 +1,11 @@
+[Unit]
+Description=ReTerminal: X display of the phone at :0 (GPU acceleration on)
+ConditionPathExists=/dev/hostx11
+After=systemd-tmpfiles-setup.service
+
+[Service]
+ExecStart=/usr/lib/xclipse/xbridge /tmp/.X11-unix/X0 /dev/hostx11
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

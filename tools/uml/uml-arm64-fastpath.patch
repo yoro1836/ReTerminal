@@ -1,7 +1,7 @@
 From 122de0338bebb3e2117380206901c9d51aaa6ad2 Mon Sep 17 00:00:00 2001
 From: t <t@t>
 Date: Fri, 20 Nov 2026 06:29:49 +0000
-Subject: [PATCH 01/18] um/arm64: syscall-site fast path (wip)
+Subject: [PATCH 01/21] um/arm64: syscall-site fast path (wip)
 
 ---
  arch/arm64/um/Kconfig                       |  11 +
@@ -907,7 +907,7 @@ index 81fef1c9ad03..9d2abb89254a 100644
 From c8d8a77cb91ed96de8dbff4da1d2120b1243f350 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:17:58 +0000
-Subject: [PATCH 02/18] um/arm64: fastpath fixes (slot floor, stub-only
+Subject: [PATCH 02/21] um/arm64: fastpath fixes (slot floor, stub-only
  stores), any svc site, memfd physmem, spin 200
 
 ---
@@ -1217,7 +1217,7 @@ index e40bc4559003..9b900dab3408 100644
 From 2c1f4618bca1daa15e70da5e702ff5a65c10296f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:36:39 +0000
-Subject: [PATCH 03/18] um: stub zygote with pre-filtered spare stubs
+Subject: [PATCH 03/21] um: stub zygote with pre-filtered spare stubs
  (stub_zygote=), spawn timing stat
 
 ---
@@ -1747,7 +1747,7 @@ index 58f6010ade11..08e5938c0594 100644
 From bc2ab4b82f6acef01d0ede8bb123cc2771617c80 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:46:48 +0000
-Subject: [PATCH 04/18] um: stub_pin (kernel thread and stubs on separate host
+Subject: [PATCH 04/21] um: stub_pin (kernel thread and stubs on separate host
  CPUs, default on), spin backoff knob, umstat= timing
 
 ---
@@ -2079,7 +2079,7 @@ index d3be0657d1a5..cc3ade2292ec 100644
 From bb5bff45121b48dc19017e60064af53b93afb90f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:55:48 +0000
-Subject: [PATCH 05/18] um: our options default on (seccomp=auto, stub_exe next
+Subject: [PATCH 05/21] um: our options default on (seccomp=auto, stub_exe next
  to the binary, physmem_memfd=)
 
 ---
@@ -2187,7 +2187,7 @@ index bc129f59cb7e..0683b9e5fe04 100644
 From d45f97a7f1fb413bb0680245c7740e8408ad7713 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 09:02:27 +0000
-Subject: [PATCH 06/18] um: SMP build (NR_CPUS 8): serialize start_userspace,
+Subject: [PATCH 06/21] um: SMP build (NR_CPUS 8): serialize start_userspace,
  no stub_pin with ncpus>1
 
 ---
@@ -2264,7 +2264,7 @@ index 3948eaaa56ce..7d59e8dc57f8 100755
 From e18c1a4b619b0a049af77ab7b1dba30305f0619c Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 04:11:36 +0000
-Subject: [PATCH 07/18] um: stubs keep physmem open (no SCM_RIGHTS per map
+Subject: [PATCH 07/21] um: stubs keep physmem open (no SCM_RIGHTS per map
  batch, no empty recvmsg); umstat per-syscall breakdown
 
 ---
@@ -2512,7 +2512,7 @@ index b49db9ab2eec..edb488636459 100644
 From d69aea858f5832ae3a356a7b9333cf1c3c68c69b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:10:01 +0000
-Subject: [PATCH 08/18] um: stub_pin keeps stubs off little cores (capacity <
+Subject: [PATCH 08/21] um: stub_pin keeps stubs off little cores (capacity <
  half of the best remaining)
 
 ---
@@ -2669,7 +2669,7 @@ index 59a77a4d611c..b2049492a0ce 100644
 From 2bb6ebd05cfea65778aa0eec9e9bef6a02867b9e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:13:06 +0000
-Subject: [PATCH 09/18] um: with SMP too, keep the kernel and stubs on the fast
+Subject: [PATCH 09/21] um: with SMP too, keep the kernel and stubs on the fast
  CPUs (stub_pin)
 
 ---
@@ -2793,7 +2793,7 @@ index 7234568b1943..26197dd3fc9b 100644
 From 6f44d440009f7d5851b6ccdf06633aec1d3a367e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:22:36 +0000
-Subject: [PATCH 10/18] um: SMP: defer IPIs in the handler while IRQs are off
+Subject: [PATCH 10/21] um: SMP: defer IPIs in the handler while IRQs are off
  instead of a host sigprocmask per local_irq_disable/enable
 
 ---
@@ -3005,7 +3005,7 @@ index 13ebc86918d4..9fcabde8c2c8 100644
 From b5c842c3ef50edcc8882acf11d281a91ec85bca8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:41:39 +0000
-Subject: [PATCH 11/18] um: stub_pin falls back to /proc/cpuinfo CPU part when
+Subject: [PATCH 11/21] um: stub_pin falls back to /proc/cpuinfo CPU part when
  sysfs CPU capacity is unreadable
 
 ---
@@ -3091,7 +3091,7 @@ index 851b0ebfe45c..ae927dfac43a 100644
 From 8d43843d827c864c5c3b4001893c985c6c3a78f8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:42:16 +0000
-Subject: [PATCH 12/18] um: stub_pin: don't squeeze more vCPUs than fast host
+Subject: [PATCH 12/21] um: stub_pin: don't squeeze more vCPUs than fast host
  CPUs onto them
 
 ---
@@ -3126,7 +3126,7 @@ index ae927dfac43a..a992391cf98b 100644
 From 847586991054563aa3dfa9812b5168213db56ec1 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:51:45 +0000
-Subject: [PATCH 13/18] um: handoff spin yields every ~3us so a peer on the
+Subject: [PATCH 13/21] um: handoff spin yields every ~3us so a peer on the
  same host CPU can run (sched_yield allowed for stubs)
 
 ---
@@ -3237,7 +3237,7 @@ index a3feb673bf94..4a6a2fbf9d5b 100644
 From f400252e028f1b0494259cad3b1c624f6ee6dba4 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:08:37 +0000
-Subject: [PATCH 14/18] um: keep one PROT_NONE anchor per 2MB of each stub so
+Subject: [PATCH 14/21] um: keep one PROT_NONE anchor per 2MB of each stub so
  the host keeps page tables between unmap and map (tlb_anchor=)
 
 ---
@@ -3525,7 +3525,7 @@ index c6e856d71f76..bc8942ac199d 100644
 From 16fdaab6a64632e525ea6c7bc52a8526239f6876 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:17:10 +0000
-Subject: [PATCH 15/18] um: also anchor a 2MB chunk when an upper-level table
+Subject: [PATCH 15/21] um: also anchor a 2MB chunk when an upper-level table
  was unmapped
 
 Lone mappings (e.g. mmap/munmap loops) free the guest pmd/pud on munmap, so
@@ -3643,7 +3643,7 @@ index c58d950e6de0..5fd93232042a 100644
 From a737e30ae2e2d8318f390adedac1eb02cad89879 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:48:30 +0000
-Subject: [PATCH 16/18] um: map guest RAM into stubs with MAP_POPULATE
+Subject: [PATCH 16/21] um: map guest RAM into stubs with MAP_POPULATE
  (stub_populate=)
 
 A 16K guest page on a 4K host took up to four host faults on first touch.
@@ -3750,7 +3750,7 @@ index bc8942ac199d..ee1c2763bef6 100644
 From d4f10447f325785c613de8e7c34890ff00765c2e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 08:52:24 +0000
-Subject: [PATCH 17/18] um/arm64: keep the fast-path frame out of the host
+Subject: [PATCH 17/21] um/arm64: keep the fast-path frame out of the host
  signal stack
 
 A SIGALRM taken while fast_busy is set but sp is still on the guest stack
@@ -3864,7 +3864,7 @@ index 0683b9e5fe04..2dda297e94d2 100644
 From 4950bb4dbd52f3d3a69b944d81a544306d338b2a Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 10:43:06 +0000
-Subject: [PATCH 18/18] um: don't wait for a zygote spare to boot in
+Subject: [PATCH 18/21] um: don't wait for a zygote spare to boot in
  start_userspace (stub_boot_async=)
 
 Overlaps the spare's wakeup with the rest of fork. SIGALRM is held back
@@ -4091,6 +4091,2187 @@ index a992391cf98b..85cb1cc945a1 100644
  			err = set_stub_state(regs, proc_data, singlestepping());
  			if (err) {
  				printk(UM_KERN_ERR "%s - failed to set regs: %d",
+-- 
+2.43.0
+
+
+From e2db75bcf6aacd84c5eb20f83008376749e9d265 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 22 Nov 2026 05:06:00 +0000
+Subject: [PATCH 19/21] um: say why stub_pin did or did not pin
+ (os_pin_fast_cpus)
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ arch/um/os-Linux/skas/process.c | 29 +++++++++++++++++++++++------
+ 1 file changed, 23 insertions(+), 6 deletions(-)
+
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index 85cb1cc945a1..12fc49b26920 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -562,21 +562,38 @@ static unsigned long fast_cpus(unsigned long m)
+ void os_pin_fast_cpus(void)
+ {
+ 	unsigned long m = 0, f;
++	int c;
+ 
+-	if (!stub_pin || uml_ncpus <= 1 ||
+-	    syscall(__NR_sched_getaffinity, 0, sizeof(m), &m) < 0)
++	if (!stub_pin || uml_ncpus <= 1)
++		return;
++	if (syscall(__NR_sched_getaffinity, 0, sizeof(m), &m) < 0) {
++		printk(UM_KERN_INFO "stub_pin: sched_getaffinity failed (%d), not pinning\n",
++		       errno);
+ 		return;
++	}
+ 	f = fast_cpus(m);
+-	if (f == m)
++	if (f == m) {
++		/* Logged with the capacities: unreadable sysfs looks like this. */
++		printk(UM_KERN_INFO "stub_pin: no slower host CPUs in %lx, not pinning; capacity:",
++		       m);
++		for (c = 0; c < 64; c++)
++			if (m >> c & 1)
++				printk(UM_KERN_CONT " %d", cpu_capacity(c));
++		printk(UM_KERN_CONT "\n");
+ 		return;
++	}
+ 	/* More vCPUs than fast cores: squeezing them in would be worse. */
+ 	if (uml_ncpus > __builtin_popcountl(f)) {
+-		os_info("stub_pin: %d CPUs > %d fast host CPUs (%lx), not pinning\n",
+-			uml_ncpus, __builtin_popcountl(f), f);
++		printk(UM_KERN_INFO "stub_pin: %d CPUs > %d fast host CPUs (%lx), not pinning; use ncpus=%d\n",
++		       uml_ncpus, __builtin_popcountl(f), f,
++		       __builtin_popcountl(f));
+ 		return;
+ 	}
+ 	if (syscall(__NR_sched_setaffinity, 0, sizeof(f), &f) == 0)
+-		os_info("stub_pin: SMP on fast CPUs %lx\n", f);
++		printk(UM_KERN_INFO "stub_pin: SMP on fast CPUs %lx\n", f);
++	else
++		printk(UM_KERN_INFO "stub_pin: sched_setaffinity(%lx) failed (%d)\n",
++		       f, errno);
+ }
+ 
+ static unsigned long stub_pin_mask(void)
+-- 
+2.43.0
+
+
+From 0900c3a91e5c77e9c65a07e58756474e3be6e10d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 22 Nov 2026 05:06:02 +0000
+Subject: [PATCH 20/21] um: host character device passthrough (hostdev=)
+
+hostdev=<host path>,<guest name>,<major>:<minor>[,drm] makes a guest
+character device whose ioctls run on the host fd inside the caller's stub
+(STUB_SYSCALL_IOCTL, argument bounced through the stub data page, pointed-to
+user memory faulted in first) and whose mmap maps the host fd straight into
+the stub (struct um_hostmap, synced around the PTE walk in um_tlb_sync).
+
+"drm" adds the pointer table for the DRM core and amdgpu uapi, DRM-looking
+sysfs, sliced waits with guest->host clock translation, guest-page-sized
+alignments in AMDGPU_INFO_DEV_INFO and mmap offset cookies, so Mesa RADV in
+the guest can drive the host GPU (tested: Samsung sgpu / Xclipse 940).
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ arch/um/drivers/Makefile                |   2 +-
+ arch/um/drivers/hostdev_kern.c          | 707 ++++++++++++++++++++++++
+ arch/um/include/asm/mmu.h               |  36 ++
+ arch/um/include/shared/os.h             |   7 +
+ arch/um/include/shared/skas/stub-data.h |   5 +
+ arch/um/kernel/skas/mmu.c               |   2 +
+ arch/um/kernel/skas/stub.c              |   7 +
+ arch/um/kernel/skas/stub_exe.c          |   3 +
+ arch/um/kernel/skas/uaccess.c           |  39 +-
+ arch/um/kernel/tlb.c                    | 156 +++++-
+ arch/um/kernel/trap.c                   |  10 +
+ arch/um/os-Linux/skas/mem.c             |  74 +++
+ 12 files changed, 1045 insertions(+), 3 deletions(-)
+ create mode 100644 arch/um/drivers/hostdev_kern.c
+
+diff --git a/arch/um/drivers/Makefile b/arch/um/drivers/Makefile
+index 36dc57840084..536638660b3f 100644
+--- a/arch/um/drivers/Makefile
++++ b/arch/um/drivers/Makefile
+@@ -23,7 +23,7 @@ vfio_uml-objs := vfio_kern.o vfio_user.o
+ # When the above is fixed, don't forget to add this too!
+ #targets += $(obj)/pcap.o
+ 
+-obj-y := stdio_console.o fd.o chan_kern.o chan_user.o line.o
++obj-y := stdio_console.o fd.o chan_kern.o chan_user.o line.o hostdev_kern.o
+ obj-$(CONFIG_SSL) += ssl.o
+ obj-$(CONFIG_STDERR_CONSOLE) += stderr_console.o
+ 
+diff --git a/arch/um/drivers/hostdev_kern.c b/arch/um/drivers/hostdev_kern.c
+new file mode 100644
+index 000000000000..1a8efed5b9c6
+--- /dev/null
++++ b/arch/um/drivers/hostdev_kern.c
+@@ -0,0 +1,707 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Host character device passthrough.
++ *
++ *   hostdev=<host path>,<guest name>,<major>:<minor>[,drm][,direct]
++ *
++ * makes a guest character device whose open/ioctl/mmap go to the host
++ * device. An ioctl runs inside the calling process's stub, whose address
++ * space is the guest process's, so the host follows guest pointers itself;
++ * the pages behind them are faulted in first, because the host returns
++ * EFAULT where the guest would fault. The argument struct is bounced through
++ * the stub data page. mmap maps the host fd straight into the stub (struct
++ * um_hostmap): no guest pages, so kernel access to such memory (read(2) into
++ * it) fails with EFAULT.
++ *
++ * Only pointers named in a table can be faulted in. "drm" selects the table
++ * for DRM render nodes with the amdgpu uapi (Samsung sgpu included) and
++ * makes sysfs look like a platform DRM device to libdrm. Not passed on:
++ * anything that returns or takes a host fd (PRIME, sync files).
++ * "direct" passes the guest pointer instead of bouncing (testing).
++ */
++
++#include <linux/cdev.h>
++#include <linux/device.h>
++#include <linux/delay.h>
++#include <linux/fs.h>
++#include <linux/init.h>
++#include <linux/ktime.h>
++#include <linux/mm.h>
++#include <linux/module.h>
++#include <linux/platform_device.h>
++#include <linux/sched/signal.h>
++#include <linux/slab.h>
++#include <linux/uaccess.h>
++#include <linux/xarray.h>
++#include <uapi/drm/drm.h>
++#include <uapi/drm/amdgpu_drm.h>
++
++#include <asm/mmu.h>
++#include <asm/tlbflush.h>
++#include <init.h>
++#include <mm_id.h>
++#include <os.h>
++
++#define HOSTDEV_MAX	4
++#define HOSTDEV_DRM	1
++#define HOSTDEV_DIRECT	2
++
++/* A wait holds the stub (and a vCPU), so it is done in slices of this. */
++#define HOSTDEV_WAIT_SLICE_NS	250000
++
++struct hostdev {
++	char *host;
++	char *name;
++	dev_t devt;
++	unsigned int flags;
++	struct cdev cdev;
++};
++
++static struct hostdev hostdevs[HOSTDEV_MAX];
++/* hostdev_debug=1: log failed ioctls with their argument, 2: all */
++static int hostdev_debug;
++core_param(hostdev_debug, hostdev_debug, int, 0644);
++static int hostdev_count;
++
++struct hostdev_file {
++	struct hostdev *dev;
++	int fd;
++	/* DRM: mmap cookie -> host fake offset, see hostdev_drm_post() */
++	struct xarray offsets;
++	u32 next_offset;
++	struct mutex lock;
++};
++
++struct hostdev_range {
++	unsigned long addr, len;
++	int write;
++};
++
++struct hostdev_req {
++	struct hostdev_range *r;
++	int n, cap;
++	struct hostdev_range inl[8];
++	/* sliced wait: byte offset of the absolute timeout in the argument */
++	int wait_off;
++	bool wait_s64, wait_etime;
++};
++
++static int req_add(struct hostdev_req *q, u64 addr, u64 len, int write)
++{
++	if (!len)
++		return 0;
++	if (addr + len < addr || addr + len > TASK_SIZE)
++		return -EFAULT;
++	if (q->n == q->cap) {
++		int cap = q->cap * 4;
++		struct hostdev_range *r = kmalloc_array(cap, sizeof(*r),
++							GFP_KERNEL);
++
++		if (!r)
++			return -ENOMEM;
++		memcpy(r, q->r, q->n * sizeof(*r));
++		if (q->r != q->inl)
++			kfree(q->r);
++		q->r = r;
++		q->cap = cap;
++	}
++	q->r[q->n++] = (struct hostdev_range){ addr, len, write };
++	return 0;
++}
++
++/*
++ * DRM core + amdgpu: the user memory each ioctl points to, and the calls
++ * that cannot work through this device. @p is the kernel copy of the
++ * argument and may be adjusted.
++ */
++static int hostdev_drm_pre(unsigned int cmd, void *p, struct hostdev_req *q)
++{
++	unsigned int nr = _IOC_NR(cmd), size = _IOC_SIZE(cmd);
++	int err = 0;
++
++	if (_IOC_TYPE(cmd) != DRM_IOCTL_BASE)
++		return 0;
++
++#define NEED(type) do { if (size < sizeof(type)) return -EINVAL; } while (0)
++	switch (nr) {
++	case _IOC_NR(DRM_IOCTL_VERSION): {
++		struct drm_version *v = p;
++
++		NEED(*v);
++		err = req_add(q, (unsigned long)v->name, v->name_len, 1) ?:
++		      req_add(q, (unsigned long)v->date, v->date_len, 1) ?:
++		      req_add(q, (unsigned long)v->desc, v->desc_len, 1);
++		break;
++	}
++	case _IOC_NR(DRM_IOCTL_GET_UNIQUE): {
++		struct drm_unique *u = p;
++
++		NEED(*u);
++		err = req_add(q, (unsigned long)u->unique, u->unique_len, 1);
++		break;
++	}
++	case _IOC_NR(DRM_IOCTL_PRIME_HANDLE_TO_FD):
++	case _IOC_NR(DRM_IOCTL_PRIME_FD_TO_HANDLE):
++	case _IOC_NR(DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD):
++	case _IOC_NR(DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE):
++	case _IOC_NR(DRM_IOCTL_SYNCOBJ_EVENTFD):
++		return -EOPNOTSUPP;
++	case _IOC_NR(DRM_IOCTL_SYNCOBJ_WAIT): {
++		struct drm_syncobj_wait *w = p;
++
++		NEED(struct drm_syncobj_array);
++		if (size < offsetof(struct drm_syncobj_wait, deadline_nsec))
++			return -EINVAL;
++		err = req_add(q, w->handles, (u64)w->count_handles * 4, 0);
++		q->wait_off = offsetof(struct drm_syncobj_wait, timeout_nsec);
++		q->wait_s64 = q->wait_etime = true;
++		break;
++	}
++	case _IOC_NR(DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT): {
++		struct drm_syncobj_timeline_wait *w = p;
++
++		if (size < offsetof(struct drm_syncobj_timeline_wait,
++				    deadline_nsec))
++			return -EINVAL;
++		err = req_add(q, w->handles, (u64)w->count_handles * 4, 0) ?:
++		      req_add(q, w->points, (u64)w->count_handles * 8, 0);
++		q->wait_off = offsetof(struct drm_syncobj_timeline_wait,
++				       timeout_nsec);
++		q->wait_s64 = q->wait_etime = true;
++		break;
++	}
++	case _IOC_NR(DRM_IOCTL_SYNCOBJ_RESET):
++	case _IOC_NR(DRM_IOCTL_SYNCOBJ_SIGNAL): {
++		struct drm_syncobj_array *a = p;
++
++		NEED(*a);
++		err = req_add(q, a->handles, (u64)a->count_handles * 4, 0);
++		break;
++	}
++	case _IOC_NR(DRM_IOCTL_SYNCOBJ_QUERY):
++	case _IOC_NR(DRM_IOCTL_SYNCOBJ_TIMELINE_SIGNAL): {
++		struct drm_syncobj_timeline_array *a = p;
++
++		NEED(*a);
++		err = req_add(q, a->handles, (u64)a->count_handles * 4, 0) ?:
++		      req_add(q, a->points, (u64)a->count_handles * 8,
++			      nr == _IOC_NR(DRM_IOCTL_SYNCOBJ_QUERY));
++		break;
++	}
++
++	case DRM_COMMAND_BASE + DRM_AMDGPU_GEM_CREATE: {
++		union drm_amdgpu_gem_create *c = p;
++
++		NEED(*c);
++		/* The guest maps whole guest pages, the host checks the size */
++		c->in.bo_size = PAGE_ALIGN(c->in.bo_size);
++		break;
++	}
++	case DRM_COMMAND_BASE + DRM_AMDGPU_BO_LIST: {
++		union drm_amdgpu_bo_list *l = p;
++
++		NEED(*l);
++		if (l->in.operation != AMDGPU_BO_LIST_OP_DESTROY)
++			err = req_add(q, l->in.bo_info_ptr,
++				      (u64)l->in.bo_number *
++				      l->in.bo_info_size, 0);
++		break;
++	}
++	case DRM_COMMAND_BASE + DRM_AMDGPU_CS: {
++		union drm_amdgpu_cs *cs = p;
++		u64 __user *ptrs = u64_to_user_ptr(cs->in.chunks);
++		u32 i, n = cs->in.num_chunks;
++
++		NEED(*cs);
++		if (n > 1024)
++			return -E2BIG;
++		err = req_add(q, cs->in.chunks, (u64)n * 8, 0);
++		for (i = 0; i < n && !err; i++) {
++			struct drm_amdgpu_cs_chunk ch;
++			u64 ptr;
++
++			if (get_user(ptr, ptrs + i) ||
++			    copy_from_user(&ch, u64_to_user_ptr(ptr),
++					   sizeof(ch)))
++				return -EFAULT;
++			err = req_add(q, ptr, sizeof(ch), 0) ?:
++			      req_add(q, ch.chunk_data,
++				      (u64)ch.length_dw * 4, 0);
++		}
++		break;
++	}
++	case DRM_COMMAND_BASE + DRM_AMDGPU_INFO: {
++		struct drm_amdgpu_info *i = p;
++
++		if (size < 16)
++			return -EINVAL;
++		err = req_add(q, i->return_pointer, i->return_size, 1);
++		break;
++	}
++	case DRM_COMMAND_BASE + DRM_AMDGPU_GEM_WAIT_IDLE:
++		NEED(union drm_amdgpu_gem_wait_idle);
++		q->wait_off = offsetof(struct drm_amdgpu_gem_wait_idle_in,
++				       timeout);
++		break;
++	case DRM_COMMAND_BASE + DRM_AMDGPU_WAIT_CS:
++		NEED(union drm_amdgpu_wait_cs);
++		q->wait_off = offsetof(struct drm_amdgpu_wait_cs_in, timeout);
++		break;
++	case DRM_COMMAND_BASE + DRM_AMDGPU_WAIT_FENCES: {
++		union drm_amdgpu_wait_fences *w = p;
++
++		NEED(*w);
++		err = req_add(q, w->in.fences, (u64)w->in.fence_count *
++			      sizeof(struct drm_amdgpu_fence), 0);
++		q->wait_off = offsetof(struct drm_amdgpu_wait_fences_in,
++				       timeout_ns);
++		break;
++	}
++	case DRM_COMMAND_BASE + DRM_AMDGPU_GEM_OP: {
++		struct drm_amdgpu_gem_op *o = p;
++
++		if (size < 16)
++			return -EINVAL;
++		if (o->op == AMDGPU_GEM_OP_GET_GEM_CREATE_INFO)
++			err = req_add(q, o->value,
++				      sizeof(struct drm_amdgpu_gem_create_in),
++				      1);
++		else if (o->op != AMDGPU_GEM_OP_SET_PLACEMENT)
++			return -EOPNOTSUPP;
++		break;
++	}
++	case DRM_COMMAND_BASE + DRM_AMDGPU_FENCE_TO_HANDLE: {
++		union drm_amdgpu_fence_to_handle *f = p;
++
++		NEED(*f);
++		if (f->in.what != AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ)
++			return -EOPNOTSUPP;
++		break;
++	}
++	/* Pins guest RAM, or takes a host fd */
++	case DRM_COMMAND_BASE + DRM_AMDGPU_GEM_USERPTR:
++	case DRM_COMMAND_BASE + DRM_AMDGPU_SCHED:
++		return -EOPNOTSUPP;
++	}
++#undef NEED
++	return err;
++}
++
++/*
++ * GEM_MMAP returns a fake offset in host pages, which need not be a multiple
++ * of the (bigger) guest page. Hand out one of our own instead: cookie n is
++ * guest offsets [(n + 1) << 32, (n + 2) << 32).
++ */
++static int hostdev_drm_post(struct hostdev_file *hf, unsigned int cmd, void *p)
++{
++	union drm_amdgpu_gem_mmap *m = p;
++	unsigned long idx;
++	void *entry;
++	u32 id;
++	int err;
++
++	if (_IOC_TYPE(cmd) != DRM_IOCTL_BASE)
++		return 0;
++
++	/*
++	 * Userspace rounds what it maps to its own page size, so it must see
++	 * the alignments a host with the guest's page size would report.
++	 */
++	if (_IOC_NR(cmd) == DRM_COMMAND_BASE + DRM_AMDGPU_INFO) {
++		static const size_t fields[] = {
++			offsetof(struct drm_amdgpu_info_device,
++				 virtual_address_alignment),
++			offsetof(struct drm_amdgpu_info_device, gart_page_size),
++		};
++		struct drm_amdgpu_info *info = p;
++		int i;
++
++		if (info->query != AMDGPU_INFO_DEV_INFO)
++			return 0;
++		for (i = 0; i < ARRAY_SIZE(fields); i++) {
++			u32 __user *f = u64_to_user_ptr(info->return_pointer +
++							fields[i]);
++			u32 v;
++
++			if (fields[i] + 4 > info->return_size)
++				continue;
++			if (get_user(v, f) || (v < PAGE_SIZE &&
++					       put_user((u32)PAGE_SIZE, f)))
++				return -EFAULT;
++		}
++		return 0;
++	}
++
++	if (_IOC_NR(cmd) != DRM_COMMAND_BASE + DRM_AMDGPU_GEM_MMAP)
++		return 0;
++	if (m->out.addr_ptr & 0xfff || m->out.addr_ptr >> 44)
++		return -EIO;
++
++	guard(mutex)(&hf->lock);
++	xa_for_each(&hf->offsets, idx, entry) {
++		if (xa_to_value(entry) == m->out.addr_ptr >> 12) {
++			m->out.addr_ptr = (idx + 1) << 32;
++			return 0;
++		}
++	}
++	err = xa_alloc(&hf->offsets, &id, xa_mk_value(m->out.addr_ptr >> 12),
++		       XA_LIMIT(0, 0x3fffffff), GFP_KERNEL);
++	if (err)
++		return err;
++	m->out.addr_ptr = ((u64)id + 1) << 32;
++	return 0;
++}
++
++/* One trip to the stub. EFAULT can mean reclaim got in between: retry. */
++static long hostdev_exec(struct hostdev_file *hf, struct hostdev_req *q,
++			 unsigned int cmd, unsigned long arg, void *buf,
++			 unsigned int size)
++{
++	struct mm_struct *mm = current->mm;
++	struct mm_id *id = &mm->context.id;
++	int tries, i;
++	long ret;
++
++	for (tries = 0; ; tries++) {
++		enter_turnstile(id);
++		ret = 0;
++		for (i = 0; i < q->n && !ret; i++)
++			ret = um_user_prefault(q->r[i].addr, q->r[i].len,
++					       q->r[i].write);
++		if (!ret) {
++			um_tlb_sync(mm);
++			ret = stub_host_ioctl(id, hf->fd, cmd, arg, buf, size);
++		}
++		exit_turnstile(id);
++
++		if (ret == -EINTR && !signal_pending(current) && tries < 100)
++			continue;
++		if (ret != -EFAULT || tries >= 3)
++			return ret;
++	}
++}
++
++static long hostdev_wait(struct hostdev_file *hf, struct hostdev_req *q,
++			 unsigned int cmd, void *buf, unsigned int size)
++{
++	u64 *field = buf + q->wait_off, raw = *field;
++	bool infinite = !q->wait_s64 && raw > S64_MAX;
++	s64 deadline = raw;
++	void *saved;
++	long ret;
++
++	saved = kmemdup(buf, size, GFP_KERNEL);
++	if (!saved)
++		return -ENOMEM;
++
++	for (;;) {
++		s64 rem = infinite ? S64_MAX : deadline - (s64)ktime_get_ns();
++		s64 slice = clamp_t(s64, rem, 0, HOSTDEV_WAIT_SLICE_NS);
++		bool busy;
++
++		memcpy(buf, saved, size);
++		/* The host's clock is not the guest's */
++		*field = slice ? os_nsecs() + slice : 0;
++
++		ret = hostdev_exec(hf, q, cmd, 0, buf, size);
++		busy = q->wait_etime ? ret == -ETIME :
++				       ret == 0 && *(u32 *)buf != 0;
++		if (!busy || rem <= slice)
++			break;
++		if (signal_pending(current)) {
++			ret = -EINTR;
++			break;
++		}
++		cond_resched();
++	}
++	kfree(saved);
++	return ret;
++}
++
++static long hostdev_ioctl(struct file *file, unsigned int cmd,
++			  unsigned long arg)
++{
++	struct hostdev_file *hf = file->private_data;
++	unsigned int size = _IOC_SIZE(cmd), dir = _IOC_DIR(cmd);
++	struct hostdev_req q = { .wait_off = -1 };
++	void __user *uarg = (void __user *)arg;
++	void *buf = NULL, *dbg = NULL;
++	long ret;
++
++	if (!current->mm)
++		return -EINVAL;
++	q.r = q.inl;
++	q.cap = ARRAY_SIZE(q.inl);
++
++	if (hf->dev->flags & HOSTDEV_DIRECT) {
++		ret = req_add(&q, arg, size ?: sizeof(long), 1) ?:
++		      hostdev_exec(hf, &q, cmd, arg, NULL, 0);
++		goto out;
++	}
++
++	/* Not an _IOC() encoded command: the argument is a plain value */
++	if (!size || dir == _IOC_NONE) {
++		ret = hostdev_exec(hf, &q, cmd, arg, NULL, 0);
++		goto out;
++	}
++
++	if (size > stub_host_ioctl_max())
++		return -ENOTTY;
++	buf = kzalloc(size, GFP_KERNEL);
++	if (!buf)
++		return -ENOMEM;
++	if ((dir & _IOC_WRITE) && copy_from_user(buf, uarg, size)) {
++		ret = -EFAULT;
++		goto out;
++	}
++
++	if (hostdev_debug)
++		dbg = kmemdup(buf, size, GFP_KERNEL);
++
++	if (hf->dev->flags & HOSTDEV_DRM) {
++		ret = hostdev_drm_pre(cmd, buf, &q);
++		if (ret)
++			goto out;
++	}
++
++	if (q.wait_off >= 0)
++		ret = hostdev_wait(hf, &q, cmd, buf, size);
++	else
++		ret = hostdev_exec(hf, &q, cmd, 0, buf, size);
++
++	if (!ret && (hf->dev->flags & HOSTDEV_DRM))
++		ret = hostdev_drm_post(hf, cmd, buf);
++	if ((dir & _IOC_READ) && copy_to_user(uarg, buf, size))
++		ret = -EFAULT;
++out:
++	if (dbg && (ret < 0 || hostdev_debug > 1)) {
++		pr_info("hostdev: %s[%d] ioctl %08x = %ld\n", current->comm,
++			current->pid, cmd, ret);
++		print_hex_dump(KERN_INFO, "  in:  ", DUMP_PREFIX_OFFSET, 16,
++			       8, dbg, size, false);
++		if (hostdev_debug > 1)
++			print_hex_dump(KERN_INFO, "  out: ", DUMP_PREFIX_OFFSET,
++				       16, 8, buf, size, false);
++	}
++	kfree(dbg);
++	if (q.r != q.inl)
++		kfree(q.r);
++	kfree(buf);
++	return ret;
++}
++
++static void hostdev_vma_close(struct vm_area_struct *vma)
++{
++	um_hostmap_del(vma->vm_mm, vma->vm_private_data);
++}
++
++static int hostdev_vma_split(struct vm_area_struct *vma, unsigned long addr)
++{
++	return -EINVAL;
++}
++
++static vm_fault_t hostdev_vma_fault(struct vm_fault *vmf)
++{
++	return VM_FAULT_SIGBUS;
++}
++
++static const struct vm_operations_struct hostdev_vm_ops = {
++	.close = hostdev_vma_close,
++	.may_split = hostdev_vma_split,
++	.fault = hostdev_vma_fault,
++};
++
++static int hostdev_mmap(struct file *file, struct vm_area_struct *vma)
++{
++	struct hostdev_file *hf = file->private_data;
++	u64 off = (u64)vma->vm_pgoff << PAGE_SHIFT;
++	unsigned long len = vma->vm_end - vma->vm_start;
++	struct um_hostmap *m;
++	int prot = 0, err;
++
++	if (!(vma->vm_flags & VM_SHARED))
++		return -EINVAL;
++
++	if (hf->dev->flags & HOSTDEV_DRM) {
++		void *entry;
++
++		if (off >> 32 == 0)
++			return -EINVAL;
++		entry = xa_load(&hf->offsets, (off >> 32) - 1);
++		if (!entry)
++			return -EINVAL;
++		off = ((u64)xa_to_value(entry) << 12) + (u32)off;
++	}
++
++	if (vma->vm_flags & VM_READ)
++		prot |= UM_PROT_READ;
++	if (vma->vm_flags & VM_WRITE)
++		prot |= UM_PROT_WRITE;
++
++	err = os_mmap_probe(hf->fd, off, len, prot);
++	if (err)
++		return err;
++
++	m = kzalloc(sizeof(*m), GFP_KERNEL);
++	if (!m)
++		return -ENOMEM;
++	m->start = vma->vm_start;
++	m->end = vma->vm_end;
++	m->offset = off;
++	m->fd = hf->fd;
++	m->prot = prot;
++
++	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTCOPY | VM_DONTEXPAND |
++			  VM_DONTDUMP);
++	vm_flags_clear(vma, VM_MAYEXEC);
++	vma->vm_ops = &hostdev_vm_ops;
++	vma->vm_private_data = m;
++	um_hostmap_add(vma->vm_mm, m);
++	return 0;
++}
++
++static int hostdev_open(struct inode *inode, struct file *file)
++{
++	struct hostdev *dev = container_of(inode->i_cdev, struct hostdev, cdev);
++	struct hostdev_file *hf;
++
++	hf = kzalloc(sizeof(*hf), GFP_KERNEL);
++	if (!hf)
++		return -ENOMEM;
++
++	hf->fd = os_open_file(dev->host, of_cloexec(of_rdwr(OPENFLAGS())), 0);
++	if (hf->fd < 0) {
++		int err = hf->fd;
++
++		kfree(hf);
++		return err;
++	}
++	hf->dev = dev;
++	xa_init_flags(&hf->offsets, XA_FLAGS_ALLOC);
++	mutex_init(&hf->lock);
++	file->private_data = hf;
++	return 0;
++}
++
++static int hostdev_release(struct inode *inode, struct file *file)
++{
++	struct hostdev_file *hf = file->private_data;
++
++	os_close_file(hf->fd);
++	xa_destroy(&hf->offsets);
++	kfree(hf);
++	return 0;
++}
++
++static const struct file_operations hostdev_fops = {
++	.owner = THIS_MODULE,
++	.open = hostdev_open,
++	.release = hostdev_release,
++	.unlocked_ioctl = hostdev_ioctl,
++	.mmap = hostdev_mmap,
++	.llseek = noop_llseek,
++};
++
++static char *hostdev_devnode(const struct device *dev, umode_t *mode)
++{
++	struct hostdev *hd = dev_get_drvdata(dev);
++
++	if (mode)
++		*mode = 0666;
++	return hd ? kstrdup(hd->name, GFP_KERNEL) : NULL;
++}
++
++static struct class hostdev_class = {
++	.name = "hostdev",
++	.devnode = hostdev_devnode,
++};
++
++/* libdrm tells a DRM node by /sys/dev/char/M:m/device/drm */
++static struct class hostdev_drm_class = {
++	.name = "drm",
++	.devnode = hostdev_devnode,
++};
++
++static int __init hostdev_setup(char *str)
++{
++	struct hostdev *hd = &hostdevs[hostdev_count];
++	char *host, *name, *devt, *opt;
++	unsigned int major, minor;
++
++	if (hostdev_count == HOSTDEV_MAX)
++		return 1;
++	host = strsep(&str, ",");
++	name = strsep(&str, ",");
++	devt = strsep(&str, ",");
++	if (!host || !name || !devt ||
++	    sscanf(devt, "%u:%u", &major, &minor) != 2) {
++		pr_err("hostdev: expected <host path>,<guest name>,<major>:<minor>[,drm]\n");
++		return 1;
++	}
++	while ((opt = strsep(&str, ",")) != NULL) {
++		if (!strcmp(opt, "drm"))
++			hd->flags |= HOSTDEV_DRM;
++		else if (!strcmp(opt, "direct"))
++			hd->flags |= HOSTDEV_DIRECT;
++	}
++	hd->host = host;
++	hd->name = name;
++	hd->devt = MKDEV(major, minor);
++	hostdev_count++;
++	return 1;
++}
++__setup("hostdev=", hostdev_setup);
++
++static int __init hostdev_init(void)
++{
++	struct device *parent = NULL, *d;
++	bool drm = false;
++	int i, err;
++
++	if (!hostdev_count)
++		return 0;
++
++	for (i = 0; i < hostdev_count; i++)
++		drm |= hostdevs[i].flags & HOSTDEV_DRM;
++
++	err = class_register(&hostdev_class);
++	if (err)
++		return err;
++	if (drm) {
++		struct platform_device *pdev;
++
++		err = class_register(&hostdev_drm_class);
++		if (err)
++			return err;
++		pdev = platform_device_register_simple("hostdev-drm", -1,
++						       NULL, 0);
++		if (IS_ERR(pdev))
++			return PTR_ERR(pdev);
++		parent = &pdev->dev;
++	}
++
++	for (i = 0; i < hostdev_count; i++) {
++		struct hostdev *hd = &hostdevs[i];
++		bool is_drm = hd->flags & HOSTDEV_DRM;
++
++		err = register_chrdev_region(hd->devt, 1, "hostdev");
++		if (err) {
++			pr_err("hostdev: %s: device number taken\n", hd->name);
++			continue;
++		}
++		cdev_init(&hd->cdev, &hostdev_fops);
++		err = cdev_add(&hd->cdev, hd->devt, 1);
++		if (err)
++			continue;
++		d = device_create(is_drm ? &hostdev_drm_class : &hostdev_class,
++				  is_drm ? parent : NULL, hd->devt, hd, "%s",
++				  kbasename(hd->name));
++		if (IS_ERR(d)) {
++			pr_err("hostdev: %s: %ld\n", hd->name, PTR_ERR(d));
++			continue;
++		}
++		pr_info("hostdev: /dev/%s is host %s\n", hd->name, hd->host);
++	}
++	return 0;
++}
++device_initcall(hostdev_init);
+diff --git a/arch/um/include/asm/mmu.h b/arch/um/include/asm/mmu.h
+index ff772843a6b4..7c27dae9ad50 100644
+--- a/arch/um/include/asm/mmu.h
++++ b/arch/um/include/asm/mmu.h
+@@ -43,6 +43,12 @@ typedef struct mm_context {
+ #define UM_ANCHORS 16
+ 	unsigned long anchors[UM_ANCHORS];
+ 
++	/*
++	 * Host fd ranges mapped straight into the stub (struct um_hostmap,
++	 * tlb.c), guarded by sync_tlb_lock.
++	 */
++	struct list_head hostmaps;
++
+ #ifdef CONFIG_UML_FASTPATH
+ 	/* Syscall-site fast path state, arch/arm64/um/fastpath.c */
+ 	struct um_fastpath *fastpath;
+@@ -55,10 +61,40 @@ void um_fastpath_syscall(unsigned long pc, long nr);
+ void um_fastpath_destroy(struct mm_struct *mm);
+ #endif
+ 
++/*
++ * A range of a host fd that the stub maps directly at guest addresses (host
++ * device passthrough): there are no guest pages or PTEs behind it. The owner
++ * embeds/allocates it with kmalloc; um_hostmap_del() hands it over.
++ */
++struct um_hostmap {
++	struct list_head list;
++	unsigned long start, end;
++	unsigned long long offset;
++	int fd;
++	int prot;
++	bool mapped, need_map, dead;
++	/* The kernel's own mapping of the range, made at its first uaccess */
++	void *kaddr;
++	unsigned int faults;
++	unsigned long fault_jiffies;
++};
++
++struct mm_struct;
++void um_hostmap_add(struct mm_struct *mm, struct um_hostmap *m);
++void um_hostmap_del(struct mm_struct *mm, struct um_hostmap *m);
++int um_hostmap_fault(struct mm_struct *mm, unsigned long addr);
++void um_hostmap_destroy(struct mm_struct *mm);
++bool um_hostmap_op(struct mm_struct *mm, unsigned long addr, int len,
++		   int is_write,
++		   int (*op)(unsigned long addr, int len, void *arg),
++		   void *arg, int *ret);
++int um_user_prefault(unsigned long addr, unsigned long len, int is_write);
++
+ #define INIT_MM_CONTEXT(mm)						\
+ 	.context = {							\
+ 		.turnstile = __MUTEX_INITIALIZER(mm.context.turnstile),	\
+ 		.sync_tlb_lock = __SPIN_LOCK_INITIALIZER(mm.context.sync_tlb_lock), \
++		.hostmaps = LIST_HEAD_INIT(mm.context.hostmaps),	\
+ 	}
+ 
+ #endif
+diff --git a/arch/um/include/shared/os.h b/arch/um/include/shared/os.h
+index 2759f08a7f7c..cdb6e31a26ff 100644
+--- a/arch/um/include/shared/os.h
++++ b/arch/um/include/shared/os.h
+@@ -279,6 +279,13 @@ extern long long os_nsecs(void);
+ 
+ /* skas/mem.c */
+ int syscall_stub_flush(struct mm_id *mm_idp);
++unsigned long stub_host_ioctl_max(void);
++long stub_host_ioctl(struct mm_id *mm_idp, int fd, unsigned long cmd,
++		     unsigned long arg, void *buf, unsigned long size);
++void *os_mmap_shared(int fd, unsigned long long offset, unsigned long len,
++		     int prot);
++int os_mmap_probe(int fd, unsigned long long offset, unsigned long len,
++		  int prot);
+ struct stub_syscall *syscall_stub_alloc(struct mm_id *mm_idp);
+ void syscall_stub_dump_error(struct mm_id *mm_idp);
+ int syscall_stub_free_slots(struct mm_id *mm_idp);
+diff --git a/arch/um/include/shared/skas/stub-data.h b/arch/um/include/shared/skas/stub-data.h
+index e2abc619d2c3..da8ea6bde09b 100644
+--- a/arch/um/include/shared/skas/stub-data.h
++++ b/arch/um/include/shared/skas/stub-data.h
+@@ -117,6 +117,11 @@ enum stub_syscall_type {
+ 	STUB_SYSCALL_MUNMAP,
+ 	/* PROT_NONE anonymous placeholder, see um_tlb_anchor() */
+ 	STUB_SYSCALL_ANCHOR,
++	/*
++	 * ioctl(mem.fd, mem.addr, mem.offset) on a host fd, for host device
++	 * passthrough (drivers/hostdev_kern.c); result in mem.length.
++	 */
++	STUB_SYSCALL_IOCTL,
+ };
+ 
+ struct stub_syscall {
+diff --git a/arch/um/kernel/skas/mmu.c b/arch/um/kernel/skas/mmu.c
+index 32982aaf073e..73312c42d378 100644
+--- a/arch/um/kernel/skas/mmu.c
++++ b/arch/um/kernel/skas/mmu.c
+@@ -57,6 +57,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
+ 	mm->context.prefault_next = 0;
+ 	mm->context.prefault_level = 0;
+ 	memset(mm->context.anchors, 0, sizeof(mm->context.anchors));
++	INIT_LIST_HEAD(&mm->context.hostmaps);
+ #ifdef CONFIG_UML_FASTPATH
+ 	/* fork copies the parent's context; the site table is not inherited */
+ 	mm->context.fastpath = NULL;
+@@ -141,6 +142,7 @@ void destroy_context(struct mm_struct *mm)
+ #ifdef CONFIG_UML_FASTPATH
+ 	um_fastpath_destroy(mm);
+ #endif
++	um_hostmap_destroy(mm);
+ 
+ 	/*
+ 	 * If init_new_context wasn't called, this will be
+diff --git a/arch/um/kernel/skas/stub.c b/arch/um/kernel/skas/stub.c
+index 9258da0581ac..d5e882216541 100644
+--- a/arch/um/kernel/skas/stub.c
++++ b/arch/um/kernel/skas/stub.c
+@@ -76,6 +76,13 @@ static __always_inline int syscall_handler(int fd_map[STUB_MAX_FDS])
+ 				return -1;
+ 			}
+ 			break;
++		case STUB_SYSCALL_IOCTL:
++			sc->mem.length = stub_syscall3(__NR_ioctl,
++						       fd_map ? fd_map[sc->mem.fd] :
++								sc->mem.fd,
++						       sc->mem.addr,
++						       sc->mem.offset);
++			break;
+ 		case STUB_SYSCALL_MUNMAP:
+ 			res = stub_syscall2(__NR_munmap,
+ 					    sc->mem.addr, sc->mem.length);
+diff --git a/arch/um/kernel/skas/stub_exe.c b/arch/um/kernel/skas/stub_exe.c
+index 72ffafa29525..15887ffa8f23 100644
+--- a/arch/um/kernel/skas/stub_exe.c
++++ b/arch/um/kernel/skas/stub_exe.c
+@@ -270,6 +270,9 @@ noinline static void real_init(void)
+ 				 offsetof(struct seccomp_data, nr)),
+ 
+ 			/* [10-18] Check against permitted syscalls */
++			/* Host device passthrough, STUB_SYSCALL_IOCTL */
++			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_ioctl,
++				 10, 0),
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_futex,
+ 				 9, 0),
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,__NR_recvmsg,
+diff --git a/arch/um/kernel/skas/uaccess.c b/arch/um/kernel/skas/uaccess.c
+index caef1deef795..807568cc01ff 100644
+--- a/arch/um/kernel/skas/uaccess.c
++++ b/arch/um/kernel/skas/uaccess.c
+@@ -55,12 +55,40 @@ static pte_t *maybe_map(unsigned long virt, int is_write)
+ 			return NULL;
+ 		pte = virt_to_pte(current->mm, virt);
+ 	}
+-	if (!pte_present(*pte))
++	if (pte && !pte_present(*pte))
+ 		pte = NULL;
+ 
+ 	return pte;
+ }
+ 
++/*
++ * Make [addr, addr + len) usable by the host itself once the mm is synced:
++ * a host syscall run in the stub (host device passthrough) gets EFAULT where
++ * the guest would take a fault, so the pages must be present, young and, for
++ * writing, dirty. Reclaim can still undo it before the sync; callers retry.
++ */
++int um_user_prefault(unsigned long addr, unsigned long len, int is_write)
++{
++	unsigned long a = addr & PAGE_MASK, end = addr + len;
++	int code;
++
++	if (!len)
++		return 0;
++	if (end < addr || end > TASK_SIZE)
++		return -EFAULT;
++
++	for (; a < end; a += PAGE_SIZE) {
++		pte_t *pte = virt_to_pte(current->mm, a);
++
++		if (pte && pte_present(*pte) && pte_young(*pte) &&
++		    (!is_write || (pte_write(*pte) && pte_dirty(*pte))))
++			continue;
++		if (handle_page_fault(a, 0, is_write, 1, &code))
++			return -EFAULT;
++	}
++	return 0;
++}
++
+ static int do_op_one_page(unsigned long addr, int len, int is_write,
+ 		 int (*op)(unsigned long addr, int len, void *arg), void *arg)
+ {
+@@ -68,6 +96,15 @@ static int do_op_one_page(unsigned long addr, int len, int is_write,
+ 	pte_t *pte;
+ 	int n;
+ 
++	/* Host device memory has no pages, the copy goes to the host mapping */
++	if (current->mm && !list_empty(&current->mm->context.hostmaps)) {
++		pte = virt_to_pte(current->mm, addr);
++		if ((!pte || !pte_present(*pte)) &&
++		    um_hostmap_op(current->mm, addr, len, is_write, op, arg,
++				  &n))
++			return n;
++	}
++
+ 	pte = maybe_map(addr, is_write);
+ 	if (pte == NULL)
+ 		return -1;
+diff --git a/arch/um/kernel/tlb.c b/arch/um/kernel/tlb.c
+index 586135430aba..c30b24439dca 100644
+--- a/arch/um/kernel/tlb.c
++++ b/arch/um/kernel/tlb.c
+@@ -6,6 +6,7 @@
+ #include <linux/mm.h>
+ #include <linux/module.h>
+ #include <linux/sched/signal.h>
++#include <linux/slab.h>
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/mmu_context.h>
+@@ -59,6 +60,148 @@ static void anchors_forget(struct mm_struct *mm, unsigned long from,
+ 			mm->context.anchors[i] = 0;
+ }
+ 
++/* sync_tlb_lock held */
++static struct um_hostmap *um_hostmap_find(struct mm_struct *mm,
++					  unsigned long addr)
++{
++	struct um_hostmap *m;
++
++	list_for_each_entry(m, &mm->context.hostmaps, list)
++		if (!m->dead && addr >= m->start && addr < m->end)
++			return m;
++	return NULL;
++}
++
++static void um_hostmap_free(struct um_hostmap *m)
++{
++	if (m->kaddr)
++		os_unmap_memory(m->kaddr, m->end - m->start);
++	kfree(m);
++}
++
++/*
++ * Kernel access to host device memory (uaccess.c): run @op on the kernel's
++ * own mapping of the same host range. The lock keeps the mapping alive, one
++ * page at most is touched under it. False if @addr is not such memory.
++ */
++bool um_hostmap_op(struct mm_struct *mm, unsigned long addr, int len,
++		   int is_write,
++		   int (*op)(unsigned long addr, int len, void *arg),
++		   void *arg, int *ret)
++{
++	struct um_hostmap *m;
++
++	guard(spinlock_irqsave)(&mm->context.sync_tlb_lock);
++	m = um_hostmap_find(mm, addr);
++	if (!m)
++		return false;
++
++	*ret = -1;
++	if (addr + len > m->end ||
++	    !(m->prot & (is_write ? UM_PROT_WRITE : UM_PROT_READ)))
++		return true;
++	if (!m->kaddr) {
++		m->kaddr = os_mmap_shared(m->fd, m->offset, m->end - m->start,
++					  m->prot);
++		if (!m->kaddr)
++			return true;
++	}
++	*ret = op((unsigned long)m->kaddr + (addr - m->start), len, arg);
++	return true;
++}
++
++void um_hostmap_add(struct mm_struct *mm, struct um_hostmap *m)
++{
++	m->mapped = false;
++	m->dead = false;
++	m->need_map = true;
++	m->faults = 0;
++	m->fault_jiffies = jiffies;
++
++	guard(spinlock_irqsave)(&mm->context.sync_tlb_lock);
++	list_add_tail(&m->list, &mm->context.hostmaps);
++}
++
++/* The range is going away; the stub drops it at the next sync. */
++void um_hostmap_del(struct mm_struct *mm, struct um_hostmap *m)
++{
++	scoped_guard(spinlock_irqsave, &mm->context.sync_tlb_lock) {
++		if (m->mapped) {
++			m->dead = true;
++			return;
++		}
++		list_del(&m->list);
++	}
++	um_hostmap_free(m);
++}
++
++/* A guest fault on a host mapping: 0 if mapping it again is the answer. */
++int um_hostmap_fault(struct mm_struct *mm, unsigned long addr)
++{
++	struct um_hostmap *m;
++
++	guard(spinlock_irqsave)(&mm->context.sync_tlb_lock);
++	m = um_hostmap_find(mm, addr);
++	if (!m)
++		return -ENOENT;
++
++	/* The host keeps refusing the access: let the guest have its signal */
++	if (time_after(jiffies, m->fault_jiffies + HZ))
++		m->faults = 0;
++	m->fault_jiffies = jiffies;
++	if (++m->faults > 256)
++		return -EFAULT;
++
++	m->need_map = true;
++	return 0;
++}
++
++void um_hostmap_destroy(struct mm_struct *mm)
++{
++	struct um_hostmap *m, *tmp;
++
++	if (!mm->context.hostmaps.next)
++		return;
++	list_for_each_entry_safe(m, tmp, &mm->context.hostmaps, list) {
++		list_del(&m->list);
++		um_hostmap_free(m);
++	}
++}
++
++/*
++ * Around the PTE walk of um_tlb_sync(): ranges that went away are unmapped
++ * before it, so pages the guest put there since are mapped after; new or
++ * faulted ranges are mapped after it, so a stale unmap of what was there
++ * before cannot hit them.
++ */
++static void um_hostmap_sync_dead(struct mm_struct *mm)
++{
++	struct um_hostmap *m, *tmp;
++
++	list_for_each_entry_safe(m, tmp, &mm->context.hostmaps, list) {
++		if (!m->dead)
++			continue;
++		unmap(&mm->context.id, m->start, m->end - m->start);
++		anchors_forget(mm, m->start, m->end);
++		list_del(&m->list);
++		um_hostmap_free(m);
++	}
++}
++
++static void um_hostmap_sync_new(struct mm_struct *mm)
++{
++	struct um_hostmap *m;
++
++	list_for_each_entry(m, &mm->context.hostmaps, list) {
++		if (!m->need_map)
++			continue;
++		map(&mm->context.id, m->start, m->end - m->start, m->prot,
++		    m->fd, m->offset);
++		m->need_map = false;
++		m->mapped = true;
++	}
++}
++
+ static void um_tlb_anchor(struct vm_ops *ops, pmd_t *pmd, unsigned long addr)
+ {
+ 	unsigned long chunk = addr & ~(ANCHOR_CHUNK - 1), va;
+@@ -75,6 +218,8 @@ static void um_tlb_anchor(struct vm_ops *ops, pmd_t *pmd, unsigned long addr)
+ 		/* Not the page just unmapped: it is the one likely reused. */
+ 		if (va == addr || pte_present(*pte) || pte_needsync(*pte))
+ 			continue;
++		if (um_hostmap_find(ops->mm, va))
++			continue;
+ 		if (!ops->anchor(ops->mm_idp, va, PAGE_SIZE))
+ 			*slot = va;
+ 		return;
+@@ -105,6 +250,8 @@ static void um_tlb_anchor_hole(struct vm_ops *ops, unsigned long addr,
+ 		va = chunk + ANCHOR_CHUNK - PAGE_SIZE;
+ 	else
+ 		return;
++	if (um_hostmap_find(ops->mm, va))
++		return;
+ 
+ 	if (!ops->anchor(ops->mm_idp, va, PAGE_SIZE))
+ 		*slot = va;
+@@ -289,8 +436,11 @@ int um_tlb_sync(struct mm_struct *mm)
+ 	guard(spinlock_irqsave)(&mm->page_table_lock);
+ 	guard(spinlock_irqsave)(&mm->context.sync_tlb_lock);
+ 
++	if (mm != &init_mm && !list_empty(&mm->context.hostmaps))
++		um_hostmap_sync_dead(mm);
++
+ 	if (mm->context.sync_tlb_range_to == 0)
+-		return 0;
++		goto hostmaps;
+ 
+ 	ops.mm_idp = &mm->context.id;
+ 	ops.mm = mm;
+@@ -324,6 +474,10 @@ int um_tlb_sync(struct mm_struct *mm)
+ 	mm->context.sync_tlb_range_from = 0;
+ 	mm->context.sync_tlb_range_to = 0;
+ 
++hostmaps:
++	if (mm != &init_mm && !list_empty(&mm->context.hostmaps))
++		um_hostmap_sync_new(mm);
++
+ 	return ret;
+ }
+ 
+diff --git a/arch/um/kernel/trap.c b/arch/um/kernel/trap.c
+index bb764525e638..e9f3063c6355 100644
+--- a/arch/um/kernel/trap.c
++++ b/arch/um/kernel/trap.c
+@@ -435,6 +435,16 @@ int handle_page_fault(unsigned long address, unsigned long ip,
+ 			goto out;
+ 	}
+ 
++	/*
++	 * Host device memory: no PTE to wait for, the stub gets (back) its
++	 * direct mapping on the way to userspace. Kernel access to it sees no
++	 * PTE and fails with EFAULT.
++	 */
++	if ((vma->vm_flags & VM_PFNMAP) && !um_hostmap_fault(mm, address)) {
++		err = 0;
++		goto out;
++	}
++
+ 	do {
+ 		vm_fault_t fault;
+ 
+diff --git a/arch/um/os-Linux/skas/mem.c b/arch/um/os-Linux/skas/mem.c
+index ee1c2763bef6..4d3040727522 100644
+--- a/arch/um/os-Linux/skas/mem.c
++++ b/arch/um/os-Linux/skas/mem.c
+@@ -343,3 +343,77 @@ int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len)
+ 
+ 	return 0;
+ }
++
++/*
++ * Run ioctl(fd, cmd, ...) on a host fd inside the stub, where pointers the
++ * host follows are guest addresses. With @buf the argument is @size bytes
++ * bounced through the stub data page (copied in and back out), else @arg is
++ * passed as is. The caller holds the turnstile. Returns the host's result.
++ */
++unsigned long stub_host_ioctl_max(void)
++{
++	struct stub_data *d = NULL;
++
++	return sizeof(d->syscall_data) - sizeof(d->syscall_data[0]);
++}
++
++long stub_host_ioctl(struct mm_id *mm_idp, int fd, unsigned long cmd,
++		     unsigned long arg, void *buf, unsigned long size)
++{
++	struct stub_data *d = (void *)mm_idp->stack;
++	struct stub_syscall *sc;
++	long ret;
++	int idx;
++
++	if (!using_seccomp)
++		return -ENOSYS;
++	if (buf && size > stub_host_ioctl_max())
++		return -E2BIG;
++
++	if (mm_idp->syscall_data_len > 0)
++		do_syscall_stub(mm_idp);
++	if (mm_idp->syscall_data_len < 0)
++		return -EFAULT;
++
++	idx = get_stub_fd(mm_idp, fd);
++	sc = syscall_stub_alloc(mm_idp);
++	sc->syscall = STUB_SYSCALL_IOCTL;
++	sc->mem.fd = idx;
++	sc->mem.addr = cmd;
++	if (buf) {
++		memcpy(&d->syscall_data[1], buf, size);
++		sc->mem.offset = STUB_DATA +
++			offsetof(struct stub_data, syscall_data[1]);
++	} else {
++		sc->mem.offset = arg;
++	}
++
++	if (do_syscall_stub(mm_idp) < 0)
++		return -EFAULT;
++
++	ret = d->syscall_data[0].mem.length;
++	if (buf)
++		memcpy(buf, &d->syscall_data[1], size);
++	return ret;
++}
++
++/* Would the host let a stub map this? Checked here so mmap can fail cleanly. */
++int os_mmap_probe(int fd, unsigned long long offset, unsigned long len,
++		  int prot)
++{
++	void *p = mmap(NULL, len, prot, MAP_SHARED, fd, offset);
++
++	if (p == MAP_FAILED)
++		return -errno;
++	munmap(p, len);
++	return 0;
++}
++
++/* A mapping of a host fd range for the kernel itself, NULL if refused. */
++void *os_mmap_shared(int fd, unsigned long long offset, unsigned long len,
++		     int prot)
++{
++	void *p = mmap(NULL, len, prot, MAP_SHARED, fd, offset);
++
++	return p == MAP_FAILED ? NULL : p;
++}
+-- 
+2.43.0
+
+
+From c56f53b925b8ac2d81a731be8608024667297f25 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 22 Nov 2026 05:37:35 +0000
+Subject: [PATCH 21/21] um: hostdev: host fds as guest files, host unix socket
+ and shm devices
+
+PRIME, syncobj and dma-buf sync-file ioctls now run in the kernel process
+and the host fds they produce become guest "hostfd" files (mmap, lseek,
+ioctls taking such an fd). hostdev=<unix socket>,<name>,<M:m>,sock is a
+connection to a host unix socket per open, with HOSTSOCK_SEND passing hostfd
+files as SCM_RIGHTS; /dev/hostshm is a 4 byte host memfd per open. With a
+guest bridge daemon and an xshmfence built on /dev/hostshm, Mesa's DRI3
+present reaches an X server on the host without copying (tested: RADV on
+Xclipse 940 to Termux:X11).
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ arch/um/drivers/Makefile       |   4 +-
+ arch/um/drivers/hostdev.h      |  19 ++
+ arch/um/drivers/hostdev_kern.c | 497 +++++++++++++++++++++++++++++++--
+ arch/um/drivers/hostdev_user.c | 125 +++++++++
+ 4 files changed, 613 insertions(+), 32 deletions(-)
+ create mode 100644 arch/um/drivers/hostdev.h
+ create mode 100644 arch/um/drivers/hostdev_user.c
+
+diff --git a/arch/um/drivers/Makefile b/arch/um/drivers/Makefile
+index 536638660b3f..7c57f09f8126 100644
+--- a/arch/um/drivers/Makefile
++++ b/arch/um/drivers/Makefile
+@@ -23,7 +23,7 @@ vfio_uml-objs := vfio_kern.o vfio_user.o
+ # When the above is fixed, don't forget to add this too!
+ #targets += $(obj)/pcap.o
+ 
+-obj-y := stdio_console.o fd.o chan_kern.o chan_user.o line.o hostdev_kern.o
++obj-y := stdio_console.o fd.o chan_kern.o chan_user.o line.o hostdev_kern.o hostdev_user.o
+ obj-$(CONFIG_SSL) += ssl.o
+ obj-$(CONFIG_STDERR_CONSOLE) += stderr_console.o
+ 
+@@ -47,7 +47,7 @@ obj-$(CONFIG_UML_PCI_OVER_VIRTIO) += virtio_pcidev.o
+ obj-$(CONFIG_UML_PCI_OVER_VFIO) += vfio_uml.o
+ 
+ # pcap_user.o must be added explicitly.
+-USER_OBJS := fd.o null.o pty.o tty.o xterm.o vector_user.o
++USER_OBJS := fd.o null.o pty.o tty.o xterm.o vector_user.o hostdev_user.o
+ CFLAGS_null.o = -DDEV_NULL=$(DEV_NULL_PATH)
+ 
+ CFLAGS_xterm.o += '-DCONFIG_XTERM_CHAN_DEFAULT_EMULATOR="$(CONFIG_XTERM_CHAN_DEFAULT_EMULATOR)"'
+diff --git a/arch/um/drivers/hostdev.h b/arch/um/drivers/hostdev.h
+new file mode 100644
+index 000000000000..76da0a12b8e6
+--- /dev/null
++++ b/arch/um/drivers/hostdev.h
+@@ -0,0 +1,19 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef __UM_HOSTDEV_H
++#define __UM_HOSTDEV_H
++
++#define HOSTDEV_MAX_FDS		8
++#define HOSTDEV_POLL_IN		1
++#define HOSTDEV_POLL_OUT	2
++#define HOSTDEV_POLL_HUP	4
++
++long hostdev_user_ioctl(int fd, unsigned long cmd, void *arg);
++int hostdev_user_memfd(unsigned long size);
++long long hostdev_user_lseek(int fd, long long off, int whence);
++int hostdev_user_connect(const char *path);
++int hostdev_user_poll(int fd);
++long hostdev_user_send(int fd, const void *data, unsigned long len,
++		       const int *fds, int nfds);
++long hostdev_user_recv(int fd, void *data, unsigned long len);
++
++#endif
+diff --git a/arch/um/drivers/hostdev_kern.c b/arch/um/drivers/hostdev_kern.c
+index 1a8efed5b9c6..3fb9cf0c8828 100644
+--- a/arch/um/drivers/hostdev_kern.c
++++ b/arch/um/drivers/hostdev_kern.c
+@@ -10,17 +10,36 @@
+  * the pages behind them are faulted in first, because the host returns
+  * EFAULT where the guest would fault. The argument struct is bounced through
+  * the stub data page. mmap maps the host fd straight into the stub (struct
+- * um_hostmap): no guest pages, so kernel access to such memory (read(2) into
+- * it) fails with EFAULT.
++ * um_hostmap): no guest pages.
+  *
+  * Only pointers named in a table can be faulted in. "drm" selects the table
+  * for DRM render nodes with the amdgpu uapi (Samsung sgpu included) and
+- * makes sysfs look like a platform DRM device to libdrm. Not passed on:
+- * anything that returns or takes a host fd (PRIME, sync files).
++ * makes sysfs look like a platform DRM device to libdrm.
+  * "direct" passes the guest pointer instead of bouncing (testing).
++ *
++ * Host fds the device hands out (dma-bufs, sync files) become guest "hostfd"
++ * files; ioctls taking one get the host fd back. To give them to a host
++ * process there is
++ *
++ *   hostdev=<host unix socket path>,<guest name>,<major>:<minor>,sock
++ *
++ * a character device that is one connection to that socket per open:
++ * read/write/poll carry the stream, HOSTSOCK_SEND sends data with hostfd
++ * files attached as SCM_RIGHTS (a guest daemon bridges an X11 socket to it).
++ * /dev/hostshm gives a 4 byte host memfd per open, as a hostfd file, for
++ * memory shared with such a process (xshmfence).
+  */
+ 
++#include <linux/anon_inodes.h>
+ #include <linux/cdev.h>
++#include <linux/file.h>
++#include <linux/miscdevice.h>
++#include <linux/poll.h>
++#include <linux/wait.h>
++#include <uapi/linux/dma-buf.h>
++#include <uapi/linux/sync_file.h>
++#include <irq_kern.h>
++#include "hostdev.h"
+ #include <linux/device.h>
+ #include <linux/delay.h>
+ #include <linux/fs.h>
+@@ -45,6 +64,16 @@
+ #define HOSTDEV_MAX	4
+ #define HOSTDEV_DRM	1
+ #define HOSTDEV_DIRECT	2
++#define HOSTDEV_SOCK	4
++
++/* HOSTSOCK_SEND: write @len bytes at @data with @nfds hostfd files attached */
++struct hostsock_send {
++	__u64 data;
++	__u32 len;
++	__u32 nfds;
++	__s32 fds[HOSTDEV_MAX_FDS];
++};
++#define HOSTSOCK_SEND	_IOW('H', 1, struct hostsock_send)
+ 
+ /* A wait holds the stub (and a vCPU), so it is done in slices of this. */
+ #define HOSTDEV_WAIT_SLICE_NS	250000
+@@ -63,15 +92,93 @@ static int hostdev_debug;
+ core_param(hostdev_debug, hostdev_debug, int, 0644);
+ static int hostdev_count;
+ 
++/* The host fd comes first in every file type um_hostfd_of() knows */
+ struct hostdev_file {
+-	struct hostdev *dev;
+ 	int fd;
++	struct hostdev *dev;
+ 	/* DRM: mmap cookie -> host fake offset, see hostdev_drm_post() */
+ 	struct xarray offsets;
+ 	u32 next_offset;
+ 	struct mutex lock;
+ };
+ 
++struct hostfd {
++	int fd;
++};
++
++static const struct file_operations hostdev_fops, hostfd_fops, hostshm_fops;
++
++/* The host fd behind a guest file, or -1 */
++static int um_hostfd_of(struct file *file)
++{
++	if (file->f_op != &hostdev_fops && file->f_op != &hostfd_fops &&
++	    file->f_op != &hostshm_fops)
++		return -1;
++	return *(int *)file->private_data;
++}
++
++static int um_hostfd_of_fd(int guest_fd, struct file **filep)
++{
++	struct file *file = fget(guest_fd);
++	int fd;
++
++	if (!file)
++		return -EBADF;
++	fd = um_hostfd_of(file);
++	if (fd < 0) {
++		fput(file);
++		return -EINVAL;
++	}
++	*filep = file;
++	return fd;
++}
++
++/* Wrap a host fd the kernel process owns into a guest fd; closes it on error */
++static int hostfd_install(int host_fd)
++{
++	struct hostfd *h = kzalloc(sizeof(*h), GFP_KERNEL);
++	int fd;
++
++	if (!h) {
++		os_close_file(host_fd);
++		return -ENOMEM;
++	}
++	h->fd = host_fd;
++	fd = anon_inode_getfd("hostfd", &hostfd_fops, h, O_RDWR | O_CLOEXEC);
++	if (fd < 0) {
++		os_close_file(host_fd);
++		kfree(h);
++	}
++	return fd;
++}
++
++/* An ioctl with a host fd going @in or coming out at @fdp, no pointers */
++static long hostfd_ioctl_fd(int host_fd, unsigned int cmd, void *buf,
++			    __s32 *fdp, bool in, bool out)
++{
++	struct file *file = NULL;
++	long ret;
++
++	if (in) {
++		int fd = um_hostfd_of_fd(*fdp, &file);
++
++		if (fd < 0)
++			return fd;
++		*fdp = fd;
++	}
++	ret = hostdev_user_ioctl(host_fd, cmd, buf);
++	if (file)
++		fput(file);
++	if (!ret && out) {
++		int fd = hostfd_install(*fdp);
++
++		if (fd < 0)
++			return fd;
++		*fdp = fd;
++	}
++	return ret;
++}
++
+ struct hostdev_range {
+ 	unsigned long addr, len;
+ 	int write;
+@@ -84,6 +191,8 @@ struct hostdev_req {
+ 	/* sliced wait: byte offset of the absolute timeout in the argument */
+ 	int wait_off;
+ 	bool wait_s64, wait_etime;
++	/* done in hostdev_drm_pre() by the kernel process, with this result */
++	bool done;
+ };
+ 
+ static int req_add(struct hostdev_req *q, u64 addr, u64 len, int write)
+@@ -114,7 +223,8 @@ static int req_add(struct hostdev_req *q, u64 addr, u64 len, int write)
+  * that cannot work through this device. @p is the kernel copy of the
+  * argument and may be adjusted.
+  */
+-static int hostdev_drm_pre(unsigned int cmd, void *p, struct hostdev_req *q)
++static int hostdev_drm_pre(struct hostdev_file *hf, unsigned int cmd, void *p,
++			   struct hostdev_req *q)
+ {
+ 	unsigned int nr = _IOC_NR(cmd), size = _IOC_SIZE(cmd);
+ 	int err = 0;
+@@ -140,10 +250,29 @@ static int hostdev_drm_pre(unsigned int cmd, void *p, struct hostdev_req *q)
+ 		err = req_add(q, (unsigned long)u->unique, u->unique_len, 1);
+ 		break;
+ 	}
++	/*
++	 * Host fds: these run in the kernel process, which is where the fd
++	 * must end up (the device fd is the same open file there).
++	 */
+ 	case _IOC_NR(DRM_IOCTL_PRIME_HANDLE_TO_FD):
+-	case _IOC_NR(DRM_IOCTL_PRIME_FD_TO_HANDLE):
++	case _IOC_NR(DRM_IOCTL_PRIME_FD_TO_HANDLE): {
++		struct drm_prime_handle *h = p;
++		bool in = nr == _IOC_NR(DRM_IOCTL_PRIME_FD_TO_HANDLE);
++
++		NEED(*h);
++		q->done = true;
++		return hostfd_ioctl_fd(hf->fd, cmd, p, &h->fd, in, !in);
++	}
+ 	case _IOC_NR(DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD):
+-	case _IOC_NR(DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE):
++	case _IOC_NR(DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE): {
++		struct drm_syncobj_handle *h = p;
++		bool in = nr == _IOC_NR(DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE);
++
++		if (size < offsetof(struct drm_syncobj_handle, point))
++			return -EINVAL;
++		q->done = true;
++		return hostfd_ioctl_fd(hf->fd, cmd, p, &h->fd, in, !in);
++	}
+ 	case _IOC_NR(DRM_IOCTL_SYNCOBJ_EVENTFD):
+ 		return -EOPNOTSUPP;
+ 	case _IOC_NR(DRM_IOCTL_SYNCOBJ_WAIT): {
+@@ -274,8 +403,12 @@ static int hostdev_drm_pre(unsigned int cmd, void *p, struct hostdev_req *q)
+ 		union drm_amdgpu_fence_to_handle *f = p;
+ 
+ 		NEED(*f);
+-		if (f->in.what != AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ)
+-			return -EOPNOTSUPP;
++		if (f->in.what != AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ) {
++			q->done = true;
++			return hostfd_ioctl_fd(hf->fd, cmd, p,
++					       (__s32 *)&f->out.handle, false,
++					       true);
++		}
+ 		break;
+ 	}
+ 	/* Pins guest RAM, or takes a host fd */
+@@ -459,12 +592,14 @@ static long hostdev_ioctl(struct file *file, unsigned int cmd,
+ 		dbg = kmemdup(buf, size, GFP_KERNEL);
+ 
+ 	if (hf->dev->flags & HOSTDEV_DRM) {
+-		ret = hostdev_drm_pre(cmd, buf, &q);
+-		if (ret)
++		ret = hostdev_drm_pre(hf, cmd, buf, &q);
++		if (ret && !q.done)
+ 			goto out;
+ 	}
+ 
+-	if (q.wait_off >= 0)
++	if (q.done)
++		;
++	else if (q.wait_off >= 0)
+ 		ret = hostdev_wait(hf, &q, cmd, buf, size);
+ 	else
+ 		ret = hostdev_exec(hf, &q, cmd, 0, buf, size);
+@@ -511,10 +646,8 @@ static const struct vm_operations_struct hostdev_vm_ops = {
+ 	.fault = hostdev_vma_fault,
+ };
+ 
+-static int hostdev_mmap(struct file *file, struct vm_area_struct *vma)
++static int hostdev_map(int fd, u64 off, struct vm_area_struct *vma)
+ {
+-	struct hostdev_file *hf = file->private_data;
+-	u64 off = (u64)vma->vm_pgoff << PAGE_SHIFT;
+ 	unsigned long len = vma->vm_end - vma->vm_start;
+ 	struct um_hostmap *m;
+ 	int prot = 0, err;
+@@ -522,23 +655,12 @@ static int hostdev_mmap(struct file *file, struct vm_area_struct *vma)
+ 	if (!(vma->vm_flags & VM_SHARED))
+ 		return -EINVAL;
+ 
+-	if (hf->dev->flags & HOSTDEV_DRM) {
+-		void *entry;
+-
+-		if (off >> 32 == 0)
+-			return -EINVAL;
+-		entry = xa_load(&hf->offsets, (off >> 32) - 1);
+-		if (!entry)
+-			return -EINVAL;
+-		off = ((u64)xa_to_value(entry) << 12) + (u32)off;
+-	}
+-
+ 	if (vma->vm_flags & VM_READ)
+ 		prot |= UM_PROT_READ;
+ 	if (vma->vm_flags & VM_WRITE)
+ 		prot |= UM_PROT_WRITE;
+ 
+-	err = os_mmap_probe(hf->fd, off, len, prot);
++	err = os_mmap_probe(fd, off, len, prot);
+ 	if (err)
+ 		return err;
+ 
+@@ -548,7 +670,7 @@ static int hostdev_mmap(struct file *file, struct vm_area_struct *vma)
+ 	m->start = vma->vm_start;
+ 	m->end = vma->vm_end;
+ 	m->offset = off;
+-	m->fd = hf->fd;
++	m->fd = fd;
+ 	m->prot = prot;
+ 
+ 	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTCOPY | VM_DONTEXPAND |
+@@ -560,6 +682,317 @@ static int hostdev_mmap(struct file *file, struct vm_area_struct *vma)
+ 	return 0;
+ }
+ 
++static int hostdev_mmap(struct file *file, struct vm_area_struct *vma)
++{
++	struct hostdev_file *hf = file->private_data;
++	u64 off = (u64)vma->vm_pgoff << PAGE_SHIFT;
++
++	if (hf->dev->flags & HOSTDEV_DRM) {
++		void *entry;
++
++		if (off >> 32 == 0)
++			return -EINVAL;
++		entry = xa_load(&hf->offsets, (off >> 32) - 1);
++		if (!entry)
++			return -EINVAL;
++		off = ((u64)xa_to_value(entry) << 12) + (u32)off;
++	}
++	return hostdev_map(hf->fd, off, vma);
++}
++
++/* hostfd files: a host fd of some other kind (dma-buf, sync file, memfd) */
++
++static int hostfd_mmap(struct file *file, struct vm_area_struct *vma)
++{
++	struct hostfd *h = file->private_data;
++
++	return hostdev_map(h->fd, (u64)vma->vm_pgoff << PAGE_SHIFT, vma);
++}
++
++static loff_t hostfd_llseek(struct file *file, loff_t off, int whence)
++{
++	struct hostfd *h = file->private_data;
++
++	return hostdev_user_lseek(h->fd, off, whence);
++}
++
++/* Small pointer-free ioctls (dma-buf sync, sync file), in the kernel process */
++static long hostfd_ioctl(struct file *file, unsigned int cmd,
++			 unsigned long arg)
++{
++	struct hostfd *h = file->private_data;
++	unsigned int size = _IOC_SIZE(cmd);
++	char buf[64];
++	long ret;
++
++	if (cmd != DMA_BUF_IOCTL_SYNC && cmd != DMA_BUF_IOCTL_EXPORT_SYNC_FILE &&
++	    cmd != DMA_BUF_IOCTL_IMPORT_SYNC_FILE && cmd != SYNC_IOC_MERGE)
++		return -ENOTTY;
++	memset(buf, 0, sizeof(buf));
++	if ((_IOC_DIR(cmd) & _IOC_WRITE) &&
++	    copy_from_user(buf, (void __user *)arg, size))
++		return -EFAULT;
++
++	if (cmd == SYNC_IOC_MERGE) {
++		struct sync_merge_data *m = (void *)buf;
++		struct file *f2;
++		int fd2 = um_hostfd_of_fd(m->fd2, &f2);
++
++		if (fd2 < 0)
++			return fd2;
++		m->fd2 = fd2;
++		ret = hostdev_user_ioctl(h->fd, cmd, buf);
++		fput(f2);
++		if (!ret) {
++			m->fence = hostfd_install(m->fence);
++			if (m->fence < 0)
++				ret = m->fence;
++		}
++	} else if (cmd == DMA_BUF_IOCTL_EXPORT_SYNC_FILE) {
++		struct dma_buf_export_sync_file *e = (void *)buf;
++
++		ret = hostfd_ioctl_fd(h->fd, cmd, buf, &e->fd, false, true);
++	} else if (cmd == DMA_BUF_IOCTL_IMPORT_SYNC_FILE) {
++		struct dma_buf_import_sync_file *e = (void *)buf;
++
++		ret = hostfd_ioctl_fd(h->fd, cmd, buf, &e->fd, true, false);
++	} else {
++		ret = hostdev_user_ioctl(h->fd, cmd, buf);
++	}
++	if ((_IOC_DIR(cmd) & _IOC_READ) &&
++	    copy_to_user((void __user *)arg, buf, size))
++		return -EFAULT;
++	return ret;
++}
++
++static int hostfd_release(struct inode *inode, struct file *file)
++{
++	struct hostfd *h = file->private_data;
++
++	os_close_file(h->fd);
++	kfree(h);
++	return 0;
++}
++
++static const struct file_operations hostfd_fops = {
++	.owner = THIS_MODULE,
++	.release = hostfd_release,
++	.unlocked_ioctl = hostfd_ioctl,
++	.mmap = hostfd_mmap,
++	.llseek = hostfd_llseek,
++};
++
++static int hostshm_open(struct inode *inode, struct file *file)
++{
++	struct hostfd *h = kzalloc(sizeof(*h), GFP_KERNEL);
++
++	if (!h)
++		return -ENOMEM;
++	h->fd = hostdev_user_memfd(4);
++	if (h->fd < 0) {
++		int err = h->fd;
++
++		kfree(h);
++		return err;
++	}
++	file->private_data = h;
++	return 0;
++}
++
++static const struct file_operations hostshm_fops = {
++	.owner = THIS_MODULE,
++	.open = hostshm_open,
++	.release = hostfd_release,
++	.mmap = hostfd_mmap,
++	.llseek = hostfd_llseek,
++};
++
++static struct miscdevice hostshm_misc = {
++	.minor = MISC_DYNAMIC_MINOR,
++	.name = "hostshm",
++	.fops = &hostshm_fops,
++	.mode = 0666,
++};
++
++/* sock: one connection to a host unix socket per open */
++
++struct hostsock {
++	int fd;
++	int irq;
++	wait_queue_head_t wq;
++};
++
++#define HOSTSOCK_CHUNK	(64 << 10)
++
++static irqreturn_t hostsock_irq(int irq, void *data)
++{
++	struct hostsock *hs = data;
++
++	wake_up_interruptible(&hs->wq);
++	return IRQ_HANDLED;
++}
++
++static int hostsock_open(struct inode *inode, struct file *file)
++{
++	struct hostdev *dev = container_of(inode->i_cdev, struct hostdev, cdev);
++	struct hostsock *hs = kzalloc(sizeof(*hs), GFP_KERNEL);
++	int err;
++
++	if (!hs)
++		return -ENOMEM;
++	init_waitqueue_head(&hs->wq);
++	hs->fd = hostdev_user_connect(dev->host);
++	if (hs->fd < 0) {
++		err = hs->fd;
++		goto out;
++	}
++	hs->irq = um_request_irq(UM_IRQ_ALLOC, hs->fd, IRQ_READ, hostsock_irq,
++				 0, "hostsock", hs);
++	if (hs->irq < 0) {
++		err = hs->irq;
++		os_close_file(hs->fd);
++		goto out;
++	}
++	file->private_data = hs;
++	return stream_open(inode, file);
++out:
++	kfree(hs);
++	return err;
++}
++
++static int hostsock_release(struct inode *inode, struct file *file)
++{
++	struct hostsock *hs = file->private_data;
++
++	um_free_irq(hs->irq, hs);
++	os_close_file(hs->fd);
++	kfree(hs);
++	return 0;
++}
++
++static ssize_t hostsock_read(struct file *file, char __user *ubuf, size_t len,
++			     loff_t *ppos)
++{
++	struct hostsock *hs = file->private_data;
++	void *buf;
++	long n;
++
++	len = min_t(size_t, len, HOSTSOCK_CHUNK);
++	buf = kvmalloc(len, GFP_KERNEL);
++	if (!buf)
++		return -ENOMEM;
++	for (;;) {
++		n = hostdev_user_recv(hs->fd, buf, len);
++		if (n != -EAGAIN)
++			break;
++		if (file->f_flags & O_NONBLOCK)
++			break;
++		n = wait_event_interruptible(hs->wq, hostdev_user_poll(hs->fd) &
++					     (HOSTDEV_POLL_IN | HOSTDEV_POLL_HUP));
++		if (n)
++			break;
++	}
++	if (n > 0 && copy_to_user(ubuf, buf, n))
++		n = -EFAULT;
++	kvfree(buf);
++	return n;
++}
++
++/* The host socket buffer is full: the peer is a local process, try again */
++static long hostsock_send(struct hostsock *hs, const void *buf, size_t len,
++			  const int *fds, int nfds)
++{
++	long n;
++
++	for (;;) {
++		n = hostdev_user_send(hs->fd, buf, len, fds, nfds);
++		if (n != -EAGAIN)
++			return n;
++		if (msleep_interruptible(1))
++			return -ERESTARTSYS;
++	}
++}
++
++static ssize_t hostsock_write(struct file *file, const char __user *ubuf,
++			      size_t len, loff_t *ppos)
++{
++	struct hostsock *hs = file->private_data;
++	void *buf;
++	long n;
++
++	len = min_t(size_t, len, HOSTSOCK_CHUNK);
++	buf = kvmalloc(len, GFP_KERNEL);
++	if (!buf)
++		return -ENOMEM;
++	if (copy_from_user(buf, ubuf, len))
++		n = -EFAULT;
++	else
++		n = hostsock_send(hs, buf, len, NULL, 0);
++	kvfree(buf);
++	return n;
++}
++
++static __poll_t hostsock_poll(struct file *file, poll_table *wait)
++{
++	struct hostsock *hs = file->private_data;
++	int ev;
++
++	poll_wait(file, &hs->wq, wait);
++	ev = hostdev_user_poll(hs->fd);
++	return ((ev & HOSTDEV_POLL_IN) ? EPOLLIN | EPOLLRDNORM : 0) |
++	       ((ev & HOSTDEV_POLL_HUP) ? EPOLLHUP | EPOLLIN : 0) |
++	       EPOLLOUT | EPOLLWRNORM;
++}
++
++static long hostsock_ioctl(struct file *file, unsigned int cmd,
++			   unsigned long arg)
++{
++	struct hostsock *hs = file->private_data;
++	struct file *files[HOSTDEV_MAX_FDS];
++	int fds[HOSTDEV_MAX_FDS];
++	struct hostsock_send s;
++	void *buf = NULL;
++	long ret;
++	int i = 0;
++
++	if (cmd != HOSTSOCK_SEND)
++		return -ENOTTY;
++	if (copy_from_user(&s, (void __user *)arg, sizeof(s)))
++		return -EFAULT;
++	if (!s.len || s.len > HOSTSOCK_CHUNK || s.nfds > HOSTDEV_MAX_FDS)
++		return -EINVAL;
++
++	for (i = 0; i < s.nfds; i++) {
++		fds[i] = um_hostfd_of_fd(s.fds[i], &files[i]);
++		if (fds[i] < 0) {
++			ret = fds[i];
++			goto out;
++		}
++	}
++	buf = kvmalloc(s.len, GFP_KERNEL);
++	if (!buf)
++		ret = -ENOMEM;
++	else if (copy_from_user(buf, u64_to_user_ptr(s.data), s.len))
++		ret = -EFAULT;
++	else
++		ret = hostsock_send(hs, buf, s.len, fds, s.nfds);
++out:
++	while (i--)
++		fput(files[i]);
++	kvfree(buf);
++	return ret;
++}
++
++static const struct file_operations hostsock_fops = {
++	.owner = THIS_MODULE,
++	.open = hostsock_open,
++	.release = hostsock_release,
++	.read = hostsock_read,
++	.write = hostsock_write,
++	.poll = hostsock_poll,
++	.unlocked_ioctl = hostsock_ioctl,
++};
++
+ static int hostdev_open(struct inode *inode, struct file *file)
+ {
+ 	struct hostdev *dev = container_of(inode->i_cdev, struct hostdev, cdev);
+@@ -643,6 +1076,8 @@ static int __init hostdev_setup(char *str)
+ 			hd->flags |= HOSTDEV_DRM;
+ 		else if (!strcmp(opt, "direct"))
+ 			hd->flags |= HOSTDEV_DIRECT;
++		else if (!strcmp(opt, "sock"))
++			hd->flags |= HOSTDEV_SOCK;
+ 	}
+ 	hd->host = host;
+ 	hd->name = name;
+@@ -667,6 +1102,7 @@ static int __init hostdev_init(void)
+ 	err = class_register(&hostdev_class);
+ 	if (err)
+ 		return err;
++	misc_register(&hostshm_misc);
+ 	if (drm) {
+ 		struct platform_device *pdev;
+ 
+@@ -689,7 +1125,8 @@ static int __init hostdev_init(void)
+ 			pr_err("hostdev: %s: device number taken\n", hd->name);
+ 			continue;
+ 		}
+-		cdev_init(&hd->cdev, &hostdev_fops);
++		cdev_init(&hd->cdev, (hd->flags & HOSTDEV_SOCK) ?
++			  &hostsock_fops : &hostdev_fops);
+ 		err = cdev_add(&hd->cdev, hd->devt, 1);
+ 		if (err)
+ 			continue;
+diff --git a/arch/um/drivers/hostdev_user.c b/arch/um/drivers/hostdev_user.c
+new file mode 100644
+index 000000000000..0c4a1fe83bfa
+--- /dev/null
++++ b/arch/um/drivers/hostdev_user.c
+@@ -0,0 +1,125 @@
++// SPDX-License-Identifier: GPL-2.0
++/* Host side of hostdev_kern.c: calls made by the kernel process itself. */
++#ifndef _GNU_SOURCE
++#define _GNU_SOURCE
++#endif
++#include <errno.h>
++#include <fcntl.h>
++#include <poll.h>
++#include <string.h>
++#include <unistd.h>
++#include <sys/ioctl.h>
++#include <sys/mman.h>
++#include <sys/socket.h>
++#include <sys/syscall.h>
++#include <sys/un.h>
++#include "hostdev.h"
++
++long hostdev_user_ioctl(int fd, unsigned long cmd, void *arg)
++{
++	long ret;
++
++	do {
++		ret = ioctl(fd, cmd, arg);
++	} while (ret < 0 && errno == EINTR);
++	return ret < 0 ? -errno : ret;
++}
++
++int hostdev_user_memfd(unsigned long size)
++{
++	int fd = syscall(__NR_memfd_create, "um-hostshm", MFD_CLOEXEC);
++
++	if (fd < 0)
++		return -errno;
++	if (ftruncate(fd, size)) {
++		int err = -errno;
++
++		close(fd);
++		return err;
++	}
++	return fd;
++}
++
++long long hostdev_user_lseek(int fd, long long off, int whence)
++{
++	off_t ret = lseek(fd, off, whence);
++
++	return ret < 0 ? -errno : ret;
++}
++
++/* Connect to a unix socket; "@name" is an abstract one. Non-blocking after. */
++int hostdev_user_connect(const char *path)
++{
++	struct sockaddr_un sun = { .sun_family = AF_UNIX };
++	size_t n = strlen(path);
++	int fd, err;
++
++	if (n >= sizeof(sun.sun_path))
++		return -ENAMETOOLONG;
++	memcpy(sun.sun_path, path, n);
++	if (path[0] == '@')
++		sun.sun_path[0] = 0;
++
++	fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
++	if (fd < 0)
++		return -errno;
++	if (connect(fd, (struct sockaddr *)&sun,
++		    offsetof(struct sockaddr_un, sun_path) + n) < 0) {
++		err = -errno;
++		close(fd);
++		return err;
++	}
++	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
++	return fd;
++}
++
++/* POLLIN/POLLHUP/POLLERR state right now */
++int hostdev_user_poll(int fd)
++{
++	struct pollfd p = { .fd = fd, .events = POLLIN | POLLOUT };
++
++	if (poll(&p, 1, 0) < 0)
++		return 0;
++	return ((p.revents & POLLIN) ? HOSTDEV_POLL_IN : 0) |
++	       ((p.revents & POLLOUT) ? HOSTDEV_POLL_OUT : 0) |
++	       ((p.revents & (POLLHUP | POLLERR)) ? HOSTDEV_POLL_HUP : 0);
++}
++
++long hostdev_user_send(int fd, const void *data, unsigned long len,
++		       const int *fds, int nfds)
++{
++	union {
++		char buf[CMSG_SPACE(sizeof(int) * HOSTDEV_MAX_FDS)];
++		struct cmsghdr align;
++	} ctrl;
++	struct iovec iov = { .iov_base = (void *)data, .iov_len = len };
++	struct msghdr msg = { .msg_iov = &iov, .msg_iovlen = 1 };
++	long ret;
++
++	if (nfds) {
++		struct cmsghdr *cmsg;
++
++		memset(&ctrl, 0, sizeof(ctrl));
++		msg.msg_control = ctrl.buf;
++		msg.msg_controllen = CMSG_SPACE(sizeof(int) * nfds);
++		cmsg = CMSG_FIRSTHDR(&msg);
++		cmsg->cmsg_level = SOL_SOCKET;
++		cmsg->cmsg_type = SCM_RIGHTS;
++		cmsg->cmsg_len = CMSG_LEN(sizeof(int) * nfds);
++		memcpy(CMSG_DATA(cmsg), fds, sizeof(int) * nfds);
++	}
++	do {
++		ret = sendmsg(fd, &msg, MSG_NOSIGNAL);
++	} while (ret < 0 && errno == EINTR);
++	return ret < 0 ? -errno : ret;
++}
++
++long hostdev_user_recv(int fd, void *data, unsigned long len)
++{
++	long ret;
++
++	do {
++		ret = recv(fd, data, len, 0);
++	} while (ret < 0 && errno == EINTR);
++	return ret < 0 ? -errno : ret;
++}
 -- 
 2.43.0
 

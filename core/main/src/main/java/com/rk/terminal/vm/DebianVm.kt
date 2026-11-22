@@ -28,7 +28,7 @@ import java.util.zip.GZIPInputStream
  */
 object DebianVm {
     /** Bump with the image; an older disk is then reinstalled. */
-    private const val IMAGE = 4
+    private const val IMAGE = 5
     private const val IMAGE_URL = "https://github.com/yoro1836/ReTerminal/releases/download/rt-debian-$IMAGE/rt-debian-$IMAGE.ext4.gz"
 
     internal fun lib(ctx: Context, n: String) = File(ctx.applicationInfo.nativeLibraryDir, n)
@@ -172,6 +172,21 @@ object DebianVm {
     fun autoStart(ctx: Context) = prefs(ctx).getBoolean("auto_start", true)
     fun setAutoStart(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("auto_start", on).apply()
 
+    /** Phone GPU render node passed into the guest (kernel hostdev=); off by default until phone-tested. */
+    const val GPU_NODE = "/dev/dri/renderD128"
+    fun gpu(ctx: Context) = prefs(ctx).getBoolean("gpu", false)
+    fun setGpu(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("gpu", on).apply()
+
+    /**
+     * GPU on: the render node, plus the in-app X server's socket as /dev/hostx11
+     * (guest xbridge serves it at :0 with zero-copy DRI3). The socket is
+     * connected per open, so the X server may start after the VM.
+     */
+    private fun gpuArgs(ctx: Context): List<String> =
+        if (!gpu(ctx) || !File(GPU_NODE).exists()) emptyList()
+        else listOf("hostdev=$GPU_NODE,dri/renderD128,226:128,drm",
+            "hostdev=${X11.socket(ctx).path},hostx11,240:0,sock")
+
     fun trimAtBoot(ctx: Context) = prefs(ctx).getBoolean("trim_boot", true)
     fun setTrimAtBoot(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("trim_boot", on).apply()
     /** Grow the disk to the phone's free space at each boot (never shrinks). */
@@ -311,7 +326,7 @@ object DebianVm {
             "stub_exe=" + lib(app, "libumstub.so").path,
             "ubd0=" + disk(app).path, "root=/dev/ubda", "rw",
             "rtkey=$pub", "rtswap=${sp.swapMb}",
-        ) + lib(app, "libumlinitrd.so").let { if (it.isFile) listOf("initrd=" + it.path) else emptyList() }
+        ) + gpuArgs(app) + lib(app, "libumlinitrd.so").let { if (it.isFile) listOf("initrd=" + it.path) else emptyList() }
         val mask = cpuMask(app)
         val pinned = if (mask != 0L && File("/system/bin/taskset").exists())
             listOf("/system/bin/taskset", java.lang.Long.toHexString(mask)) + cmd else cmd
