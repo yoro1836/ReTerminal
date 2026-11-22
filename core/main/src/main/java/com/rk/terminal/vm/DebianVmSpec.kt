@@ -40,7 +40,7 @@ fun DebianVmSpec() {
     fun gb(mb: Int) = "${mb / 1024.0}".removeSuffix(".0") + " GB"
 
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Line("Cores", "$cpus")
+        Line("Cores", if (cpus > DebianVm.fastCpus) "$cpus (more than the ${DebianVm.fastCpus} fast cores: slower)" else "$cpus")
         Slider(cpus.toFloat(), { cpus = it.roundToInt() }, Modifier.fillMaxWidth(),
             valueRange = 1f..maxCpus.toFloat(), steps = (maxCpus - 2).coerceAtLeast(0),
             onValueChangeFinished = ::save)

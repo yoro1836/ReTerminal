@@ -66,6 +66,19 @@ object DebianVm {
     }
 
     /**
+     * Host cores with cpu_capacity above half the biggest (the kernel's own
+     * "fast core" rule). More vCPUs than this makes the VM slower, so it is
+     * the default core count.
+     */
+    val fastCpus: Int by lazy {
+        val cap = (0 until hostCpus.coerceAtMost(64)).map { i ->
+            runCatching { File("/sys/devices/system/cpu/cpu$i/cpu_capacity").readText().trim().toInt() }.getOrDefault(0)
+        }
+        val max = cap.maxOrNull() ?: 0
+        if (max <= 0) minOf(4, hostCpus) else cap.count { 2 * it > max }
+    }
+
+    /**
      * Host CPUs the whole VM (UML kernel, vCPU threads, stubs, passt) is pinned
      * to, as a bit mask; 0 = no pinning. Applied at the next boot via taskset.
      */
@@ -101,7 +114,7 @@ object DebianVm {
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("debian_vm", Context.MODE_PRIVATE)
     fun spec(ctx: Context) = prefs(ctx).let {
         Spec(
-            it.getInt("cpus", minOf(4, hostCpus)).coerceIn(1, maxCpus),
+            it.getInt("cpus", fastCpus).coerceIn(1, maxCpus),
             it.getInt("mem", 2048),
             it.getInt("swap", 1024),
             it.getInt("disk", 16),
