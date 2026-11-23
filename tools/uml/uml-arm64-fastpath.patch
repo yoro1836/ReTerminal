@@ -1,7 +1,7 @@
 From 122de0338bebb3e2117380206901c9d51aaa6ad2 Mon Sep 17 00:00:00 2001
 From: t <t@t>
 Date: Fri, 20 Nov 2026 06:29:49 +0000
-Subject: [PATCH 01/22] um/arm64: syscall-site fast path (wip)
+Subject: [PATCH 01/23] um/arm64: syscall-site fast path (wip)
 
 ---
  arch/arm64/um/Kconfig                       |  11 +
@@ -907,7 +907,7 @@ index 81fef1c9ad03..9d2abb89254a 100644
 From c8d8a77cb91ed96de8dbff4da1d2120b1243f350 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:17:58 +0000
-Subject: [PATCH 02/22] um/arm64: fastpath fixes (slot floor, stub-only
+Subject: [PATCH 02/23] um/arm64: fastpath fixes (slot floor, stub-only
  stores), any svc site, memfd physmem, spin 200
 
 ---
@@ -1217,7 +1217,7 @@ index e40bc4559003..9b900dab3408 100644
 From 2c1f4618bca1daa15e70da5e702ff5a65c10296f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:36:39 +0000
-Subject: [PATCH 03/22] um: stub zygote with pre-filtered spare stubs
+Subject: [PATCH 03/23] um: stub zygote with pre-filtered spare stubs
  (stub_zygote=), spawn timing stat
 
 ---
@@ -1747,7 +1747,7 @@ index 58f6010ade11..08e5938c0594 100644
 From bc2ab4b82f6acef01d0ede8bb123cc2771617c80 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:46:48 +0000
-Subject: [PATCH 04/22] um: stub_pin (kernel thread and stubs on separate host
+Subject: [PATCH 04/23] um: stub_pin (kernel thread and stubs on separate host
  CPUs, default on), spin backoff knob, umstat= timing
 
 ---
@@ -2079,7 +2079,7 @@ index d3be0657d1a5..cc3ade2292ec 100644
 From bb5bff45121b48dc19017e60064af53b93afb90f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:55:48 +0000
-Subject: [PATCH 05/22] um: our options default on (seccomp=auto, stub_exe next
+Subject: [PATCH 05/23] um: our options default on (seccomp=auto, stub_exe next
  to the binary, physmem_memfd=)
 
 ---
@@ -2187,7 +2187,7 @@ index bc129f59cb7e..0683b9e5fe04 100644
 From d45f97a7f1fb413bb0680245c7740e8408ad7713 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 09:02:27 +0000
-Subject: [PATCH 06/22] um: SMP build (NR_CPUS 8): serialize start_userspace,
+Subject: [PATCH 06/23] um: SMP build (NR_CPUS 8): serialize start_userspace,
  no stub_pin with ncpus>1
 
 ---
@@ -2264,7 +2264,7 @@ index 3948eaaa56ce..7d59e8dc57f8 100755
 From e18c1a4b619b0a049af77ab7b1dba30305f0619c Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 04:11:36 +0000
-Subject: [PATCH 07/22] um: stubs keep physmem open (no SCM_RIGHTS per map
+Subject: [PATCH 07/23] um: stubs keep physmem open (no SCM_RIGHTS per map
  batch, no empty recvmsg); umstat per-syscall breakdown
 
 ---
@@ -2512,7 +2512,7 @@ index b49db9ab2eec..edb488636459 100644
 From d69aea858f5832ae3a356a7b9333cf1c3c68c69b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:10:01 +0000
-Subject: [PATCH 08/22] um: stub_pin keeps stubs off little cores (capacity <
+Subject: [PATCH 08/23] um: stub_pin keeps stubs off little cores (capacity <
  half of the best remaining)
 
 ---
@@ -2669,7 +2669,7 @@ index 59a77a4d611c..b2049492a0ce 100644
 From 2bb6ebd05cfea65778aa0eec9e9bef6a02867b9e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:13:06 +0000
-Subject: [PATCH 09/22] um: with SMP too, keep the kernel and stubs on the fast
+Subject: [PATCH 09/23] um: with SMP too, keep the kernel and stubs on the fast
  CPUs (stub_pin)
 
 ---
@@ -2793,7 +2793,7 @@ index 7234568b1943..26197dd3fc9b 100644
 From 6f44d440009f7d5851b6ccdf06633aec1d3a367e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:22:36 +0000
-Subject: [PATCH 10/22] um: SMP: defer IPIs in the handler while IRQs are off
+Subject: [PATCH 10/23] um: SMP: defer IPIs in the handler while IRQs are off
  instead of a host sigprocmask per local_irq_disable/enable
 
 ---
@@ -3005,7 +3005,7 @@ index 13ebc86918d4..9fcabde8c2c8 100644
 From b5c842c3ef50edcc8882acf11d281a91ec85bca8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:41:39 +0000
-Subject: [PATCH 11/22] um: stub_pin falls back to /proc/cpuinfo CPU part when
+Subject: [PATCH 11/23] um: stub_pin falls back to /proc/cpuinfo CPU part when
  sysfs CPU capacity is unreadable
 
 ---
@@ -3091,7 +3091,7 @@ index 851b0ebfe45c..ae927dfac43a 100644
 From 8d43843d827c864c5c3b4001893c985c6c3a78f8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:42:16 +0000
-Subject: [PATCH 12/22] um: stub_pin: don't squeeze more vCPUs than fast host
+Subject: [PATCH 12/23] um: stub_pin: don't squeeze more vCPUs than fast host
  CPUs onto them
 
 ---
@@ -3126,7 +3126,7 @@ index ae927dfac43a..a992391cf98b 100644
 From 847586991054563aa3dfa9812b5168213db56ec1 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:51:45 +0000
-Subject: [PATCH 13/22] um: handoff spin yields every ~3us so a peer on the
+Subject: [PATCH 13/23] um: handoff spin yields every ~3us so a peer on the
  same host CPU can run (sched_yield allowed for stubs)
 
 ---
@@ -3237,7 +3237,7 @@ index a3feb673bf94..4a6a2fbf9d5b 100644
 From f400252e028f1b0494259cad3b1c624f6ee6dba4 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:08:37 +0000
-Subject: [PATCH 14/22] um: keep one PROT_NONE anchor per 2MB of each stub so
+Subject: [PATCH 14/23] um: keep one PROT_NONE anchor per 2MB of each stub so
  the host keeps page tables between unmap and map (tlb_anchor=)
 
 ---
@@ -3525,7 +3525,7 @@ index c6e856d71f76..bc8942ac199d 100644
 From 16fdaab6a64632e525ea6c7bc52a8526239f6876 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:17:10 +0000
-Subject: [PATCH 15/22] um: also anchor a 2MB chunk when an upper-level table
+Subject: [PATCH 15/23] um: also anchor a 2MB chunk when an upper-level table
  was unmapped
 
 Lone mappings (e.g. mmap/munmap loops) free the guest pmd/pud on munmap, so
@@ -3643,7 +3643,7 @@ index c58d950e6de0..5fd93232042a 100644
 From a737e30ae2e2d8318f390adedac1eb02cad89879 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:48:30 +0000
-Subject: [PATCH 16/22] um: map guest RAM into stubs with MAP_POPULATE
+Subject: [PATCH 16/23] um: map guest RAM into stubs with MAP_POPULATE
  (stub_populate=)
 
 A 16K guest page on a 4K host took up to four host faults on first touch.
@@ -3750,7 +3750,7 @@ index bc8942ac199d..ee1c2763bef6 100644
 From d4f10447f325785c613de8e7c34890ff00765c2e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 08:52:24 +0000
-Subject: [PATCH 17/22] um/arm64: keep the fast-path frame out of the host
+Subject: [PATCH 17/23] um/arm64: keep the fast-path frame out of the host
  signal stack
 
 A SIGALRM taken while fast_busy is set but sp is still on the guest stack
@@ -3864,7 +3864,7 @@ index 0683b9e5fe04..2dda297e94d2 100644
 From 4950bb4dbd52f3d3a69b944d81a544306d338b2a Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 10:43:06 +0000
-Subject: [PATCH 18/22] um: don't wait for a zygote spare to boot in
+Subject: [PATCH 18/23] um: don't wait for a zygote spare to boot in
  start_userspace (stub_boot_async=)
 
 Overlaps the spare's wakeup with the rest of fork. SIGALRM is held back
@@ -4098,7 +4098,7 @@ index a992391cf98b..85cb1cc945a1 100644
 From e2db75bcf6aacd84c5eb20f83008376749e9d265 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:06:00 +0000
-Subject: [PATCH 19/22] um: say why stub_pin did or did not pin
+Subject: [PATCH 19/23] um: say why stub_pin did or did not pin
  (os_pin_fast_cpus)
 
 Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
@@ -4163,7 +4163,7 @@ index 85cb1cc945a1..12fc49b26920 100644
 From 0900c3a91e5c77e9c65a07e58756474e3be6e10d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:06:02 +0000
-Subject: [PATCH 20/22] um: host character device passthrough (hostdev=)
+Subject: [PATCH 20/23] um: host character device passthrough (hostdev=)
 
 hostdev=<host path>,<guest name>,<major>:<minor>[,drm] makes a guest
 character device whose ioctls run on the host fd inside the caller's stub
@@ -5439,7 +5439,7 @@ index ee1c2763bef6..4d3040727522 100644
 From c56f53b925b8ac2d81a731be8608024667297f25 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:37:35 +0000
-Subject: [PATCH 21/22] um: hostdev: host fds as guest files, host unix socket
+Subject: [PATCH 21/23] um: hostdev: host fds as guest files, host unix socket
  and shm devices
 
 PRIME, syncobj and dma-buf sync-file ioctls now run in the kernel process
@@ -6279,7 +6279,7 @@ index 000000000000..0c4a1fe83bfa
 From 01e1677c6165190878f9ff9e0fb802d5ed59698d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 01:18:37 +0000
-Subject: [PATCH 22/22] um/arm64: fastpath: page-align the slot search window
+Subject: [PATCH 22/23] um/arm64: fastpath: page-align the slot search window
 
 vm_unmapped_area() returns low_limit unchanged when the gap starts there, and
 low_limit was site - FP_RANGE, so for any site above 120 MiB the slot page
@@ -6331,6 +6331,442 @@ index 78e8e3dc3aae..cb0449bf62a9 100644
  	}
  }
  
+-- 
+2.43.0
+
+
+From 776d8bf6682e2f999df15bd291b32f7d941367c3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 23 Nov 2026 01:50:27 +0000
+Subject: [PATCH 23/23] um: cheaper fork: inherited accessed bit, mprotect
+ sync, write-fault-around
+
+A Python fork()+waitpid() took about 105 guest page faults, each a host
+signal plus a stub handoff (30-50us on an S24):
+
+- fork() gave the child old PTEs, which are mapped without access here, so
+  every inherited page faulted on first touch. arch_fork_pte_mkold() lets
+  the child keep the parent's accessed bit (fork_young=).
+- A PTE change that keeps the page (write-protect at fork, write access
+  back, young/dirty) is now marked _PAGE_PROTONLY and synced with
+  STUB_SYSCALL_MPROTECT, which merges over pages that are not adjacent in
+  physmem (tlb_protect=).
+- A write fault on a page that fork() write-protected also gives write
+  access back to up to 64 neighbours on each side that are dirty and no
+  longer shared (wp_around=).
+
+The stub's syscall switch grew a case; build stub.o with -fno-jump-tables,
+the table would live outside the one page that is mapped.
+
+S24, Python 3.13 fork+waitpid: 8.4 -> 6.5 ms in one A/B boot, faults per
+fork 105 -> 58.
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ arch/um/include/asm/pgtable.h           | 35 ++++++++-
+ arch/um/include/shared/os.h             |  2 +
+ arch/um/include/shared/skas/stub-data.h |  2 +
+ arch/um/kernel/skas/Makefile            |  3 +
+ arch/um/kernel/skas/stub.c              | 10 +++
+ arch/um/kernel/skas/stub_exe.c          |  5 +-
+ arch/um/kernel/tlb.c                    | 16 +++-
+ arch/um/kernel/trap.c                   | 98 +++++++++++++++++++++++++
+ arch/um/os-Linux/skas/mem.c             | 21 ++++++
+ mm/memory.c                             |  7 +-
+ 10 files changed, 193 insertions(+), 6 deletions(-)
+
+diff --git a/arch/um/include/asm/pgtable.h b/arch/um/include/asm/pgtable.h
+index 88ea8434364d..e4c9e1662212 100644
+--- a/arch/um/include/asm/pgtable.h
++++ b/arch/um/include/asm/pgtable.h
+@@ -13,6 +13,12 @@
+ 
+ #define _PAGE_PRESENT	0x001
+ #define _PAGE_NEEDSYNC	0x002
++/*
++ * With _PAGE_NEEDSYNC on a present PTE: the host maps this very page here
++ * already and only the access differs, so the sync can be an mprotect, which
++ * unlike the mmap merges across pages that are not adjacent in physmem.
++ */
++#define _PAGE_PROTONLY	0x004
+ #define _PAGE_RW	0x020
+ #define _PAGE_USER	0x040
+ #define _PAGE_ACCESSED	0x080
+@@ -153,6 +159,15 @@ static inline pte_t pte_mkclean(pte_t pte)
+ 	return(pte);
+ }
+ 
++/*
++ * fork() hands the child old PTEs so that its own accesses are what marks
++ * them. Here an old PTE is mapped without access on the host and the first
++ * touch is a host signal plus a stub handoff, about half of what a child does
++ * before it execs or exits. Let it inherit the parent's accessed bit.
++ */
++extern int um_fork_young;
++#define arch_fork_pte_mkold(pte) (um_fork_young ? (pte) : pte_mkold(pte))
++
+ static inline pte_t pte_mkold(pte_t pte)
+ {
+ 	pte_clear_bits(pte, _PAGE_ACCESSED);
+@@ -191,7 +206,7 @@ static inline pte_t pte_mkwrite_novma(pte_t pte)
+ 
+ static inline pte_t pte_mkuptodate(pte_t pte)
+ {
+-	pte_clear_bits(pte, _PAGE_NEEDSYNC);
++	pte_clear_bits(pte, _PAGE_NEEDSYNC | _PAGE_PROTONLY);
+ 	return pte;
+ }
+ 
+@@ -203,7 +218,22 @@ static inline pte_t pte_mkneedsync(pte_t pte)
+ 
+ static inline void set_pte(pte_t *pteptr, pte_t pteval)
+ {
++	unsigned long old = pte_val(*pteptr);
++	bool same;
++
++	/*
++	 * The host has the old page mapped if the old PTE was synced, or was
++	 * itself only a change of access to one that was.
++	 */
++	same = (old & (_PAGE_PRESENT | _PAGE_PROTNONE)) &&
++	       (pte_val(pteval) & (_PAGE_PRESENT | _PAGE_PROTNONE)) &&
++	       !((old ^ pte_val(pteval)) & PAGE_MASK) &&
++	       (!(old & _PAGE_NEEDSYNC) || (old & _PAGE_PROTONLY));
++
+ 	pte_copy(*pteptr, pteval);
++	pte_clear_bits(*pteptr, _PAGE_PROTONLY);
++	if (same)
++		pte_set_bits(*pteptr, _PAGE_PROTONLY);
+ 
+ 	/* If it's a swap entry, it needs to be marked _PAGE_NEEDSYNC so
+ 	 * update_pte_range knows to unmap it.
+@@ -251,7 +281,8 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
+ #define __HAVE_ARCH_PTE_SAME
+ static inline int pte_same(pte_t pte_a, pte_t pte_b)
+ {
+-	return !((pte_val(pte_a) ^ pte_val(pte_b)) & ~_PAGE_NEEDSYNC);
++	return !((pte_val(pte_a) ^ pte_val(pte_b)) &
++		 ~(_PAGE_NEEDSYNC | _PAGE_PROTONLY));
+ }
+ 
+ #define __virt_to_page(virt) phys_to_page(__pa(virt))
+diff --git a/arch/um/include/shared/os.h b/arch/um/include/shared/os.h
+index cdb6e31a26ff..b561e4251e6f 100644
+--- a/arch/um/include/shared/os.h
++++ b/arch/um/include/shared/os.h
+@@ -295,6 +295,8 @@ int map(struct mm_id *mm_idp, unsigned long virt,
+ 	unsigned long long offset);
+ int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len);
+ int anchor(struct mm_id *mm_idp, unsigned long addr, unsigned long len);
++int protect(struct mm_id *mm_idp, unsigned long addr, unsigned long len,
++	    int prot);
+ extern int stub_populate;
+ 
+ /* skas/process.c */
+diff --git a/arch/um/include/shared/skas/stub-data.h b/arch/um/include/shared/skas/stub-data.h
+index da8ea6bde09b..b85fec69e9cf 100644
+--- a/arch/um/include/shared/skas/stub-data.h
++++ b/arch/um/include/shared/skas/stub-data.h
+@@ -122,6 +122,8 @@ enum stub_syscall_type {
+ 	 * passthrough (drivers/hostdev_kern.c); result in mem.length.
+ 	 */
+ 	STUB_SYSCALL_IOCTL,
++	/* The page(s) stay, only the access changes: see _PAGE_PROTONLY */
++	STUB_SYSCALL_MPROTECT,
+ };
+ 
+ struct stub_syscall {
+diff --git a/arch/um/kernel/skas/Makefile b/arch/um/kernel/skas/Makefile
+index df602bfeeb64..dd7063609d75 100644
+--- a/arch/um/kernel/skas/Makefile
++++ b/arch/um/kernel/skas/Makefile
+@@ -50,6 +50,9 @@ targets += stub_exe.dbg stub_exe $(stub_exe_objs-y)
+ # disable it
+ 
+ CFLAGS_stub.o := $(CFLAGS_NO_HARDENING)
++# The stub is one page of code mapped on its own: a switch must not turn into
++# a jump table in .rodata, which is not there.
++CFLAGS_stub.o += -fno-jump-tables
+ CFLAGS_stub_exe.o := $(CFLAGS_NO_HARDENING)
+ 
+ # Clang will call memset() from __builtin_alloca() when stack variable
+diff --git a/arch/um/kernel/skas/stub.c b/arch/um/kernel/skas/stub.c
+index d5e882216541..e598593337ec 100644
+--- a/arch/um/kernel/skas/stub.c
++++ b/arch/um/kernel/skas/stub.c
+@@ -83,6 +83,16 @@ static __always_inline int syscall_handler(int fd_map[STUB_MAX_FDS])
+ 						       sc->mem.addr,
+ 						       sc->mem.offset);
+ 			break;
++		case STUB_SYSCALL_MPROTECT:
++			res = stub_syscall3(__NR_mprotect,
++					    sc->mem.addr, sc->mem.length,
++					    sc->mem.prot);
++			if (res) {
++				d->err = res;
++				d->syscall_data_len = i;
++				return -1;
++			}
++			break;
+ 		case STUB_SYSCALL_MUNMAP:
+ 			res = stub_syscall2(__NR_munmap,
+ 					    sc->mem.addr, sc->mem.length);
+diff --git a/arch/um/kernel/skas/stub_exe.c b/arch/um/kernel/skas/stub_exe.c
+index 15887ffa8f23..c0ff562fd9b5 100644
+--- a/arch/um/kernel/skas/stub_exe.c
++++ b/arch/um/kernel/skas/stub_exe.c
+@@ -269,7 +269,10 @@ noinline static void real_init(void)
+ 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+ 				 offsetof(struct seccomp_data, nr)),
+ 
+-			/* [10-18] Check against permitted syscalls */
++			/* [10-19] Check against permitted syscalls */
++			/* STUB_SYSCALL_MPROTECT */
++			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_mprotect,
++				 11, 0),
+ 			/* Host device passthrough, STUB_SYSCALL_IOCTL */
+ 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_ioctl,
+ 				 10, 0),
+diff --git a/arch/um/kernel/tlb.c b/arch/um/kernel/tlb.c
+index c30b24439dca..ddbd615bf865 100644
+--- a/arch/um/kernel/tlb.c
++++ b/arch/um/kernel/tlb.c
+@@ -28,6 +28,8 @@ struct vm_ops {
+ 		     unsigned long virt, unsigned long len);
+ 	int (*anchor)(struct mm_id *mm_idp,
+ 		      unsigned long virt, unsigned long len);
++	int (*protect)(struct mm_id *mm_idp,
++		       unsigned long virt, unsigned long len, int prot);
+ };
+ 
+ /*
+@@ -321,8 +323,13 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
+ 			       (w ? UM_PROT_WRITE : 0) |
+ 			       (x ? UM_PROT_EXEC : 0);
+ 
+-			ret = ops->mmap(ops->mm_idp, addr, PAGE_SIZE,
+-					prot, fd, offset);
++			if (ops->protect &&
++			    (pte_val(*pte) & _PAGE_PROTONLY))
++				ret = ops->protect(ops->mm_idp, addr,
++						   PAGE_SIZE, prot);
++			else
++				ret = ops->mmap(ops->mm_idp, addr, PAGE_SIZE,
++						prot, fd, offset);
+ 			if (ops->anchor && *anchor_slot(ops->mm, addr) == addr)
+ 				*anchor_slot(ops->mm, addr) = 0;
+ 		} else {
+@@ -426,6 +433,9 @@ __uml_setup("tlb_anchor=", um_anchor_setup,
+ "    Keep one PROT_NONE mapping per 2MB of each guest address space so the\n"
+ "    host keeps its page tables between unmap and map. Default: 1.\n\n");
+ 
++static int um_protect_on = 1;
++core_param(tlb_protect, um_protect_on, int, 0644);
++
+ int um_tlb_sync(struct mm_struct *mm)
+ {
+ 	pgd_t *pgd;
+@@ -448,10 +458,12 @@ int um_tlb_sync(struct mm_struct *mm)
+ 		ops.mmap = kern_map;
+ 		ops.unmap = kern_unmap;
+ 		ops.anchor = NULL;
++		ops.protect = NULL;
+ 	} else {
+ 		ops.mmap = map;
+ 		ops.unmap = unmap;
+ 		ops.anchor = um_anchor_on ? anchor : NULL;
++		ops.protect = um_protect_on ? protect : NULL;
+ 	}
+ 
+ 	addr = mm->context.sync_tlb_range_from;
+diff --git a/arch/um/kernel/trap.c b/arch/um/kernel/trap.c
+index e9f3063c6355..556551c92022 100644
+--- a/arch/um/kernel/trap.c
++++ b/arch/um/kernel/trap.c
+@@ -394,6 +394,98 @@ static bool um_prefault_around(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	return true;
+ }
+ 
++int um_fork_young = 1;
++core_param(fork_young, um_fork_young, int, 0644);
++
++/*
++ * fork() write-protects every private page of the parent, and each one the
++ * parent writes to afterwards is a fault of its own even when the child is
++ * long gone and the page is the parent's alone again. A write fault on such a
++ * page is a good sign that its neighbours are next, so give write access back
++ * to those of them that need no copy, on the same handoff: pages that were
++ * dirty and writable before, and that nobody else holds. With tlb_protect
++ * they sync as a few mprotect ranges.
++ *
++ * The checks here only pick candidates; handle_mm_fault() decides. If one
++ * turns out shared after all it is copied, as it would be on a real write.
++ */
++static unsigned int um_wp_around_pages __read_mostly = 64;
++core_param(wp_around, um_wp_around_pages, uint, 0644);
++
++/* A write to a page that is mapped, accessed and dirty, but read-only? */
++static bool um_wp_candidate(pte_t pte)
++{
++	return (pte_val(pte) & (_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |
++				_PAGE_DIRTY)) ==
++	       (_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_DIRTY);
++}
++
++static bool um_wp_fault(struct mm_struct *mm, unsigned long address)
++{
++	pte_t *pte = virt_to_pte(mm, address);
++
++	return pte && um_wp_candidate(*pte);
++}
++
++/* As um_prefault_around(): false if the mmap lock is gone. */
++static bool um_wp_around(struct mm_struct *mm, struct vm_area_struct *vma,
++			 unsigned long address, unsigned int flags)
++{
++	unsigned long span = (unsigned long)um_wp_around_pages << PAGE_SHIFT;
++	unsigned long start, end, addr;
++	pmd_t *pmd;
++	int slots;
++
++	if (!span || (vma->vm_flags & (VM_SHARED | VM_PFNMAP | VM_MIXEDMAP |
++				       VM_HUGETLB)) ||
++	    !(vma->vm_flags & VM_WRITE) || userfaultfd_armed(vma))
++		return true;
++
++	address &= PAGE_MASK;
++	start = address & PMD_MASK;
++	end = min(start + PMD_SIZE, vma->vm_end);
++	start = max(start, vma->vm_start);
++	if (address - start > span)
++		start = address - span;
++	if (end - address > span + PAGE_SIZE)
++		end = address + span + PAGE_SIZE;
++
++	pmd = pmd_off(mm, address);
++	if (!pmd_present(*pmd))
++		return true;
++
++	slots = syscall_stub_free_slots(&mm->context.id) - 2;
++	flags &= ~(FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
++		   FAULT_FLAG_INTERRUPTIBLE | FAULT_FLAG_TRIED);
++	flags |= FAULT_FLAG_WRITE;
++
++	for (addr = start; addr < end && slots > 0; addr += PAGE_SIZE) {
++		pte_t pte = *pte_offset_kernel(pmd, addr);
++		struct folio *folio;
++		struct page *page;
++		vm_fault_t fault;
++
++		if (addr == address || !um_wp_candidate(pte))
++			continue;
++		page = vm_normal_page(vma, addr, pte);
++		if (!page)
++			continue;
++		folio = page_folio(page);
++		if (!folio_test_anon(folio) || folio_test_large(folio) ||
++		    folio_test_ksm(folio) || folio_test_swapcache(folio) ||
++		    folio_ref_count(folio) != 1)
++			continue;
++
++		fault = handle_mm_fault(vma, addr, flags, NULL);
++		if (WARN_ON_ONCE(fault & (VM_FAULT_RETRY | VM_FAULT_COMPLETED)))
++			return false;
++		if (fault & VM_FAULT_ERROR)
++			break;
++		slots--;
++	}
++	return true;
++}
++
+ /*
+  * Note this is constrained to return 0, -EFAULT, -EACCES, -ENOMEM by
+  * segv().
+@@ -407,6 +499,7 @@ int handle_page_fault(unsigned long address, unsigned long ip,
+ 	pte_t *pte;
+ 	int err = -EFAULT;
+ 	unsigned int flags = FAULT_FLAG_DEFAULT;
++	bool wp = false;
+ 
+ 	*code_out = SEGV_MAPERR;
+ 
+@@ -440,6 +533,9 @@ int handle_page_fault(unsigned long address, unsigned long ip,
+ 	 * direct mapping on the way to userspace. Kernel access to it sees no
+ 	 * PTE and fails with EFAULT.
+ 	 */
++	if (is_user && is_write)
++		wp = um_wp_fault(mm, address);
++
+ 	if ((vma->vm_flags & VM_PFNMAP) && !um_hostmap_fault(mm, address)) {
+ 		err = 0;
+ 		goto out;
+@@ -488,6 +584,8 @@ int handle_page_fault(unsigned long address, unsigned long ip,
+ 	 */
+ 	if (is_user && !um_prefault_around(mm, vma, address, flags))
+ 		goto out_nosemaphore;
++	if (wp && !um_wp_around(mm, vma, address, flags))
++		goto out_nosemaphore;
+ 
+ 	/*
+ 	 * The below warning was added in place of
+diff --git a/arch/um/os-Linux/skas/mem.c b/arch/um/os-Linux/skas/mem.c
+index 4d3040727522..9494bd30730a 100644
+--- a/arch/um/os-Linux/skas/mem.c
++++ b/arch/um/os-Linux/skas/mem.c
+@@ -325,6 +325,27 @@ int anchor(struct mm_id *mm_idp, unsigned long addr, unsigned long len)
+ 	return 0;
+ }
+ 
++/* Change the access of what is mapped there already. */
++int protect(struct mm_id *mm_idp, unsigned long addr, unsigned long len,
++	    int prot)
++{
++	struct stub_syscall *sc;
++
++	sc = syscall_stub_get_previous(mm_idp, STUB_SYSCALL_MPROTECT, addr);
++	if (sc && sc->mem.prot == prot) {
++		sc->mem.length += len;
++		return 0;
++	}
++
++	sc = syscall_stub_alloc(mm_idp);
++	sc->syscall = STUB_SYSCALL_MPROTECT;
++	sc->mem.addr = addr;
++	sc->mem.length = len;
++	sc->mem.prot = prot;
++
++	return 0;
++}
++
+ int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len)
+ {
+ 	struct stub_syscall *sc;
+diff --git a/mm/memory.c b/mm/memory.c
+index 8b0c2c735d3d..4034490e3cbd 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1158,6 +1158,11 @@ copy_present_page(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma
+ 	return 0;
+ }
+ 
++/* An architecture that pays for every access-flag fault may keep the bit. */
++#ifndef arch_fork_pte_mkold
++#define arch_fork_pte_mkold(pte)	pte_mkold(pte)
++#endif
++
+ static __always_inline void __copy_present_ptes(struct vm_area_struct *dst_vma,
+ 		struct vm_area_struct *src_vma, pte_t *dst_pte, pte_t *src_pte,
+ 		pte_t pte, unsigned long addr, int nr)
+@@ -1195,7 +1200,7 @@ static __always_inline void __copy_present_ptes(struct vm_area_struct *dst_vma,
+ 	/* If it's a shared mapping, mark it clean in the child. */
+ 	if (src_vma->vm_flags & VM_SHARED)
+ 		pte = pte_mkclean(pte);
+-	pte = pte_mkold(pte);
++	pte = arch_fork_pte_mkold(pte);
+ 
+ 	set_ptes(dst_vma->vm_mm, addr, dst_pte, pte, nr);
+ }
 -- 
 2.43.0
 
