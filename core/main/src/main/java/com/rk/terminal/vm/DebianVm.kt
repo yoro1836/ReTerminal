@@ -320,6 +320,7 @@ object DebianVm {
         } else if (disk(app).length() < want) RandomAccessFile(disk(app), "rw").use { it.setLength(want) }
         val cmd = listOf(
             lib(app, "libumnet.so").path, "--passt", lib(app, "libpasst.so").path,
+            "--dns", NetDns.forBoot(app),
             "--tcp", "127.0.0.1/" + (listOf("$port:22") + forwards(app)).joinToString(","), "--",
             lib(app, "libuml.so").path, "mem=${sp.memMb}M", "ncpus=${sp.cpus}",
             "con=null", "con0=fd:0,fd:1",
@@ -348,6 +349,8 @@ object DebianVm {
             while (proc === p && p.isAlive) {
                 if (sshTrue(app, port)) {
                     if (proc === p) status(app, "ready")
+                    NetDns.watch(app)
+                    NetDns.apply(app, NetDns.current(app))
                     break
                 }
                 Thread.sleep(1000)

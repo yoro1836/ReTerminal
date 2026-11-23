@@ -67,6 +67,10 @@ fun DebianVmSpec() {
             "Boot Debian when the app opens. Off: Debian tabs show that the VM is off, with a Start button.",
             autoStart) { autoStart = it; DebianVm.setAutoStart(ctx, it) }
         var trimBoot by remember { mutableStateOf(DebianVm.trimAtBoot(ctx)) }
+        var dnsFollow by remember { mutableStateOf(NetDns.follow(ctx)) }
+        Toggle("Use the phone's DNS",
+            "The VM asks the DNS server of the phone's current network (Wi-Fi or mobile data) and follows it when the network changes, for public Wi-Fi that blocks outside DNS. Off: always 1.1.1.1.",
+            dnsFollow) { dnsFollow = it; NetDns.setFollow(ctx, it); if (it) { NetDns.watch(ctx); NetDns.apply(ctx, NetDns.current(ctx)) } }
         var gpu by remember { mutableStateOf(DebianVm.gpu(ctx)) }
         Toggle("GPU acceleration",
             "Pass the phone GPU (${DebianVm.GPU_NODE}) into the VM for Vulkan (RADV Xclipse in the image) and show X apps on Termux:X11 without copying. Applies at the next boot. Experimental.",
