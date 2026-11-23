@@ -1,7 +1,7 @@
 From 122de0338bebb3e2117380206901c9d51aaa6ad2 Mon Sep 17 00:00:00 2001
 From: t <t@t>
 Date: Fri, 20 Nov 2026 06:29:49 +0000
-Subject: [PATCH 01/25] um/arm64: syscall-site fast path (wip)
+Subject: [PATCH 01/27] um/arm64: syscall-site fast path (wip)
 
 ---
  arch/arm64/um/Kconfig                       |  11 +
@@ -907,7 +907,7 @@ index 81fef1c9ad03..9d2abb89254a 100644
 From c8d8a77cb91ed96de8dbff4da1d2120b1243f350 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:17:58 +0000
-Subject: [PATCH 02/25] um/arm64: fastpath fixes (slot floor, stub-only
+Subject: [PATCH 02/27] um/arm64: fastpath fixes (slot floor, stub-only
  stores), any svc site, memfd physmem, spin 200
 
 ---
@@ -1217,7 +1217,7 @@ index e40bc4559003..9b900dab3408 100644
 From 2c1f4618bca1daa15e70da5e702ff5a65c10296f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:36:39 +0000
-Subject: [PATCH 03/25] um: stub zygote with pre-filtered spare stubs
+Subject: [PATCH 03/27] um: stub zygote with pre-filtered spare stubs
  (stub_zygote=), spawn timing stat
 
 ---
@@ -1747,7 +1747,7 @@ index 58f6010ade11..08e5938c0594 100644
 From bc2ab4b82f6acef01d0ede8bb123cc2771617c80 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:46:48 +0000
-Subject: [PATCH 04/25] um: stub_pin (kernel thread and stubs on separate host
+Subject: [PATCH 04/27] um: stub_pin (kernel thread and stubs on separate host
  CPUs, default on), spin backoff knob, umstat= timing
 
 ---
@@ -2079,7 +2079,7 @@ index d3be0657d1a5..cc3ade2292ec 100644
 From bb5bff45121b48dc19017e60064af53b93afb90f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:55:48 +0000
-Subject: [PATCH 05/25] um: our options default on (seccomp=auto, stub_exe next
+Subject: [PATCH 05/27] um: our options default on (seccomp=auto, stub_exe next
  to the binary, physmem_memfd=)
 
 ---
@@ -2187,7 +2187,7 @@ index bc129f59cb7e..0683b9e5fe04 100644
 From d45f97a7f1fb413bb0680245c7740e8408ad7713 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 09:02:27 +0000
-Subject: [PATCH 06/25] um: SMP build (NR_CPUS 8): serialize start_userspace,
+Subject: [PATCH 06/27] um: SMP build (NR_CPUS 8): serialize start_userspace,
  no stub_pin with ncpus>1
 
 ---
@@ -2264,7 +2264,7 @@ index 3948eaaa56ce..7d59e8dc57f8 100755
 From e18c1a4b619b0a049af77ab7b1dba30305f0619c Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 04:11:36 +0000
-Subject: [PATCH 07/25] um: stubs keep physmem open (no SCM_RIGHTS per map
+Subject: [PATCH 07/27] um: stubs keep physmem open (no SCM_RIGHTS per map
  batch, no empty recvmsg); umstat per-syscall breakdown
 
 ---
@@ -2512,7 +2512,7 @@ index b49db9ab2eec..edb488636459 100644
 From d69aea858f5832ae3a356a7b9333cf1c3c68c69b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:10:01 +0000
-Subject: [PATCH 08/25] um: stub_pin keeps stubs off little cores (capacity <
+Subject: [PATCH 08/27] um: stub_pin keeps stubs off little cores (capacity <
  half of the best remaining)
 
 ---
@@ -2669,7 +2669,7 @@ index 59a77a4d611c..b2049492a0ce 100644
 From 2bb6ebd05cfea65778aa0eec9e9bef6a02867b9e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:13:06 +0000
-Subject: [PATCH 09/25] um: with SMP too, keep the kernel and stubs on the fast
+Subject: [PATCH 09/27] um: with SMP too, keep the kernel and stubs on the fast
  CPUs (stub_pin)
 
 ---
@@ -2793,7 +2793,7 @@ index 7234568b1943..26197dd3fc9b 100644
 From 6f44d440009f7d5851b6ccdf06633aec1d3a367e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:22:36 +0000
-Subject: [PATCH 10/25] um: SMP: defer IPIs in the handler while IRQs are off
+Subject: [PATCH 10/27] um: SMP: defer IPIs in the handler while IRQs are off
  instead of a host sigprocmask per local_irq_disable/enable
 
 ---
@@ -3005,7 +3005,7 @@ index 13ebc86918d4..9fcabde8c2c8 100644
 From b5c842c3ef50edcc8882acf11d281a91ec85bca8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:41:39 +0000
-Subject: [PATCH 11/25] um: stub_pin falls back to /proc/cpuinfo CPU part when
+Subject: [PATCH 11/27] um: stub_pin falls back to /proc/cpuinfo CPU part when
  sysfs CPU capacity is unreadable
 
 ---
@@ -3091,7 +3091,7 @@ index 851b0ebfe45c..ae927dfac43a 100644
 From 8d43843d827c864c5c3b4001893c985c6c3a78f8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:42:16 +0000
-Subject: [PATCH 12/25] um: stub_pin: don't squeeze more vCPUs than fast host
+Subject: [PATCH 12/27] um: stub_pin: don't squeeze more vCPUs than fast host
  CPUs onto them
 
 ---
@@ -3126,7 +3126,7 @@ index ae927dfac43a..a992391cf98b 100644
 From 847586991054563aa3dfa9812b5168213db56ec1 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:51:45 +0000
-Subject: [PATCH 13/25] um: handoff spin yields every ~3us so a peer on the
+Subject: [PATCH 13/27] um: handoff spin yields every ~3us so a peer on the
  same host CPU can run (sched_yield allowed for stubs)
 
 ---
@@ -3237,7 +3237,7 @@ index a3feb673bf94..4a6a2fbf9d5b 100644
 From f400252e028f1b0494259cad3b1c624f6ee6dba4 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:08:37 +0000
-Subject: [PATCH 14/25] um: keep one PROT_NONE anchor per 2MB of each stub so
+Subject: [PATCH 14/27] um: keep one PROT_NONE anchor per 2MB of each stub so
  the host keeps page tables between unmap and map (tlb_anchor=)
 
 ---
@@ -3525,7 +3525,7 @@ index c6e856d71f76..bc8942ac199d 100644
 From 16fdaab6a64632e525ea6c7bc52a8526239f6876 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:17:10 +0000
-Subject: [PATCH 15/25] um: also anchor a 2MB chunk when an upper-level table
+Subject: [PATCH 15/27] um: also anchor a 2MB chunk when an upper-level table
  was unmapped
 
 Lone mappings (e.g. mmap/munmap loops) free the guest pmd/pud on munmap, so
@@ -3643,7 +3643,7 @@ index c58d950e6de0..5fd93232042a 100644
 From a737e30ae2e2d8318f390adedac1eb02cad89879 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:48:30 +0000
-Subject: [PATCH 16/25] um: map guest RAM into stubs with MAP_POPULATE
+Subject: [PATCH 16/27] um: map guest RAM into stubs with MAP_POPULATE
  (stub_populate=)
 
 A 16K guest page on a 4K host took up to four host faults on first touch.
@@ -3750,7 +3750,7 @@ index bc8942ac199d..ee1c2763bef6 100644
 From d4f10447f325785c613de8e7c34890ff00765c2e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 08:52:24 +0000
-Subject: [PATCH 17/25] um/arm64: keep the fast-path frame out of the host
+Subject: [PATCH 17/27] um/arm64: keep the fast-path frame out of the host
  signal stack
 
 A SIGALRM taken while fast_busy is set but sp is still on the guest stack
@@ -3864,7 +3864,7 @@ index 0683b9e5fe04..2dda297e94d2 100644
 From 4950bb4dbd52f3d3a69b944d81a544306d338b2a Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 10:43:06 +0000
-Subject: [PATCH 18/25] um: don't wait for a zygote spare to boot in
+Subject: [PATCH 18/27] um: don't wait for a zygote spare to boot in
  start_userspace (stub_boot_async=)
 
 Overlaps the spare's wakeup with the rest of fork. SIGALRM is held back
@@ -4098,7 +4098,7 @@ index a992391cf98b..85cb1cc945a1 100644
 From e2db75bcf6aacd84c5eb20f83008376749e9d265 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:06:00 +0000
-Subject: [PATCH 19/25] um: say why stub_pin did or did not pin
+Subject: [PATCH 19/27] um: say why stub_pin did or did not pin
  (os_pin_fast_cpus)
 
 Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
@@ -4163,7 +4163,7 @@ index 85cb1cc945a1..12fc49b26920 100644
 From 0900c3a91e5c77e9c65a07e58756474e3be6e10d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:06:02 +0000
-Subject: [PATCH 20/25] um: host character device passthrough (hostdev=)
+Subject: [PATCH 20/27] um: host character device passthrough (hostdev=)
 
 hostdev=<host path>,<guest name>,<major>:<minor>[,drm] makes a guest
 character device whose ioctls run on the host fd inside the caller's stub
@@ -5439,7 +5439,7 @@ index ee1c2763bef6..4d3040727522 100644
 From c56f53b925b8ac2d81a731be8608024667297f25 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:37:35 +0000
-Subject: [PATCH 21/25] um: hostdev: host fds as guest files, host unix socket
+Subject: [PATCH 21/27] um: hostdev: host fds as guest files, host unix socket
  and shm devices
 
 PRIME, syncobj and dma-buf sync-file ioctls now run in the kernel process
@@ -6279,7 +6279,7 @@ index 000000000000..0c4a1fe83bfa
 From 01e1677c6165190878f9ff9e0fb802d5ed59698d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 01:18:37 +0000
-Subject: [PATCH 22/25] um/arm64: fastpath: page-align the slot search window
+Subject: [PATCH 22/27] um/arm64: fastpath: page-align the slot search window
 
 vm_unmapped_area() returns low_limit unchanged when the gap starts there, and
 low_limit was site - FP_RANGE, so for any site above 120 MiB the slot page
@@ -6338,7 +6338,7 @@ index 78e8e3dc3aae..cb0449bf62a9 100644
 From 776d8bf6682e2f999df15bd291b32f7d941367c3 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 01:50:27 +0000
-Subject: [PATCH 23/25] um: cheaper fork: inherited accessed bit, mprotect
+Subject: [PATCH 23/27] um: cheaper fork: inherited accessed bit, mprotect
  sync, write-fault-around
 
 A Python fork()+waitpid() took about 105 guest page faults, each a host
@@ -6774,7 +6774,7 @@ index 8b0c2c735d3d..4034490e3cbd 100644
 From 9e6f2bebd7106b8fdcdab39f8f386b072af163b7 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 03:25:05 +0000
-Subject: [PATCH 24/25] um: clone the parent's stub on fork
+Subject: [PATCH 24/27] um: clone the parent's stub on fork
 
 A forked mm used to start with a fresh stub and fault every inherited page
 back in. Let the parent's stub clone itself instead (STUB_SYSCALL_CLONE): the
@@ -7667,7 +7667,7 @@ index 4034490e3cbd..998187d40696 100644
 From 8d642c182c8712079f4f25f368bd7165a7200329 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 03:25:05 +0000
-Subject: [PATCH 25/25] um/arm64: fastpath: no fast return onto a read-only
+Subject: [PATCH 25/27] um/arm64: fastpath: no fast return onto a read-only
  stack page
 
 The fast return stores x16/x17 below the guest sp while fast_busy is set,
@@ -7792,6 +7792,364 @@ index 2011c7f2ef81..fbc31df9bbf4 100644
  			err = set_stub_state(regs, proc_data, singlestepping());
  			if (err) {
  				printk(UM_KERN_ERR "%s - failed to set regs: %d",
+-- 
+2.43.0
+
+
+From 494c5a5091199e08d6f53e2b821c57eaeb44a738 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 23 Nov 2026 05:00:16 +0000
+Subject: [PATCH 26/27] um: sched: keep a lone forked child on its parent's CPU
+
+Waking another vCPU for the child is a host signal to a sleeping thread and
+the same again when the parent is woken to reap it. A child that is its
+parent's only one, forked on a CPU that runs nothing else, stays there
+(fork_local=0 turns this off). Parents with several children at once and
+threads are placed as before.
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ kernel/sched/fair.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 0f2364479f9d..2ff9bde44d88 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -9921,6 +9921,17 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
+  *
+  * Returns the target CPU number.
+  */
++#ifdef CONFIG_UML
++/*
++ * A cross-CPU wakeup is a host signal to a sleeping vCPU thread, far more
++ * than the fork it serves when the parent is about to wait for the child.
++ * Keep a forked child on a CPU that runs nothing but its parent, when it is
++ * the parent's only child: one that runs several at once wants them spread.
++ */
++static int um_fork_local = 1;
++core_param(fork_local, um_fork_local, int, 0644);
++#endif
++
+ static int
+ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
+ {
+@@ -9936,6 +9947,13 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
+ 	 * required for stable ->cpus_allowed
+ 	 */
+ 	lockdep_assert_held(&p->pi_lock);
++#ifdef CONFIG_UML
++	if ((wake_flags & WF_FORK) && um_fork_local &&
++	    p->mm != current->mm && list_is_singular(&current->children) &&
++	    this_rq()->nr_running <= um_fork_local &&
++	    cpumask_test_cpu(cpu, p->cpus_ptr))
++		return cpu;
++#endif
+ 	if (wake_flags & WF_TTWU) {
+ 		record_wakee(p);
+ 
+-- 
+2.43.0
+
+
+From 88ac3872d081fc40ce81e4fecdc5787837eea84f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 23 Nov 2026 05:00:16 +0000
+Subject: [PATCH 27/27] um: exec takes over the old mm's stub; cloned stubs
+ report in lazily
+
+exec made a new host process for the new mm and killed the old one. When
+the old mm has no other user, hand its stub to the new mm in activate_mm()
+and unmap everything in it instead (stub_reuse=0 turns this off, stub_reuses
+counts). vfork and shared mms still get a new stub, from flush_thread().
+
+fork no longer waits for the cloned stub to map its data and report in:
+that happens when the stub is first needed, like a zygote spare
+(stub_clone_async=0 for the old behaviour), and the clone runs in the same
+batch as the parent's pending sync.
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ arch/um/include/asm/mmu.h         |  2 +
+ arch/um/include/asm/mmu_context.h |  4 ++
+ arch/um/kernel/exec.c             |  2 +
+ arch/um/kernel/skas/mmu.c         | 69 +++++++++++++++++++++++++++++++
+ arch/um/os-Linux/skas/mem.c       | 53 +++++++++++++++++-------
+ arch/um/os-Linux/skas/process.c   |  8 +++-
+ 6 files changed, 121 insertions(+), 17 deletions(-)
+
+diff --git a/arch/um/include/asm/mmu.h b/arch/um/include/asm/mmu.h
+index ffbdf6f12167..12e2766c2e5f 100644
+--- a/arch/um/include/asm/mmu.h
++++ b/arch/um/include/asm/mmu.h
+@@ -55,6 +55,8 @@ typedef struct mm_context {
+ 	 * the PTEs copied until then are in sync as they are.
+ 	 */
+ 	bool clone_pending;
++	/* exec: takes over the old mm's stub in activate_mm() */
++	bool exec_pending;
+ 	/* The next sync maps every present page, whatever its PTE says. */
+ 	bool sync_all;
+ 
+diff --git a/arch/um/include/asm/mmu_context.h b/arch/um/include/asm/mmu_context.h
+index a27e42ce1c10..9dabb9995ab2 100644
+--- a/arch/um/include/asm/mmu_context.h
++++ b/arch/um/include/asm/mmu_context.h
+@@ -30,6 +30,10 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ {
+ }
+ 
++extern void um_activate_mm(struct mm_struct *prev, struct mm_struct *next);
++#define activate_mm(prev, next) um_activate_mm(prev, next)
++extern void um_exec_stub(void);
++
+ #define init_new_context init_new_context
+ extern int init_new_context(struct task_struct *task, struct mm_struct *mm);
+ 
+diff --git a/arch/um/kernel/exec.c b/arch/um/kernel/exec.c
+index 13812fa97eee..6c294d865ba6 100644
+--- a/arch/um/kernel/exec.c
++++ b/arch/um/kernel/exec.c
+@@ -12,6 +12,7 @@
+ #include <linux/sched/task_stack.h>
+ #include <linux/slab.h>
+ #include <asm/current.h>
++#include <asm/mmu_context.h>
+ #include <asm/processor.h>
+ #include <linux/uaccess.h>
+ #include <as-layout.h>
+@@ -22,6 +23,7 @@
+ 
+ void flush_thread(void)
+ {
++	um_exec_stub();
+ 	arch_flush_thread(&current->thread.arch);
+ 
+ 	get_safe_registers(current_pt_regs()->regs.gp,
+diff --git a/arch/um/kernel/skas/mmu.c b/arch/um/kernel/skas/mmu.c
+index 30fa69dbe6f1..885bb4ac111a 100644
+--- a/arch/um/kernel/skas/mmu.c
++++ b/arch/um/kernel/skas/mmu.c
+@@ -52,7 +52,14 @@ static int um_stub_clone = 1;
+ core_param(stub_clone, um_stub_clone, int, 0644);
+ /* How often that worked, and how often a fresh stub had to do */
+ static unsigned int um_stub_clones, um_stub_clone_misses;
++static int um_stub_reuse = 1;
++core_param(stub_reuse, um_stub_reuse, int, 0644);
++static unsigned int um_stub_reuses;
++core_param(stub_reuses, um_stub_reuses, uint, 0444);
+ core_param(stub_clones, um_stub_clones, uint, 0444);
++extern int stub_clone_async;
++core_param(stub_clone_async, stub_clone_async, int, 0644);
++
+ core_param(stub_clone_misses, um_stub_clone_misses, uint, 0444);
+ 
+ static int um_new_stub(struct mm_id *new_id)
+@@ -163,6 +170,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
+ 	new_id->boot_pending = 0;
+ 	new_id->cloned = 0;
+ 	mm->context.sync_all = false;
++	mm->context.exec_pending = false;
+ 	/* A user process forking: @task is the child, not yet running */
+ 	mm->context.clone_pending = um_stub_clone && using_seccomp &&
+ 		task != current && current->mm && current->mm != &init_mm &&
+@@ -177,6 +185,13 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
+ 	if (mm->context.clone_pending)
+ 		return 0;
+ 
++	/* exec: the stub of the mm being replaced will do, see below */
++	mm->context.exec_pending = um_stub_reuse && using_seccomp &&
++		task == current && current->mm && current->mm != &init_mm &&
++		!(current->flags & PF_KTHREAD);
++	if (mm->context.exec_pending)
++		return 0;
++
+ 	ret = um_new_stub(new_id);
+ 	if (ret < 0)
+ 		goto out_free;
+@@ -191,6 +206,60 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
+ 	return ret;
+ }
+ 
++/*
++ * exec switches to its new mm. That mm was set up without a stub: when the
++ * old one has no other user, its stub is about to be killed and a new host
++ * process made for this one. Hand the old stub over instead, with its data
++ * pages, and have it drop everything it has mapped.
++ */
++void um_activate_mm(struct mm_struct *prev, struct mm_struct *next)
++{
++	struct mm_id *new_id = &next->context.id;
++	bool reused = false;
++
++	if (!next->context.exec_pending)
++		return;
++
++	if (prev && prev != &init_mm && atomic_read(&prev->mm_users) == 1 &&
++	    mutex_trylock(&prev->context.turnstile)) {
++		struct mm_id *old_id = &prev->context.id;
++
++		scoped_guard(spinlock_irqsave, &mm_list_lock) {
++			if (old_id->pid > 0 && old_id->syscall_data_len >= 0) {
++				swap(new_id->stack, old_id->stack);
++				new_id->pid = old_id->pid;
++				new_id->sock = old_id->sock;
++				new_id->boot_pending = old_id->boot_pending;
++				new_id->cloned = old_id->cloned;
++				old_id->pid = -1;
++				old_id->sock = 0;
++				old_id->boot_pending = 0;
++				old_id->syscall_data_len = 0;
++				old_id->syscall_fd_num = 0;
++				reused = true;
++			}
++		}
++		mutex_unlock(&prev->context.turnstile);
++	}
++
++	if (reused) {
++		um_stub_reuses++;
++		next->context.exec_pending = false;
++		unmap(new_id, 0, STUB_START);
++	}
++}
++
++/* ...and when it could not, a new stub, from where exec may sleep. */
++void um_exec_stub(void)
++{
++	struct mm_struct *mm = current->mm;
++
++	if (mm && mm->context.exec_pending) {
++		mm->context.exec_pending = false;
++		um_new_stub(&mm->context.id);
++	}
++}
++
+ /*
+  * A stub that has been killed but not yet reaped, and the resources that
+  * cannot be released until the host says it is gone. destroy_context() cannot
+diff --git a/arch/um/os-Linux/skas/mem.c b/arch/um/os-Linux/skas/mem.c
+index c247e03a63be..57e0e2834ff5 100644
+--- a/arch/um/os-Linux/skas/mem.c
++++ b/arch/um/os-Linux/skas/mem.c
+@@ -420,41 +420,63 @@ long stub_host_ioctl(struct mm_id *mm_idp, int fd, unsigned long cmd,
+ 	return ret;
+ }
+ 
++/* stub_clone_async=0: fork waits for the cloned stub to report in */
++int stub_clone_async = 1;
++
++static void stub_clone_failed(struct mm_id *to)
++{
++	int sock = to->sock;
++
++	if (to->pid > 0)
++		os_kill_ptraced_process(to->pid, 1);
++	to->pid = -1;
++	to->sock = 0;
++	close(sock);
++	memset((void *)to->stack, 0, STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
++}
++
+ /*
+  * fork(): have the stub of @from, which the caller owns through the turnstile
+  * and which waits in its handoff, clone itself for @to. The clone has all of
+- * @from's host mappings, its own data pages and socket, and has reported in
+- * when this returns 0. On failure @to has no stub.
++ * @from's host mappings, its own data pages and socket when this returns 0;
++ * it reports in on its own time (boot_pending) unless stub_clone_async is
++ * off. On failure @to has no stub.
+  */
+ int stub_clone_mm(struct mm_id *from, struct mm_id *to)
+ {
+ 	struct stub_data *d = (void *)from->stack;
+ 	struct stub_syscall *sc;
+ 	unsigned long long offset;
+-	int sv[2], idx, pid;
++	int sv[2], idx, pid, pos;
+ 
+ 	if (!using_seccomp || from->pid <= 0 || from->syscall_data_len < 0)
+ 		return -1;
+ 	if (phys_mapping(uml_to_phys((void *)to->stack), &offset) !=
+ 	    stub_physmem_fd(from))
+ 		return -1;
+-	/* The batch may carry no fd but the socket: the child inherits them */
+-	if (from->syscall_data_len > 0 && do_syscall_stub(from) < 0)
++	/*
++	 * The child inherits whatever fds the batch carries, so only a batch
++	 * without any may run together with the clone.
++	 */
++	if (from->syscall_data_len > 0 && from->syscall_fd_num > 0 &&
++	    do_syscall_stub(from) < 0)
+ 		return -1;
+ 
+-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv))
++	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, sv))
+ 		return -1;
+-	/* The stub's end is used non-blocking; the flag lives in the file. */
+-	fcntl(sv[0], F_SETFL, fcntl(sv[0], F_GETFL) | O_NONBLOCK);
++	/* The kernel's end blocks; the stub's is the non-blocking one. */
++	fcntl(sv[1], F_SETFL, 0);
+ 
+ 	stub_data_init((void *)to->stack);
+ 
+ 	idx = get_stub_fd(from, sv[0]);
+ 	sc = syscall_stub_alloc(from);
++	pos = from->syscall_data_len - 1;
+ 	sc->syscall = STUB_SYSCALL_CLONE;
+ 	sc->mem.fd = idx;
+ 	sc->mem.offset = MMAP_OFFSET(offset);
+-	pid = do_syscall_stub(from) < 0 ? -1 : (int)d->syscall_data[0].mem.length;
++	pid = pos < 0 || do_syscall_stub(from) < 0 ? -1 :
++		(int)d->syscall_data[pos].mem.length;
+ 	close(sv[0]);
+ 	if (pid <= 0) {
+ 		close(sv[1]);
+@@ -468,14 +490,13 @@ int stub_clone_mm(struct mm_id *from, struct mm_id *to)
+ 	to->sock = sv[1];
+ 	to->pid = pid;
+ 
++	if (stub_clone_async) {
++		/* It maps its data and reports in while fork carries on. */
++		to->boot_pending = 2;
++		return 0;
++	}
+ 	if (stub_clone_wait(to)) {
+-		if (to->pid > 0)
+-			os_kill_ptraced_process(to->pid, 1);
+-		to->pid = -1;
+-		to->sock = 0;
+-		close(sv[1]);
+-		memset((void *)to->stack, 0,
+-		       STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
++		stub_clone_failed(to);
+ 		return -1;
+ 	}
+ 	return 0;
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index fbc31df9bbf4..82fa8a3a60b4 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -182,10 +182,16 @@ __uml_setup("seccomp_spin=", uml_seccomp_spin_setup,
+  * Everything that needs the stub's state comes through here first.
+  */
+ static void wait_stub_done_seccomp_boot(struct mm_id *mm_idp);
++static void __wait_stub_done_seccomp(struct mm_id *mm_idp, int running,
++				     int wait_sigsys);
+ 
+ void stub_boot_wait(struct mm_id *mm_idp)
+ {
+-	if (mm_idp->boot_pending) {
++	if (mm_idp->boot_pending == 2) {
++		/* a clone of its parent's stub, see stub_clone_mm() */
++		__wait_stub_done_seccomp(mm_idp, 1, 2);
++		__WRITE_ONCE(mm_idp->boot_pending, 0);
++	} else if (mm_idp->boot_pending) {
+ 		wait_stub_done_seccomp_boot(mm_idp);
+ 		/* SIGALRMs to this stub were held back until now. */
+ 		__WRITE_ONCE(mm_idp->boot_pending, 0);
 -- 
 2.43.0
 
