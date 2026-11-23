@@ -1,7 +1,7 @@
 From 122de0338bebb3e2117380206901c9d51aaa6ad2 Mon Sep 17 00:00:00 2001
 From: t <t@t>
 Date: Fri, 20 Nov 2026 06:29:49 +0000
-Subject: [PATCH 01/27] um/arm64: syscall-site fast path (wip)
+Subject: [PATCH 01/28] um/arm64: syscall-site fast path (wip)
 
 ---
  arch/arm64/um/Kconfig                       |  11 +
@@ -907,7 +907,7 @@ index 81fef1c9ad03..9d2abb89254a 100644
 From c8d8a77cb91ed96de8dbff4da1d2120b1243f350 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:17:58 +0000
-Subject: [PATCH 02/27] um/arm64: fastpath fixes (slot floor, stub-only
+Subject: [PATCH 02/28] um/arm64: fastpath fixes (slot floor, stub-only
  stores), any svc site, memfd physmem, spin 200
 
 ---
@@ -1217,7 +1217,7 @@ index e40bc4559003..9b900dab3408 100644
 From 2c1f4618bca1daa15e70da5e702ff5a65c10296f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:36:39 +0000
-Subject: [PATCH 03/27] um: stub zygote with pre-filtered spare stubs
+Subject: [PATCH 03/28] um: stub zygote with pre-filtered spare stubs
  (stub_zygote=), spawn timing stat
 
 ---
@@ -1747,7 +1747,7 @@ index 58f6010ade11..08e5938c0594 100644
 From bc2ab4b82f6acef01d0ede8bb123cc2771617c80 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:46:48 +0000
-Subject: [PATCH 04/27] um: stub_pin (kernel thread and stubs on separate host
+Subject: [PATCH 04/28] um: stub_pin (kernel thread and stubs on separate host
  CPUs, default on), spin backoff knob, umstat= timing
 
 ---
@@ -2079,7 +2079,7 @@ index d3be0657d1a5..cc3ade2292ec 100644
 From bb5bff45121b48dc19017e60064af53b93afb90f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:55:48 +0000
-Subject: [PATCH 05/27] um: our options default on (seccomp=auto, stub_exe next
+Subject: [PATCH 05/28] um: our options default on (seccomp=auto, stub_exe next
  to the binary, physmem_memfd=)
 
 ---
@@ -2187,7 +2187,7 @@ index bc129f59cb7e..0683b9e5fe04 100644
 From d45f97a7f1fb413bb0680245c7740e8408ad7713 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 09:02:27 +0000
-Subject: [PATCH 06/27] um: SMP build (NR_CPUS 8): serialize start_userspace,
+Subject: [PATCH 06/28] um: SMP build (NR_CPUS 8): serialize start_userspace,
  no stub_pin with ncpus>1
 
 ---
@@ -2264,7 +2264,7 @@ index 3948eaaa56ce..7d59e8dc57f8 100755
 From e18c1a4b619b0a049af77ab7b1dba30305f0619c Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 04:11:36 +0000
-Subject: [PATCH 07/27] um: stubs keep physmem open (no SCM_RIGHTS per map
+Subject: [PATCH 07/28] um: stubs keep physmem open (no SCM_RIGHTS per map
  batch, no empty recvmsg); umstat per-syscall breakdown
 
 ---
@@ -2512,7 +2512,7 @@ index b49db9ab2eec..edb488636459 100644
 From d69aea858f5832ae3a356a7b9333cf1c3c68c69b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:10:01 +0000
-Subject: [PATCH 08/27] um: stub_pin keeps stubs off little cores (capacity <
+Subject: [PATCH 08/28] um: stub_pin keeps stubs off little cores (capacity <
  half of the best remaining)
 
 ---
@@ -2669,7 +2669,7 @@ index 59a77a4d611c..b2049492a0ce 100644
 From 2bb6ebd05cfea65778aa0eec9e9bef6a02867b9e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:13:06 +0000
-Subject: [PATCH 09/27] um: with SMP too, keep the kernel and stubs on the fast
+Subject: [PATCH 09/28] um: with SMP too, keep the kernel and stubs on the fast
  CPUs (stub_pin)
 
 ---
@@ -2793,7 +2793,7 @@ index 7234568b1943..26197dd3fc9b 100644
 From 6f44d440009f7d5851b6ccdf06633aec1d3a367e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:22:36 +0000
-Subject: [PATCH 10/27] um: SMP: defer IPIs in the handler while IRQs are off
+Subject: [PATCH 10/28] um: SMP: defer IPIs in the handler while IRQs are off
  instead of a host sigprocmask per local_irq_disable/enable
 
 ---
@@ -3005,7 +3005,7 @@ index 13ebc86918d4..9fcabde8c2c8 100644
 From b5c842c3ef50edcc8882acf11d281a91ec85bca8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:41:39 +0000
-Subject: [PATCH 11/27] um: stub_pin falls back to /proc/cpuinfo CPU part when
+Subject: [PATCH 11/28] um: stub_pin falls back to /proc/cpuinfo CPU part when
  sysfs CPU capacity is unreadable
 
 ---
@@ -3091,7 +3091,7 @@ index 851b0ebfe45c..ae927dfac43a 100644
 From 8d43843d827c864c5c3b4001893c985c6c3a78f8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:42:16 +0000
-Subject: [PATCH 12/27] um: stub_pin: don't squeeze more vCPUs than fast host
+Subject: [PATCH 12/28] um: stub_pin: don't squeeze more vCPUs than fast host
  CPUs onto them
 
 ---
@@ -3126,7 +3126,7 @@ index ae927dfac43a..a992391cf98b 100644
 From 847586991054563aa3dfa9812b5168213db56ec1 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:51:45 +0000
-Subject: [PATCH 13/27] um: handoff spin yields every ~3us so a peer on the
+Subject: [PATCH 13/28] um: handoff spin yields every ~3us so a peer on the
  same host CPU can run (sched_yield allowed for stubs)
 
 ---
@@ -3237,7 +3237,7 @@ index a3feb673bf94..4a6a2fbf9d5b 100644
 From f400252e028f1b0494259cad3b1c624f6ee6dba4 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:08:37 +0000
-Subject: [PATCH 14/27] um: keep one PROT_NONE anchor per 2MB of each stub so
+Subject: [PATCH 14/28] um: keep one PROT_NONE anchor per 2MB of each stub so
  the host keeps page tables between unmap and map (tlb_anchor=)
 
 ---
@@ -3525,7 +3525,7 @@ index c6e856d71f76..bc8942ac199d 100644
 From 16fdaab6a64632e525ea6c7bc52a8526239f6876 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:17:10 +0000
-Subject: [PATCH 15/27] um: also anchor a 2MB chunk when an upper-level table
+Subject: [PATCH 15/28] um: also anchor a 2MB chunk when an upper-level table
  was unmapped
 
 Lone mappings (e.g. mmap/munmap loops) free the guest pmd/pud on munmap, so
@@ -3643,7 +3643,7 @@ index c58d950e6de0..5fd93232042a 100644
 From a737e30ae2e2d8318f390adedac1eb02cad89879 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:48:30 +0000
-Subject: [PATCH 16/27] um: map guest RAM into stubs with MAP_POPULATE
+Subject: [PATCH 16/28] um: map guest RAM into stubs with MAP_POPULATE
  (stub_populate=)
 
 A 16K guest page on a 4K host took up to four host faults on first touch.
@@ -3750,7 +3750,7 @@ index bc8942ac199d..ee1c2763bef6 100644
 From d4f10447f325785c613de8e7c34890ff00765c2e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 08:52:24 +0000
-Subject: [PATCH 17/27] um/arm64: keep the fast-path frame out of the host
+Subject: [PATCH 17/28] um/arm64: keep the fast-path frame out of the host
  signal stack
 
 A SIGALRM taken while fast_busy is set but sp is still on the guest stack
@@ -3864,7 +3864,7 @@ index 0683b9e5fe04..2dda297e94d2 100644
 From 4950bb4dbd52f3d3a69b944d81a544306d338b2a Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 10:43:06 +0000
-Subject: [PATCH 18/27] um: don't wait for a zygote spare to boot in
+Subject: [PATCH 18/28] um: don't wait for a zygote spare to boot in
  start_userspace (stub_boot_async=)
 
 Overlaps the spare's wakeup with the rest of fork. SIGALRM is held back
@@ -4098,7 +4098,7 @@ index a992391cf98b..85cb1cc945a1 100644
 From e2db75bcf6aacd84c5eb20f83008376749e9d265 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:06:00 +0000
-Subject: [PATCH 19/27] um: say why stub_pin did or did not pin
+Subject: [PATCH 19/28] um: say why stub_pin did or did not pin
  (os_pin_fast_cpus)
 
 Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
@@ -4163,7 +4163,7 @@ index 85cb1cc945a1..12fc49b26920 100644
 From 0900c3a91e5c77e9c65a07e58756474e3be6e10d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:06:02 +0000
-Subject: [PATCH 20/27] um: host character device passthrough (hostdev=)
+Subject: [PATCH 20/28] um: host character device passthrough (hostdev=)
 
 hostdev=<host path>,<guest name>,<major>:<minor>[,drm] makes a guest
 character device whose ioctls run on the host fd inside the caller's stub
@@ -5439,7 +5439,7 @@ index ee1c2763bef6..4d3040727522 100644
 From c56f53b925b8ac2d81a731be8608024667297f25 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:37:35 +0000
-Subject: [PATCH 21/27] um: hostdev: host fds as guest files, host unix socket
+Subject: [PATCH 21/28] um: hostdev: host fds as guest files, host unix socket
  and shm devices
 
 PRIME, syncobj and dma-buf sync-file ioctls now run in the kernel process
@@ -6279,7 +6279,7 @@ index 000000000000..0c4a1fe83bfa
 From 01e1677c6165190878f9ff9e0fb802d5ed59698d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 01:18:37 +0000
-Subject: [PATCH 22/27] um/arm64: fastpath: page-align the slot search window
+Subject: [PATCH 22/28] um/arm64: fastpath: page-align the slot search window
 
 vm_unmapped_area() returns low_limit unchanged when the gap starts there, and
 low_limit was site - FP_RANGE, so for any site above 120 MiB the slot page
@@ -6338,7 +6338,7 @@ index 78e8e3dc3aae..cb0449bf62a9 100644
 From 776d8bf6682e2f999df15bd291b32f7d941367c3 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 01:50:27 +0000
-Subject: [PATCH 23/27] um: cheaper fork: inherited accessed bit, mprotect
+Subject: [PATCH 23/28] um: cheaper fork: inherited accessed bit, mprotect
  sync, write-fault-around
 
 A Python fork()+waitpid() took about 105 guest page faults, each a host
@@ -6774,7 +6774,7 @@ index 8b0c2c735d3d..4034490e3cbd 100644
 From 9e6f2bebd7106b8fdcdab39f8f386b072af163b7 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 03:25:05 +0000
-Subject: [PATCH 24/27] um: clone the parent's stub on fork
+Subject: [PATCH 24/28] um: clone the parent's stub on fork
 
 A forked mm used to start with a fresh stub and fault every inherited page
 back in. Let the parent's stub clone itself instead (STUB_SYSCALL_CLONE): the
@@ -7667,7 +7667,7 @@ index 4034490e3cbd..998187d40696 100644
 From 8d642c182c8712079f4f25f368bd7165a7200329 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 03:25:05 +0000
-Subject: [PATCH 25/27] um/arm64: fastpath: no fast return onto a read-only
+Subject: [PATCH 25/28] um/arm64: fastpath: no fast return onto a read-only
  stack page
 
 The fast return stores x16/x17 below the guest sp while fast_busy is set,
@@ -7799,7 +7799,7 @@ index 2011c7f2ef81..fbc31df9bbf4 100644
 From 494c5a5091199e08d6f53e2b821c57eaeb44a738 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 05:00:16 +0000
-Subject: [PATCH 26/27] um: sched: keep a lone forked child on its parent's CPU
+Subject: [PATCH 26/28] um: sched: keep a lone forked child on its parent's CPU
 
 Waking another vCPU for the child is a host signal to a sleeping thread and
 the same again when the parent is woken to reap it. A child that is its
@@ -7856,7 +7856,7 @@ index 0f2364479f9d..2ff9bde44d88 100644
 From 88ac3872d081fc40ce81e4fecdc5787837eea84f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 05:00:16 +0000
-Subject: [PATCH 27/27] um: exec takes over the old mm's stub; cloned stubs
+Subject: [PATCH 27/28] um: exec takes over the old mm's stub; cloned stubs
  report in lazily
 
 exec made a new host process for the new mm and killed the old one. When
@@ -8150,6 +8150,522 @@ index fbc31df9bbf4..82fa8a3a60b4 100644
  		wait_stub_done_seccomp_boot(mm_idp);
  		/* SIGALRMs to this stub were held back until now. */
  		__WRITE_ONCE(mm_idp->boot_pending, 0);
+-- 
+2.43.0
+
+
+From f81dc4c2f7a4c5a2f60798f1e203c170559fb833 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 23 Nov 2026 06:08:20 +0000
+Subject: [PATCH 28/28] um/arm64: clock_gettime and gettimeofday in the vDSO
+
+In SECCOMP mode a guest clock_gettime() is a round trip to the UML kernel in
+another host process, about a microsecond. Make the architected counter the
+clocksource where the host lets EL0 read it, publish what the timekeeper
+derives from it on a page below the vDSO text (update_vsyscall), and compute
+REALTIME, MONOTONIC, BOOTTIME and the coarse clocks in the guest. Everything
+else, and tasks in a time namespace of their own, still ask the kernel.
+
+vdso_time=0 keeps the old clocksource and leaves the vDSO falling back.
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ arch/arm64/um/Kconfig              |   4 +
+ arch/arm64/um/vdso/Makefile        |   3 +-
+ arch/arm64/um/vdso/vdso-data.h     |  26 +++++
+ arch/arm64/um/vdso/vdso.lds.S      |  13 ++-
+ arch/arm64/um/vdso/vgettimeofday.c | 118 +++++++++++++++++++++
+ arch/arm64/um/vdso/vma.c           | 164 +++++++++++++++++++++++++++++
+ arch/um/include/asm/mmu.h          |   2 +
+ include/linux/time_namespace.h     |   5 +
+ kernel/time/timekeeping_internal.h |   9 ++
+ 9 files changed, 338 insertions(+), 6 deletions(-)
+ create mode 100644 arch/arm64/um/vdso/vdso-data.h
+ create mode 100644 arch/arm64/um/vdso/vgettimeofday.c
+
+diff --git a/arch/arm64/um/Kconfig b/arch/arm64/um/Kconfig
+index d7e5e9a70b04..5b2de044e3a4 100644
+--- a/arch/arm64/um/Kconfig
++++ b/arch/arm64/um/Kconfig
+@@ -105,6 +105,10 @@ config GENERIC_CSUM
+ # advertises itself as UML_ARM64 instead, exactly as x86 UML would if it were
+ # written today, and selects the individual capabilities it really has.
+ 
++# clock_gettime()/gettimeofday() in the guest vDSO, see vdso/vgettimeofday.c
++config UML_VDSO_TIME
++	def_bool y
++
+ config UML_FASTPATH
+ 	bool "Rewrite hot guest syscall sites (SECCOMP mode)"
+ 	default y
+diff --git a/arch/arm64/um/vdso/Makefile b/arch/arm64/um/vdso/Makefile
+index 390ce4db5698..df82a4a280b3 100644
+--- a/arch/arm64/um/vdso/Makefile
++++ b/arch/arm64/um/vdso/Makefile
+@@ -3,7 +3,7 @@
+ # Building the vDSO image for UML/arm64.
+ 
+ # Objects that go into the vDSO itself
+-vobjs-y := vdso-note.o sigreturn.o
++vobjs-y := vdso-note.o sigreturn.o vgettimeofday.o
+ 
+ # Objects linked into the UML kernel
+ obj-y += vdso.o vma.o
+@@ -67,6 +67,7 @@ $(vobjs): KBUILD_CFLAGS += $(CFL)
+ 
+ CFLAGS_REMOVE_vdso-note.o = -pg -fprofile-arcs -ftest-coverage
+ CFLAGS_REMOVE_sigreturn.o = -pg -fprofile-arcs -ftest-coverage
++CFLAGS_REMOVE_vgettimeofday.o = -pg -fprofile-arcs -ftest-coverage
+ 
+ KCOV_INSTRUMENT := n
+ KASAN_SANITIZE  := n
+diff --git a/arch/arm64/um/vdso/vdso-data.h b/arch/arm64/um/vdso/vdso-data.h
+new file mode 100644
+index 000000000000..fefa5f70ea15
+--- /dev/null
++++ b/arch/arm64/um/vdso/vdso-data.h
+@@ -0,0 +1,26 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * The data page of the UML/arm64 vDSO, one guest page below its text. Written
++ * by update_vsyscall() in vma.c, read by vgettimeofday.c in guest userspace.
++ */
++#ifndef __UM_ARM64_VDSO_DATA_H
++#define __UM_ARM64_VDSO_DATA_H
++
++struct um_vdso_time {
++	unsigned long long sec;
++	unsigned long long nsec;	/* << shift */
++};
++
++struct um_vdso_data {
++	unsigned int seq;		/* odd while being updated */
++	unsigned int ok;		/* the clocksource is CNTVCT_EL0 */
++	unsigned long long cycle_last;
++	unsigned long long mask;
++	unsigned int mult;
++	unsigned int shift;
++	struct um_vdso_time real;	/* CLOCK_REALTIME */
++	struct um_vdso_time mono;	/* CLOCK_MONOTONIC */
++	struct um_vdso_time boot;	/* CLOCK_BOOTTIME */
++};
++
++#endif
+diff --git a/arch/arm64/um/vdso/vdso.lds.S b/arch/arm64/um/vdso/vdso.lds.S
+index 9b0604256548..2840bae4a6d6 100644
+--- a/arch/arm64/um/vdso/vdso.lds.S
++++ b/arch/arm64/um/vdso/vdso.lds.S
+@@ -2,11 +2,10 @@
+ /*
+  * Linker script for the UML/arm64 vDSO.
+  *
+- * Deliberately minimal. The only thing UML's guest actually needs from a vDSO
+- * is __kernel_rt_sigreturn (see arch/arm64/um/signal.c); it exports no time
+- * functions, because a UML guest's clock_gettime is a syscall into the UML
+- * kernel, which is a function call, not a trap -- a vDSO fast path would save
+- * nothing and would have to be kept in sync with UML's timekeeping.
++ * __kernel_rt_sigreturn is the part the guest cannot do without (see
++ * arch/arm64/um/signal.c). The time functions are there because in SECCOMP
++ * mode a guest clock_gettime() is otherwise a round trip to the UML kernel
++ * in another host process; see vgettimeofday.c.
+  */
+ 
+ #include <asm/page.h>
+@@ -16,6 +15,8 @@ OUTPUT_ARCH(aarch64)
+ 
+ SECTIONS
+ {
++	/* The data page, mapped right below the text by vma.c */
++	PROVIDE_HIDDEN(_um_vdso_data = . - PAGE_SIZE);
+ 	/*
+ 	 * The vDSO is mapped as a single page by arch_setup_additional_pages(),
+ 	 * so everything must fit below PAGE_SIZE. PAGE_SIZE, not 4096: on a
+@@ -63,6 +64,8 @@ VERSION
+ 	LINUX_2.6.39 {
+ 	global:
+ 		__kernel_rt_sigreturn;
++		__kernel_clock_gettime;
++		__kernel_gettimeofday;
+ 	local: *;
+ 	};
+ }
+diff --git a/arch/arm64/um/vdso/vgettimeofday.c b/arch/arm64/um/vdso/vgettimeofday.c
+new file mode 100644
+index 000000000000..ae3e2b609ca6
+--- /dev/null
++++ b/arch/arm64/um/vdso/vgettimeofday.c
+@@ -0,0 +1,118 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * clock_gettime() and gettimeofday() for the UML/arm64 guest, without a trip
++ * to the UML kernel. In SECCOMP mode that trip is a handoff to another host
++ * process and back, about a microsecond; here it is a counter read and the
++ * same arithmetic the kernel's timekeeping does, on values update_vsyscall()
++ * publishes one page below this code.
++ *
++ * Runs in guest userspace: no kernel headers, no data of its own.
++ */
++#include "vdso-data.h"
++
++#define NSEC_PER_SEC	1000000000ULL
++
++#define CLOCK_REALTIME		0
++#define CLOCK_MONOTONIC		1
++#define CLOCK_REALTIME_COARSE	5
++#define CLOCK_MONOTONIC_COARSE	6
++#define CLOCK_BOOTTIME		7
++
++#define NR_clock_gettime	113
++#define NR_gettimeofday		169
++
++struct um_timespec {
++	long long tv_sec;
++	long long tv_nsec;
++};
++
++struct um_timeval {
++	long long tv_sec;
++	long long tv_usec;
++};
++
++extern const struct um_vdso_data _um_vdso_data
++	__attribute__((visibility("hidden")));
++
++static __always_inline long vdso_syscall2(long nr, long a, long b)
++{
++	register long x8 __asm__("x8") = nr;
++	register long x0 __asm__("x0") = a;
++	register long x1 __asm__("x1") = b;
++
++	__asm__ volatile("svc #0" : "+r" (x0) : "r" (x8), "r" (x1) : "memory");
++	return x0;
++}
++
++static __always_inline int vdso_read(const struct um_vdso_time *t, int coarse,
++				     struct um_timespec *ts)
++{
++	const struct um_vdso_data *d = &_um_vdso_data;
++	unsigned long long sec, ns, cyc;
++	unsigned int seq;
++
++	do {
++		seq = __atomic_load_n(&d->seq, __ATOMIC_ACQUIRE);
++		if (seq & 1)
++			continue;
++		if (!d->ok)
++			return -1;
++		sec = t->sec;
++		ns = t->nsec;
++		if (!coarse) {
++			__asm__ volatile("isb\n\tmrs %0, cntvct_el0" : "=r" (cyc));
++			ns += ((cyc - d->cycle_last) & d->mask) * d->mult;
++		}
++		ns >>= d->shift;
++		__atomic_thread_fence(__ATOMIC_ACQUIRE);
++	} while ((seq & 1) || seq != __atomic_load_n(&d->seq, __ATOMIC_RELAXED));
++
++	while (ns >= NSEC_PER_SEC) {
++		ns -= NSEC_PER_SEC;
++		sec++;
++	}
++	ts->tv_sec = sec;
++	ts->tv_nsec = ns;
++	return 0;
++}
++
++int __kernel_clock_gettime(int clock, struct um_timespec *ts);
++int __kernel_gettimeofday(struct um_timeval *tv, void *tz);
++
++int __kernel_clock_gettime(int clock, struct um_timespec *ts)
++{
++	const struct um_vdso_data *d = &_um_vdso_data;
++	int r = -1;
++
++	switch (clock) {
++	case CLOCK_REALTIME:
++		r = vdso_read(&d->real, 0, ts);
++		break;
++	case CLOCK_MONOTONIC:
++		r = vdso_read(&d->mono, 0, ts);
++		break;
++	case CLOCK_BOOTTIME:
++		r = vdso_read(&d->boot, 0, ts);
++		break;
++	case CLOCK_REALTIME_COARSE:
++		r = vdso_read(&d->real, 1, ts);
++		break;
++	case CLOCK_MONOTONIC_COARSE:
++		r = vdso_read(&d->mono, 1, ts);
++		break;
++	}
++	if (!r)
++		return 0;
++	return vdso_syscall2(NR_clock_gettime, clock, (long)ts);
++}
++
++int __kernel_gettimeofday(struct um_timeval *tv, void *tz)
++{
++	struct um_timespec ts;
++
++	if (tz || !tv || vdso_read(&_um_vdso_data.real, 0, &ts))
++		return vdso_syscall2(NR_gettimeofday, (long)tv, (long)tz);
++	tv->tv_sec = ts.tv_sec;
++	tv->tv_usec = (unsigned long long)ts.tv_nsec / 1000;
++	return 0;
++}
+diff --git a/arch/arm64/um/vdso/vma.c b/arch/arm64/um/vdso/vma.c
+index 4d7f96153b6c..4fa0da583ea1 100644
+--- a/arch/arm64/um/vdso/vma.c
++++ b/arch/arm64/um/vdso/vma.c
+@@ -12,10 +12,16 @@
+ #include <linux/mm.h>
+ #include <linux/init.h>
+ #include <linux/binfmts.h>
++#include <linux/clocksource.h>
++#include <linux/timekeeper_internal.h>
++#include <linux/time_namespace.h>
++#include <linux/math64.h>
+ #include <asm/page.h>
+ #include <asm/elf.h>
++#include <skas.h>
+ 
+ #include "vdso-offsets.h"
++#include "vdso-data.h"
+ 
+ unsigned long um_vdso_addr;
+ static struct page *um_vdso;
+@@ -33,6 +39,142 @@ unsigned long um_vdso_sigreturn_addr(void)
+ 	return um_vdso_addr + um_vdso_offset___kernel_rt_sigreturn;
+ }
+ 
++/*
++ * Time for the vDSO (vgettimeofday.c). The guest can only compute the time by
++ * itself from something it can read, and the one clock a host process reads
++ * without a syscall is the architected counter. So that is the clocksource,
++ * in place of the host's clock_gettime(), and what the timekeeper derives
++ * from it is copied to the page below the vDSO text on every update.
++ *
++ * A task in a time namespace of its own has offsets the page does not carry.
++ * Its mm gets a page that says "ask the kernel" instead.
++ */
++static struct page *um_vvar, *um_vvar_off;
++static struct um_vdso_data *um_vdata;
++
++static int um_vdso_time_off;
++
++static int __init um_vdso_time_setup(char *str)
++{
++	um_vdso_time_off = str && !strcmp(str, "0");
++	return 1;
++}
++__setup("vdso_time=", um_vdso_time_setup);
++
++static unsigned long um_cntvct_freq(void)
++{
++	unsigned long v;
++
++	asm volatile("mrs %0, cntfrq_el0" : "=r" (v));
++	return v;
++}
++
++static u64 um_cntvct_read(struct clocksource *cs)
++{
++	u64 v;
++
++	asm volatile("isb\n\tmrs %0, cntvct_el0" : "=r" (v));
++	return v;
++}
++
++static struct clocksource um_cntvct = {
++	.name	= "arch_sys_counter",
++	.rating	= 400,
++	.read	= um_cntvct_read,
++	.mask	= CLOCKSOURCE_MASK(56),
++	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
++};
++
++static void um_vdso_time_set(struct um_vdso_time *t, u64 sec, u64 nsec,
++			     u32 shift)
++{
++	while (nsec >= ((u64)NSEC_PER_SEC << shift)) {
++		nsec -= (u64)NSEC_PER_SEC << shift;
++		sec++;
++	}
++	t->sec = sec;
++	t->nsec = nsec;
++}
++
++void update_vsyscall(struct timekeeper *tk);
++void update_vsyscall_tz(void);
++
++/* Called by the timekeeping core with its lock held: one writer. */
++void update_vsyscall(struct timekeeper *tk)
++{
++	const struct tk_read_base *r = &tk->tkr_mono;
++	struct um_vdso_data *d = um_vdata;
++	u64 sec, nsec;
++	u32 rem;
++
++	if (!d)
++		return;
++
++	WRITE_ONCE(d->seq, d->seq + 1);
++	smp_wmb();
++
++	d->ok = r->clock == &um_cntvct;
++	d->cycle_last = r->cycle_last;
++	d->mask = r->mask;
++	d->mult = r->mult;
++	d->shift = r->shift;
++
++	um_vdso_time_set(&d->real, tk->xtime_sec, r->xtime_nsec, r->shift);
++
++	sec = tk->xtime_sec + tk->wall_to_monotonic.tv_sec;
++	nsec = r->xtime_nsec + ((u64)tk->wall_to_monotonic.tv_nsec << r->shift);
++	um_vdso_time_set(&d->mono, sec, nsec, r->shift);
++
++	sec = d->mono.sec +
++	      div_u64_rem(ktime_to_ns(tk->offs_boot), NSEC_PER_SEC, &rem);
++	nsec = d->mono.nsec + ((u64)rem << r->shift);
++	um_vdso_time_set(&d->boot, sec, nsec, r->shift);
++
++	smp_wmb();
++	WRITE_ONCE(d->seq, d->seq + 1);
++}
++
++void update_vsyscall_tz(void)
++{
++}
++
++static vm_fault_t um_vvar_fault(const struct vm_special_mapping *sm,
++				struct vm_area_struct *vma,
++				struct vm_fault *vmf)
++{
++	struct page *page = vma->vm_mm->context.vvar_off ? um_vvar_off : um_vvar;
++
++	if (vmf->pgoff)
++		return VM_FAULT_SIGBUS;
++	get_page(page);
++	vmf->page = page;
++	return 0;
++}
++
++static const struct vm_special_mapping um_vvar_mapping = {
++	.name = "[vvar]",
++	.fault = um_vvar_fault,
++};
++
++/* @tsk enters @ns: at fork (its mm is new and not running yet) or setns. */
++void timens_commit(struct task_struct *tsk, struct time_namespace *ns)
++{
++	struct mm_struct *mm = tsk->mm;
++	bool off = ns != &init_time_ns;
++	struct vm_area_struct *vma;
++
++	if (!mm || mm->context.vvar_off == off)
++		return;
++
++	mmap_write_lock(mm);
++	mm->context.vvar_off = off;
++	vma = find_vma(mm, um_vdso_addr - PAGE_SIZE);
++	if (vma && vma->vm_start == um_vdso_addr - PAGE_SIZE &&
++	    vma_is_special_mapping(vma, &um_vvar_mapping))
++		zap_vma_range(vma, vma->vm_start, PAGE_SIZE);
++	mmap_write_unlock(mm);
++}
++
+ static int __init init_vdso(void)
+ {
+ 	BUG_ON(vdso_end - vdso_start > PAGE_SIZE);
+@@ -49,6 +191,20 @@ static int __init init_vdso(void)
+ 
+ 	copy_page(page_address(um_vdso), vdso_start);
+ 
++	um_vvar = alloc_page(GFP_KERNEL | __GFP_ZERO);
++	um_vvar_off = alloc_page(GFP_KERNEL | __GFP_ZERO);
++	if (!um_vvar || !um_vvar_off)
++		panic("Cannot allocate vdso data\n");
++	um_vdata = page_address(um_vvar);
++
++	/*
++	 * Only where the host lets EL0 read the counter (checked at startup
++	 * for the handoff spin) and firmware filled in its frequency. Without
++	 * the clocksource the page keeps saying "ask the kernel".
++	 */
++	if (have_stub_cycles && um_cntvct_freq() && !um_vdso_time_off)
++		clocksource_register_hz(&um_cntvct, um_cntvct_freq());
++
+ 	return 0;
+ }
+ subsys_initcall(init_vdso);
+@@ -69,6 +225,14 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+ 				       VM_READ | VM_EXEC |
+ 				       VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC,
+ 				       &vdso_mapping);
++	if (!IS_ERR(vma)) {
++		mm->context.vvar_off =
++			current->nsproxy->time_ns != &init_time_ns;
++		vma = _install_special_mapping(mm, um_vdso_addr - PAGE_SIZE,
++					       PAGE_SIZE,
++					       VM_READ | VM_MAYREAD |
++					       VM_DONTDUMP, &um_vvar_mapping);
++	}
+ 
+ 	mmap_write_unlock(mm);
+ 
+diff --git a/arch/um/include/asm/mmu.h b/arch/um/include/asm/mmu.h
+index 12e2766c2e5f..bd99061f9a71 100644
+--- a/arch/um/include/asm/mmu.h
++++ b/arch/um/include/asm/mmu.h
+@@ -54,6 +54,8 @@ typedef struct mm_context {
+ 	 * at the end of dup_mmap(), mappings included (arch_dup_mmap()), so
+ 	 * the PTEs copied until then are in sync as they are.
+ 	 */
++	/* arm64 vDSO: in a time namespace, the data page must not be used */
++	bool vvar_off;
+ 	bool clone_pending;
+ 	/* exec: takes over the old mm's stub in activate_mm() */
+ 	bool exec_pending;
+diff --git a/include/linux/time_namespace.h b/include/linux/time_namespace.h
+index 58bd9728df58..ecaf0b98b0db 100644
+--- a/include/linux/time_namespace.h
++++ b/include/linux/time_namespace.h
+@@ -162,9 +162,14 @@ static inline ktime_t timens_ktime_to_host(clockid_t clockid, ktime_t tim)
+ extern void timens_commit(struct task_struct *tsk, struct time_namespace *ns);
+ struct page *find_timens_vvar_page(struct vm_area_struct *vma);
+ #else /* !CONFIG_TIME_NS_VDSO */
++#if defined(CONFIG_UML_VDSO_TIME) && defined(CONFIG_TIME_NS)
++/* arch/arm64/um/vdso/vma.c */
++extern void timens_commit(struct task_struct *tsk, struct time_namespace *ns);
++#else
+ static inline void timens_commit(struct task_struct *tsk, struct time_namespace *ns)
+ {
+ }
++#endif
+ 
+ static inline struct page *find_timens_vvar_page(struct vm_area_struct *vma)
+ {
+diff --git a/kernel/time/timekeeping_internal.h b/kernel/time/timekeeping_internal.h
+index 6d719b8e5ea2..3e81004b33f8 100644
+--- a/kernel/time/timekeeping_internal.h
++++ b/kernel/time/timekeeping_internal.h
+@@ -56,6 +56,15 @@ extern void update_vsyscall(struct timekeeper *tk);
+ extern void update_vsyscall_tz(void);
+ extern void vdso_time_update_aux(struct timekeeper *tk);
+ 
++#elif defined(CONFIG_UML_VDSO_TIME)
++
++/* arch/arm64/um/vdso/vma.c */
++extern void update_vsyscall(struct timekeeper *tk);
++extern void update_vsyscall_tz(void);
++static inline void vdso_time_update_aux(struct timekeeper *tk)
++{
++}
++
+ #else
+ 
+ static inline void update_vsyscall(struct timekeeper *tk)
 -- 
 2.43.0
 
