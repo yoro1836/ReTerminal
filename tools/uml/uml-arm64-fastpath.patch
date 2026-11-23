@@ -1,7 +1,7 @@
 From 122de0338bebb3e2117380206901c9d51aaa6ad2 Mon Sep 17 00:00:00 2001
 From: t <t@t>
 Date: Fri, 20 Nov 2026 06:29:49 +0000
-Subject: [PATCH 01/28] um/arm64: syscall-site fast path (wip)
+Subject: [PATCH 01/29] um/arm64: syscall-site fast path (wip)
 
 ---
  arch/arm64/um/Kconfig                       |  11 +
@@ -907,7 +907,7 @@ index 81fef1c9ad03..9d2abb89254a 100644
 From c8d8a77cb91ed96de8dbff4da1d2120b1243f350 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:17:58 +0000
-Subject: [PATCH 02/28] um/arm64: fastpath fixes (slot floor, stub-only
+Subject: [PATCH 02/29] um/arm64: fastpath fixes (slot floor, stub-only
  stores), any svc site, memfd physmem, spin 200
 
 ---
@@ -1217,7 +1217,7 @@ index e40bc4559003..9b900dab3408 100644
 From 2c1f4618bca1daa15e70da5e702ff5a65c10296f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:36:39 +0000
-Subject: [PATCH 03/28] um: stub zygote with pre-filtered spare stubs
+Subject: [PATCH 03/29] um: stub zygote with pre-filtered spare stubs
  (stub_zygote=), spawn timing stat
 
 ---
@@ -1747,7 +1747,7 @@ index 58f6010ade11..08e5938c0594 100644
 From bc2ab4b82f6acef01d0ede8bb123cc2771617c80 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:46:48 +0000
-Subject: [PATCH 04/28] um: stub_pin (kernel thread and stubs on separate host
+Subject: [PATCH 04/29] um: stub_pin (kernel thread and stubs on separate host
  CPUs, default on), spin backoff knob, umstat= timing
 
 ---
@@ -2079,7 +2079,7 @@ index d3be0657d1a5..cc3ade2292ec 100644
 From bb5bff45121b48dc19017e60064af53b93afb90f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:55:48 +0000
-Subject: [PATCH 05/28] um: our options default on (seccomp=auto, stub_exe next
+Subject: [PATCH 05/29] um: our options default on (seccomp=auto, stub_exe next
  to the binary, physmem_memfd=)
 
 ---
@@ -2187,7 +2187,7 @@ index bc129f59cb7e..0683b9e5fe04 100644
 From d45f97a7f1fb413bb0680245c7740e8408ad7713 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 09:02:27 +0000
-Subject: [PATCH 06/28] um: SMP build (NR_CPUS 8): serialize start_userspace,
+Subject: [PATCH 06/29] um: SMP build (NR_CPUS 8): serialize start_userspace,
  no stub_pin with ncpus>1
 
 ---
@@ -2264,7 +2264,7 @@ index 3948eaaa56ce..7d59e8dc57f8 100755
 From e18c1a4b619b0a049af77ab7b1dba30305f0619c Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 04:11:36 +0000
-Subject: [PATCH 07/28] um: stubs keep physmem open (no SCM_RIGHTS per map
+Subject: [PATCH 07/29] um: stubs keep physmem open (no SCM_RIGHTS per map
  batch, no empty recvmsg); umstat per-syscall breakdown
 
 ---
@@ -2512,7 +2512,7 @@ index b49db9ab2eec..edb488636459 100644
 From d69aea858f5832ae3a356a7b9333cf1c3c68c69b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:10:01 +0000
-Subject: [PATCH 08/28] um: stub_pin keeps stubs off little cores (capacity <
+Subject: [PATCH 08/29] um: stub_pin keeps stubs off little cores (capacity <
  half of the best remaining)
 
 ---
@@ -2669,7 +2669,7 @@ index 59a77a4d611c..b2049492a0ce 100644
 From 2bb6ebd05cfea65778aa0eec9e9bef6a02867b9e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:13:06 +0000
-Subject: [PATCH 09/28] um: with SMP too, keep the kernel and stubs on the fast
+Subject: [PATCH 09/29] um: with SMP too, keep the kernel and stubs on the fast
  CPUs (stub_pin)
 
 ---
@@ -2793,7 +2793,7 @@ index 7234568b1943..26197dd3fc9b 100644
 From 6f44d440009f7d5851b6ccdf06633aec1d3a367e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:22:36 +0000
-Subject: [PATCH 10/28] um: SMP: defer IPIs in the handler while IRQs are off
+Subject: [PATCH 10/29] um: SMP: defer IPIs in the handler while IRQs are off
  instead of a host sigprocmask per local_irq_disable/enable
 
 ---
@@ -3005,7 +3005,7 @@ index 13ebc86918d4..9fcabde8c2c8 100644
 From b5c842c3ef50edcc8882acf11d281a91ec85bca8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:41:39 +0000
-Subject: [PATCH 11/28] um: stub_pin falls back to /proc/cpuinfo CPU part when
+Subject: [PATCH 11/29] um: stub_pin falls back to /proc/cpuinfo CPU part when
  sysfs CPU capacity is unreadable
 
 ---
@@ -3091,7 +3091,7 @@ index 851b0ebfe45c..ae927dfac43a 100644
 From 8d43843d827c864c5c3b4001893c985c6c3a78f8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:42:16 +0000
-Subject: [PATCH 12/28] um: stub_pin: don't squeeze more vCPUs than fast host
+Subject: [PATCH 12/29] um: stub_pin: don't squeeze more vCPUs than fast host
  CPUs onto them
 
 ---
@@ -3126,7 +3126,7 @@ index ae927dfac43a..a992391cf98b 100644
 From 847586991054563aa3dfa9812b5168213db56ec1 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:51:45 +0000
-Subject: [PATCH 13/28] um: handoff spin yields every ~3us so a peer on the
+Subject: [PATCH 13/29] um: handoff spin yields every ~3us so a peer on the
  same host CPU can run (sched_yield allowed for stubs)
 
 ---
@@ -3237,7 +3237,7 @@ index a3feb673bf94..4a6a2fbf9d5b 100644
 From f400252e028f1b0494259cad3b1c624f6ee6dba4 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:08:37 +0000
-Subject: [PATCH 14/28] um: keep one PROT_NONE anchor per 2MB of each stub so
+Subject: [PATCH 14/29] um: keep one PROT_NONE anchor per 2MB of each stub so
  the host keeps page tables between unmap and map (tlb_anchor=)
 
 ---
@@ -3525,7 +3525,7 @@ index c6e856d71f76..bc8942ac199d 100644
 From 16fdaab6a64632e525ea6c7bc52a8526239f6876 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:17:10 +0000
-Subject: [PATCH 15/28] um: also anchor a 2MB chunk when an upper-level table
+Subject: [PATCH 15/29] um: also anchor a 2MB chunk when an upper-level table
  was unmapped
 
 Lone mappings (e.g. mmap/munmap loops) free the guest pmd/pud on munmap, so
@@ -3643,7 +3643,7 @@ index c58d950e6de0..5fd93232042a 100644
 From a737e30ae2e2d8318f390adedac1eb02cad89879 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:48:30 +0000
-Subject: [PATCH 16/28] um: map guest RAM into stubs with MAP_POPULATE
+Subject: [PATCH 16/29] um: map guest RAM into stubs with MAP_POPULATE
  (stub_populate=)
 
 A 16K guest page on a 4K host took up to four host faults on first touch.
@@ -3750,7 +3750,7 @@ index bc8942ac199d..ee1c2763bef6 100644
 From d4f10447f325785c613de8e7c34890ff00765c2e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 08:52:24 +0000
-Subject: [PATCH 17/28] um/arm64: keep the fast-path frame out of the host
+Subject: [PATCH 17/29] um/arm64: keep the fast-path frame out of the host
  signal stack
 
 A SIGALRM taken while fast_busy is set but sp is still on the guest stack
@@ -3864,7 +3864,7 @@ index 0683b9e5fe04..2dda297e94d2 100644
 From 4950bb4dbd52f3d3a69b944d81a544306d338b2a Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 10:43:06 +0000
-Subject: [PATCH 18/28] um: don't wait for a zygote spare to boot in
+Subject: [PATCH 18/29] um: don't wait for a zygote spare to boot in
  start_userspace (stub_boot_async=)
 
 Overlaps the spare's wakeup with the rest of fork. SIGALRM is held back
@@ -4098,7 +4098,7 @@ index a992391cf98b..85cb1cc945a1 100644
 From e2db75bcf6aacd84c5eb20f83008376749e9d265 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:06:00 +0000
-Subject: [PATCH 19/28] um: say why stub_pin did or did not pin
+Subject: [PATCH 19/29] um: say why stub_pin did or did not pin
  (os_pin_fast_cpus)
 
 Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
@@ -4163,7 +4163,7 @@ index 85cb1cc945a1..12fc49b26920 100644
 From 0900c3a91e5c77e9c65a07e58756474e3be6e10d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:06:02 +0000
-Subject: [PATCH 20/28] um: host character device passthrough (hostdev=)
+Subject: [PATCH 20/29] um: host character device passthrough (hostdev=)
 
 hostdev=<host path>,<guest name>,<major>:<minor>[,drm] makes a guest
 character device whose ioctls run on the host fd inside the caller's stub
@@ -5439,7 +5439,7 @@ index ee1c2763bef6..4d3040727522 100644
 From c56f53b925b8ac2d81a731be8608024667297f25 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:37:35 +0000
-Subject: [PATCH 21/28] um: hostdev: host fds as guest files, host unix socket
+Subject: [PATCH 21/29] um: hostdev: host fds as guest files, host unix socket
  and shm devices
 
 PRIME, syncobj and dma-buf sync-file ioctls now run in the kernel process
@@ -6279,7 +6279,7 @@ index 000000000000..0c4a1fe83bfa
 From 01e1677c6165190878f9ff9e0fb802d5ed59698d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 01:18:37 +0000
-Subject: [PATCH 22/28] um/arm64: fastpath: page-align the slot search window
+Subject: [PATCH 22/29] um/arm64: fastpath: page-align the slot search window
 
 vm_unmapped_area() returns low_limit unchanged when the gap starts there, and
 low_limit was site - FP_RANGE, so for any site above 120 MiB the slot page
@@ -6338,7 +6338,7 @@ index 78e8e3dc3aae..cb0449bf62a9 100644
 From 776d8bf6682e2f999df15bd291b32f7d941367c3 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 01:50:27 +0000
-Subject: [PATCH 23/28] um: cheaper fork: inherited accessed bit, mprotect
+Subject: [PATCH 23/29] um: cheaper fork: inherited accessed bit, mprotect
  sync, write-fault-around
 
 A Python fork()+waitpid() took about 105 guest page faults, each a host
@@ -6774,7 +6774,7 @@ index 8b0c2c735d3d..4034490e3cbd 100644
 From 9e6f2bebd7106b8fdcdab39f8f386b072af163b7 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 03:25:05 +0000
-Subject: [PATCH 24/28] um: clone the parent's stub on fork
+Subject: [PATCH 24/29] um: clone the parent's stub on fork
 
 A forked mm used to start with a fresh stub and fault every inherited page
 back in. Let the parent's stub clone itself instead (STUB_SYSCALL_CLONE): the
@@ -7667,7 +7667,7 @@ index 4034490e3cbd..998187d40696 100644
 From 8d642c182c8712079f4f25f368bd7165a7200329 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 03:25:05 +0000
-Subject: [PATCH 25/28] um/arm64: fastpath: no fast return onto a read-only
+Subject: [PATCH 25/29] um/arm64: fastpath: no fast return onto a read-only
  stack page
 
 The fast return stores x16/x17 below the guest sp while fast_busy is set,
@@ -7799,7 +7799,7 @@ index 2011c7f2ef81..fbc31df9bbf4 100644
 From 494c5a5091199e08d6f53e2b821c57eaeb44a738 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 05:00:16 +0000
-Subject: [PATCH 26/28] um: sched: keep a lone forked child on its parent's CPU
+Subject: [PATCH 26/29] um: sched: keep a lone forked child on its parent's CPU
 
 Waking another vCPU for the child is a host signal to a sleeping thread and
 the same again when the parent is woken to reap it. A child that is its
@@ -7856,7 +7856,7 @@ index 0f2364479f9d..2ff9bde44d88 100644
 From 88ac3872d081fc40ce81e4fecdc5787837eea84f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 05:00:16 +0000
-Subject: [PATCH 27/28] um: exec takes over the old mm's stub; cloned stubs
+Subject: [PATCH 27/29] um: exec takes over the old mm's stub; cloned stubs
  report in lazily
 
 exec made a new host process for the new mm and killed the old one. When
@@ -8157,7 +8157,7 @@ index fbc31df9bbf4..82fa8a3a60b4 100644
 From f81dc4c2f7a4c5a2f60798f1e203c170559fb833 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 06:08:20 +0000
-Subject: [PATCH 28/28] um/arm64: clock_gettime and gettimeofday in the vDSO
+Subject: [PATCH 28/29] um/arm64: clock_gettime and gettimeofday in the vDSO
 
 In SECCOMP mode a guest clock_gettime() is a round trip to the UML kernel in
 another host process, about a microsecond. Make the architected counter the
@@ -8666,6 +8666,134 @@ index 6d719b8e5ea2..3e81004b33f8 100644
  #else
  
  static inline void update_vsyscall(struct timekeeper *tk)
+-- 
+2.43.0
+
+
+From c3eb1fff8bf06898b8da03889361b4b437372e40 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 23 Nov 2026 06:24:50 +0000
+Subject: [PATCH 29/29] um: install the first page of a fresh anonymous mapping
+ in mmap()
+
+A new private anonymous read-write mapping is nearly always written at its
+start right away, and that first touch costs a SIGSEGV plus a stub handoff.
+Populate the first page from the mmap syscall so the host mapping rides the
+syscall's own return. PROT_NONE, MAP_NORESERVE, stack and shared mappings
+are left alone. mmap_prefault=0 (core_param, runtime writable) turns it off.
+
+mmap+touch+munmap: x86 UML 103 -> 73us; S24 same-boot A/B 15.3 -> 13.0us.
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ arch/arm64/um/syscalls.c           |  5 ++++-
+ arch/um/include/shared/kern_util.h |  2 ++
+ arch/um/kernel/trap.c              | 26 ++++++++++++++++++++++++++
+ arch/x86/um/syscalls_64.c          |  5 ++++-
+ 4 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/um/syscalls.c b/arch/arm64/um/syscalls.c
+index d3331afadc65..ebb9b32f627d 100644
+--- a/arch/arm64/um/syscalls.c
++++ b/arch/arm64/um/syscalls.c
+@@ -9,6 +9,7 @@
+ #include <asm/ptrace.h>
+ #include <registers.h>
+ #include <os.h>
++#include <kern_util.h>
+ 
+ /*
+  * arm64's sys_mmap takes a byte offset, not a page offset (that is what
+@@ -23,7 +24,9 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
+ 	if (offset_in_page(off) != 0)
+ 		return -EINVAL;
+ 
+-	return ksys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
++	addr = ksys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
++	um_mmap_prefault(addr, prot, flags);
++	return addr;
+ }
+ 
+ void arch_switch_to(struct task_struct *to)
+diff --git a/arch/um/include/shared/kern_util.h b/arch/um/include/shared/kern_util.h
+index edf826a2c5f1..f40f4849c67f 100644
+--- a/arch/um/include/shared/kern_util.h
++++ b/arch/um/include/shared/kern_util.h
+@@ -37,6 +37,8 @@ extern void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs
+ 
+ extern void uml_pm_wake(void);
+ extern void um_fastpath_resume(void);
++extern void um_mmap_prefault(unsigned long addr, unsigned long prot,
++			     unsigned long flags);
+ 
+ extern int start_uml(void);
+ 
+diff --git a/arch/um/kernel/trap.c b/arch/um/kernel/trap.c
+index 9ca28edad1b0..c803e93cb8da 100644
+--- a/arch/um/kernel/trap.c
++++ b/arch/um/kernel/trap.c
+@@ -4,6 +4,7 @@
+  */
+ 
+ #include <linux/mm.h>
++#include <linux/mman.h>
+ #include <linux/sched/signal.h>
+ #include <linux/hardirq.h>
+ #include <linux/module.h>
+@@ -198,6 +199,31 @@ static const unsigned int um_prefault_ramp[] = {
+ static unsigned long um_prefault_bytes __read_mostly =
+ 	UM_PREFAULT_MAX_PAGES * PAGE_SIZE;
+ 
++/*
++ * A fresh private anonymous read-write mapping is nearly always written at
++ * its start straight away (a malloc chunk header, a small buffer), and that
++ * first touch costs a SIGSEGV plus a full stub handoff. Install the first
++ * page while still in mmap(), so the host mapping rides the syscall's own
++ * return. PROT_NONE reservations, stacks and MAP_NORESERVE arenas are left
++ * alone; the cost of a wrong guess is one zeroed page per mapping.
++ */
++static bool um_mmap_prefault_on __read_mostly = true;
++core_param(mmap_prefault, um_mmap_prefault_on, bool, 0644);
++
++void um_mmap_prefault(unsigned long addr, unsigned long prot,
++		      unsigned long flags)
++{
++	if (!um_mmap_prefault_on || IS_ERR_VALUE(addr))
++		return;
++	if ((flags & (MAP_TYPE | MAP_ANONYMOUS | MAP_POPULATE | MAP_GROWSDOWN |
++		      MAP_NORESERVE | MAP_STACK)) !=
++	    (MAP_PRIVATE | MAP_ANONYMOUS))
++		return;
++	if ((prot & (PROT_READ | PROT_WRITE)) != (PROT_READ | PROT_WRITE))
++		return;
++	mm_populate(addr, PAGE_SIZE);
++}
++
+ static int __init um_prefault_setup(char *str)
+ {
+ 	um_prefault_bytes = memparse(str, &str);
+diff --git a/arch/x86/um/syscalls_64.c b/arch/x86/um/syscalls_64.c
+index 6a00a28c9cca..d146a5f399d1 100644
+--- a/arch/x86/um/syscalls_64.c
++++ b/arch/x86/um/syscalls_64.c
+@@ -12,6 +12,7 @@
+ #include <asm/prctl.h> /* XXX This should get the constants from libc */
+ #include <registers.h>
+ #include <os.h>
++#include <kern_util.h>
+ 
+ long arch_prctl(struct task_struct *task, int option,
+ 		unsigned long __user *arg2)
+@@ -60,5 +61,7 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
+ 	if (off & ~PAGE_MASK)
+ 		return -EINVAL;
+ 
+-	return ksys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
++	addr = ksys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
++	um_mmap_prefault(addr, prot, flags);
++	return addr;
+ }
 -- 
 2.43.0
 
