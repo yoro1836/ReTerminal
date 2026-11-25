@@ -1,7 +1,7 @@
 From 122de0338bebb3e2117380206901c9d51aaa6ad2 Mon Sep 17 00:00:00 2001
 From: t <t@t>
 Date: Fri, 20 Nov 2026 06:29:49 +0000
-Subject: [PATCH 01/29] um/arm64: syscall-site fast path (wip)
+Subject: [PATCH 01/32] um/arm64: syscall-site fast path (wip)
 
 ---
  arch/arm64/um/Kconfig                       |  11 +
@@ -907,7 +907,7 @@ index 81fef1c9ad03..9d2abb89254a 100644
 From c8d8a77cb91ed96de8dbff4da1d2120b1243f350 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:17:58 +0000
-Subject: [PATCH 02/29] um/arm64: fastpath fixes (slot floor, stub-only
+Subject: [PATCH 02/32] um/arm64: fastpath fixes (slot floor, stub-only
  stores), any svc site, memfd physmem, spin 200
 
 ---
@@ -1217,7 +1217,7 @@ index e40bc4559003..9b900dab3408 100644
 From 2c1f4618bca1daa15e70da5e702ff5a65c10296f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:36:39 +0000
-Subject: [PATCH 03/29] um: stub zygote with pre-filtered spare stubs
+Subject: [PATCH 03/32] um: stub zygote with pre-filtered spare stubs
  (stub_zygote=), spawn timing stat
 
 ---
@@ -1747,7 +1747,7 @@ index 58f6010ade11..08e5938c0594 100644
 From bc2ab4b82f6acef01d0ede8bb123cc2771617c80 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:46:48 +0000
-Subject: [PATCH 04/29] um: stub_pin (kernel thread and stubs on separate host
+Subject: [PATCH 04/32] um: stub_pin (kernel thread and stubs on separate host
  CPUs, default on), spin backoff knob, umstat= timing
 
 ---
@@ -2079,7 +2079,7 @@ index d3be0657d1a5..cc3ade2292ec 100644
 From bb5bff45121b48dc19017e60064af53b93afb90f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:55:48 +0000
-Subject: [PATCH 05/29] um: our options default on (seccomp=auto, stub_exe next
+Subject: [PATCH 05/32] um: our options default on (seccomp=auto, stub_exe next
  to the binary, physmem_memfd=)
 
 ---
@@ -2187,7 +2187,7 @@ index bc129f59cb7e..0683b9e5fe04 100644
 From d45f97a7f1fb413bb0680245c7740e8408ad7713 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 09:02:27 +0000
-Subject: [PATCH 06/29] um: SMP build (NR_CPUS 8): serialize start_userspace,
+Subject: [PATCH 06/32] um: SMP build (NR_CPUS 8): serialize start_userspace,
  no stub_pin with ncpus>1
 
 ---
@@ -2264,7 +2264,7 @@ index 3948eaaa56ce..7d59e8dc57f8 100755
 From e18c1a4b619b0a049af77ab7b1dba30305f0619c Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 04:11:36 +0000
-Subject: [PATCH 07/29] um: stubs keep physmem open (no SCM_RIGHTS per map
+Subject: [PATCH 07/32] um: stubs keep physmem open (no SCM_RIGHTS per map
  batch, no empty recvmsg); umstat per-syscall breakdown
 
 ---
@@ -2512,7 +2512,7 @@ index b49db9ab2eec..edb488636459 100644
 From d69aea858f5832ae3a356a7b9333cf1c3c68c69b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:10:01 +0000
-Subject: [PATCH 08/29] um: stub_pin keeps stubs off little cores (capacity <
+Subject: [PATCH 08/32] um: stub_pin keeps stubs off little cores (capacity <
  half of the best remaining)
 
 ---
@@ -2669,7 +2669,7 @@ index 59a77a4d611c..b2049492a0ce 100644
 From 2bb6ebd05cfea65778aa0eec9e9bef6a02867b9e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:13:06 +0000
-Subject: [PATCH 09/29] um: with SMP too, keep the kernel and stubs on the fast
+Subject: [PATCH 09/32] um: with SMP too, keep the kernel and stubs on the fast
  CPUs (stub_pin)
 
 ---
@@ -2793,7 +2793,7 @@ index 7234568b1943..26197dd3fc9b 100644
 From 6f44d440009f7d5851b6ccdf06633aec1d3a367e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:22:36 +0000
-Subject: [PATCH 10/29] um: SMP: defer IPIs in the handler while IRQs are off
+Subject: [PATCH 10/32] um: SMP: defer IPIs in the handler while IRQs are off
  instead of a host sigprocmask per local_irq_disable/enable
 
 ---
@@ -3005,7 +3005,7 @@ index 13ebc86918d4..9fcabde8c2c8 100644
 From b5c842c3ef50edcc8882acf11d281a91ec85bca8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:41:39 +0000
-Subject: [PATCH 11/29] um: stub_pin falls back to /proc/cpuinfo CPU part when
+Subject: [PATCH 11/32] um: stub_pin falls back to /proc/cpuinfo CPU part when
  sysfs CPU capacity is unreadable
 
 ---
@@ -3091,7 +3091,7 @@ index 851b0ebfe45c..ae927dfac43a 100644
 From 8d43843d827c864c5c3b4001893c985c6c3a78f8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:42:16 +0000
-Subject: [PATCH 12/29] um: stub_pin: don't squeeze more vCPUs than fast host
+Subject: [PATCH 12/32] um: stub_pin: don't squeeze more vCPUs than fast host
  CPUs onto them
 
 ---
@@ -3126,7 +3126,7 @@ index ae927dfac43a..a992391cf98b 100644
 From 847586991054563aa3dfa9812b5168213db56ec1 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:51:45 +0000
-Subject: [PATCH 13/29] um: handoff spin yields every ~3us so a peer on the
+Subject: [PATCH 13/32] um: handoff spin yields every ~3us so a peer on the
  same host CPU can run (sched_yield allowed for stubs)
 
 ---
@@ -3237,7 +3237,7 @@ index a3feb673bf94..4a6a2fbf9d5b 100644
 From f400252e028f1b0494259cad3b1c624f6ee6dba4 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:08:37 +0000
-Subject: [PATCH 14/29] um: keep one PROT_NONE anchor per 2MB of each stub so
+Subject: [PATCH 14/32] um: keep one PROT_NONE anchor per 2MB of each stub so
  the host keeps page tables between unmap and map (tlb_anchor=)
 
 ---
@@ -3525,7 +3525,7 @@ index c6e856d71f76..bc8942ac199d 100644
 From 16fdaab6a64632e525ea6c7bc52a8526239f6876 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:17:10 +0000
-Subject: [PATCH 15/29] um: also anchor a 2MB chunk when an upper-level table
+Subject: [PATCH 15/32] um: also anchor a 2MB chunk when an upper-level table
  was unmapped
 
 Lone mappings (e.g. mmap/munmap loops) free the guest pmd/pud on munmap, so
@@ -3643,7 +3643,7 @@ index c58d950e6de0..5fd93232042a 100644
 From a737e30ae2e2d8318f390adedac1eb02cad89879 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:48:30 +0000
-Subject: [PATCH 16/29] um: map guest RAM into stubs with MAP_POPULATE
+Subject: [PATCH 16/32] um: map guest RAM into stubs with MAP_POPULATE
  (stub_populate=)
 
 A 16K guest page on a 4K host took up to four host faults on first touch.
@@ -3750,7 +3750,7 @@ index bc8942ac199d..ee1c2763bef6 100644
 From d4f10447f325785c613de8e7c34890ff00765c2e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 08:52:24 +0000
-Subject: [PATCH 17/29] um/arm64: keep the fast-path frame out of the host
+Subject: [PATCH 17/32] um/arm64: keep the fast-path frame out of the host
  signal stack
 
 A SIGALRM taken while fast_busy is set but sp is still on the guest stack
@@ -3864,7 +3864,7 @@ index 0683b9e5fe04..2dda297e94d2 100644
 From 4950bb4dbd52f3d3a69b944d81a544306d338b2a Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 10:43:06 +0000
-Subject: [PATCH 18/29] um: don't wait for a zygote spare to boot in
+Subject: [PATCH 18/32] um: don't wait for a zygote spare to boot in
  start_userspace (stub_boot_async=)
 
 Overlaps the spare's wakeup with the rest of fork. SIGALRM is held back
@@ -4098,7 +4098,7 @@ index a992391cf98b..85cb1cc945a1 100644
 From e2db75bcf6aacd84c5eb20f83008376749e9d265 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:06:00 +0000
-Subject: [PATCH 19/29] um: say why stub_pin did or did not pin
+Subject: [PATCH 19/32] um: say why stub_pin did or did not pin
  (os_pin_fast_cpus)
 
 Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
@@ -4163,7 +4163,7 @@ index 85cb1cc945a1..12fc49b26920 100644
 From 0900c3a91e5c77e9c65a07e58756474e3be6e10d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:06:02 +0000
-Subject: [PATCH 20/29] um: host character device passthrough (hostdev=)
+Subject: [PATCH 20/32] um: host character device passthrough (hostdev=)
 
 hostdev=<host path>,<guest name>,<major>:<minor>[,drm] makes a guest
 character device whose ioctls run on the host fd inside the caller's stub
@@ -5439,7 +5439,7 @@ index ee1c2763bef6..4d3040727522 100644
 From c56f53b925b8ac2d81a731be8608024667297f25 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:37:35 +0000
-Subject: [PATCH 21/29] um: hostdev: host fds as guest files, host unix socket
+Subject: [PATCH 21/32] um: hostdev: host fds as guest files, host unix socket
  and shm devices
 
 PRIME, syncobj and dma-buf sync-file ioctls now run in the kernel process
@@ -6279,7 +6279,7 @@ index 000000000000..0c4a1fe83bfa
 From 01e1677c6165190878f9ff9e0fb802d5ed59698d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 01:18:37 +0000
-Subject: [PATCH 22/29] um/arm64: fastpath: page-align the slot search window
+Subject: [PATCH 22/32] um/arm64: fastpath: page-align the slot search window
 
 vm_unmapped_area() returns low_limit unchanged when the gap starts there, and
 low_limit was site - FP_RANGE, so for any site above 120 MiB the slot page
@@ -6338,7 +6338,7 @@ index 78e8e3dc3aae..cb0449bf62a9 100644
 From 776d8bf6682e2f999df15bd291b32f7d941367c3 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 01:50:27 +0000
-Subject: [PATCH 23/29] um: cheaper fork: inherited accessed bit, mprotect
+Subject: [PATCH 23/32] um: cheaper fork: inherited accessed bit, mprotect
  sync, write-fault-around
 
 A Python fork()+waitpid() took about 105 guest page faults, each a host
@@ -6774,7 +6774,7 @@ index 8b0c2c735d3d..4034490e3cbd 100644
 From 9e6f2bebd7106b8fdcdab39f8f386b072af163b7 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 03:25:05 +0000
-Subject: [PATCH 24/29] um: clone the parent's stub on fork
+Subject: [PATCH 24/32] um: clone the parent's stub on fork
 
 A forked mm used to start with a fresh stub and fault every inherited page
 back in. Let the parent's stub clone itself instead (STUB_SYSCALL_CLONE): the
@@ -7667,7 +7667,7 @@ index 4034490e3cbd..998187d40696 100644
 From 8d642c182c8712079f4f25f368bd7165a7200329 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 03:25:05 +0000
-Subject: [PATCH 25/29] um/arm64: fastpath: no fast return onto a read-only
+Subject: [PATCH 25/32] um/arm64: fastpath: no fast return onto a read-only
  stack page
 
 The fast return stores x16/x17 below the guest sp while fast_busy is set,
@@ -7799,7 +7799,7 @@ index 2011c7f2ef81..fbc31df9bbf4 100644
 From 494c5a5091199e08d6f53e2b821c57eaeb44a738 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 05:00:16 +0000
-Subject: [PATCH 26/29] um: sched: keep a lone forked child on its parent's CPU
+Subject: [PATCH 26/32] um: sched: keep a lone forked child on its parent's CPU
 
 Waking another vCPU for the child is a host signal to a sleeping thread and
 the same again when the parent is woken to reap it. A child that is its
@@ -7856,7 +7856,7 @@ index 0f2364479f9d..2ff9bde44d88 100644
 From 88ac3872d081fc40ce81e4fecdc5787837eea84f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 05:00:16 +0000
-Subject: [PATCH 27/29] um: exec takes over the old mm's stub; cloned stubs
+Subject: [PATCH 27/32] um: exec takes over the old mm's stub; cloned stubs
  report in lazily
 
 exec made a new host process for the new mm and killed the old one. When
@@ -8157,7 +8157,7 @@ index fbc31df9bbf4..82fa8a3a60b4 100644
 From f81dc4c2f7a4c5a2f60798f1e203c170559fb833 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 06:08:20 +0000
-Subject: [PATCH 28/29] um/arm64: clock_gettime and gettimeofday in the vDSO
+Subject: [PATCH 28/32] um/arm64: clock_gettime and gettimeofday in the vDSO
 
 In SECCOMP mode a guest clock_gettime() is a round trip to the UML kernel in
 another host process, about a microsecond. Make the architected counter the
@@ -8673,7 +8673,7 @@ index 6d719b8e5ea2..3e81004b33f8 100644
 From c3eb1fff8bf06898b8da03889361b4b437372e40 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 06:24:50 +0000
-Subject: [PATCH 29/29] um: install the first page of a fresh anonymous mapping
+Subject: [PATCH 29/32] um: install the first page of a fresh anonymous mapping
  in mmap()
 
 A new private anonymous read-write mapping is nearly always written at its
@@ -8794,6 +8794,389 @@ index 6a00a28c9cca..d146a5f399d1 100644
 +	um_mmap_prefault(addr, prot, flags);
 +	return addr;
  }
+-- 
+2.43.0
+
+
+From 87b97d77252dfb8999613353150bf049fff8729c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 25 Nov 2026 06:33:09 +0000
+Subject: [PATCH 30/32] um: don't call strrchr from user code (glibc 2.43)
+
+arch/um/Makefile renames strrchr for user objects; glibc 2.43 wraps it in
+a const-generic macro whose inner call then has no declaration.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ arch/um/os-Linux/skas/process.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index 82fa8a3a60b4..0301baaec0f4 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -777,11 +777,18 @@ static int __init init_stub_exe_fd(void)
+ 	if (!stub_exe_path) {
+ 		static char self[4096];
+ 		ssize_t n = readlink("/proc/self/exe", self, sizeof(self) - 16);
+-		char *slash;
++		char *slash = NULL;
+ 
+ 		if (n > 0) {
+ 			self[n] = 0;
+-			slash = strrchr(self, '/');
++			/*
++			 * Not strrchr(): arch/um/Makefile renames it for user
++			 * code, and glibc 2.43's const-generic strrchr macro
++			 * then calls an undeclared function.
++			 */
++			for (ssize_t i = 0; i < n; i++)
++				if (self[i] == '/')
++					slash = &self[i];
+ 			if (slash) {
+ 				strcpy(slash + 1, "stub_exe");
+ 				if (access(self, R_OK | X_OK) == 0) {
+-- 
+2.43.0
+
+
+From 0a06c3bfa9cac217a04ccfa0033a51a89d263bff Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 25 Nov 2026 06:44:02 +0000
+Subject: [PATCH 31/32] um/arm64: leave FP registers in the stub frame across
+ syscalls
+
+get_stub_state and set_stub_state copied the 528-byte FPSIMD record on
+every trap: reading what the stub had just written on another core, then
+writing it back for the stub to read again. On a Neoverse N1 VM that
+cache-line traffic was half of a guest syscall.
+
+A syscall never changes FP state, so for a single-threaded mm leave the
+registers in the frame and record where they are (regs->fp_src). Anything
+that reads or writes regs->fp syncs first: signal frames, the FP regset
+(ptrace, core dumps), fork, exec and the ptrace path. Creating a thread
+goes through copy_thread, which syncs, so no other task can overwrite the
+frame of a lazy one. fp_lazy=0 (core_param) turns it off.
+
+A1 same-boot A/B: getppid 2.0-2.9 -> 1.25us, pipe 4.3-6.2 -> 2.8us.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ arch/arm64/um/os-Linux/mcontext.c    | 65 +++++++++++++++++++++++-----
+ arch/arm64/um/ptrace.c               | 17 ++++++++
+ arch/arm64/um/shared/sysdep/ptrace.h | 17 ++++++++
+ arch/arm64/um/signal.c               |  2 +
+ arch/um/kernel/exec.c                |  3 ++
+ arch/um/kernel/process.c             |  8 ++++
+ arch/um/os-Linux/skas/process.c      |  6 +++
+ 7 files changed, 107 insertions(+), 11 deletions(-)
+
+diff --git a/arch/arm64/um/os-Linux/mcontext.c b/arch/arm64/um/os-Linux/mcontext.c
+index adc1a9cd8640..c120085276c8 100644
+--- a/arch/arm64/um/os-Linux/mcontext.c
++++ b/arch/arm64/um/os-Linux/mcontext.c
+@@ -116,6 +116,44 @@ struct um_fpsimd_context {
+ 	__uint128_t vregs[32];
+ };
+ 
++extern int um_fp_lazy_ok(void);
++extern unsigned long um_fp_lazy_moves;
++
++static void fp_from_ctx(struct uml_pt_regs *regs, struct um_fpsimd_context *fp)
++{
++	/*
++	 * regs->fp mirrors the host's NT_PRFPREG / NT_ARM_SVE layout, which
++	 * begins with the 32 V registers followed by fpsr and fpcr -- the same
++	 * order as struct user_fpsimd_state, and the reverse of the order inside
++	 * fpsimd_context, hence the two copies rather than one.
++	 */
++	memcpy(regs->fp, fp->vregs, sizeof(fp->vregs));
++	memcpy((unsigned char *)regs->fp + sizeof(fp->vregs), &fp->fpsr,
++	       sizeof(fp->fpsr));
++	memcpy((unsigned char *)regs->fp + sizeof(fp->vregs) + sizeof(fp->fpsr),
++	       &fp->fpcr, sizeof(fp->fpcr));
++}
++
++void um_fp_fetch(struct uml_pt_regs *regs)
++{
++	struct um_fpsimd_context *fp = regs->fp_src;
++
++	regs->fp_src = NULL;
++	fp_from_ctx(regs, fp);
++}
++
++/*
++ * The FPSIMD record is 528 bytes, which get and set used to copy on every
++ * trap: reading what the stub just wrote on another core, then writing it
++ * back for the stub to read again. That cache-line traffic was about half
++ * of a guest syscall. A syscall never changes FP state, so the registers are
++ * left in the frame and only recorded in regs->fp_src.
++ *
++ * This is only safe while nobody else can run on the stub and overwrite the
++ * frame, so only for a single-threaded mm (um_fp_lazy_ok()); creating a
++ * thread goes through copy_thread(), which syncs first. Everything else that
++ * reads or writes regs->fp (signal frames, ptrace, fork, exec) syncs too.
++ */
+ int get_stub_state(struct uml_pt_regs *regs, struct stub_data *data,
+ 		   unsigned long *fp_size_out)
+ {
+@@ -154,18 +192,13 @@ int get_stub_state(struct uml_pt_regs *regs, struct stub_data *data,
+ 	    host_fp_size)
+ 		return -ENOSPC;
+ 
+-	/*
+-	 * regs->fp mirrors the host's NT_PRFPREG / NT_ARM_SVE layout, which
+-	 * begins with the 32 V registers followed by fpsr and fpcr -- the same
+-	 * order as struct user_fpsimd_state, and the reverse of the order inside
+-	 * fpsimd_context, hence the two copies rather than one.
+-	 */
+-	memcpy(regs->fp, fp->vregs, sizeof(fp->vregs));
+-	memcpy((unsigned char *)regs->fp + sizeof(fp->vregs), &fp->fpsr,
+-	       sizeof(fp->fpsr));
+-	memcpy((unsigned char *)regs->fp + sizeof(fp->vregs) + sizeof(fp->fpsr),
+-	       &fp->fpcr, sizeof(fp->fpcr));
++	if (!fp_size_out && um_fp_lazy_ok()) {
++		regs->fp_src = fp;
++		return 0;
++	}
+ 
++	regs->fp_src = NULL;
++	fp_from_ctx(regs, fp);
+ 	return 0;
+ }
+ 
+@@ -191,6 +224,15 @@ int set_stub_state(struct uml_pt_regs *regs, struct stub_data *data,
+ 	if (!fp || size < sizeof(*fp))
+ 		return -EINVAL;
+ 
++	/* The frame still holds the live values: nothing to write. */
++	if (regs->fp_src == fp)
++		goto tls;
++	if (regs->fp_src) {
++		/* The frame moved under a lazy task; not expected. */
++		um_fp_lazy_moves++;
++		um_fp_fetch(regs);
++	}
++
+ 	memcpy(fp->vregs, regs->fp, sizeof(fp->vregs));
+ 	memcpy(&fp->fpsr, (unsigned char *)regs->fp + sizeof(fp->vregs),
+ 	       sizeof(fp->fpsr));
+@@ -204,6 +246,7 @@ int set_stub_state(struct uml_pt_regs *regs, struct stub_data *data,
+ 	 * EL0, so all that is needed is to tell the stub the value and let it
+ 	 * install it with a single "msr" on resume.
+ 	 */
++tls:
+ 	if (data->arch_data.tls != regs->gp[HOST_TLS]) {
+ 		data->arch_data.tls = regs->gp[HOST_TLS];
+ 		data->arch_data.sync |= STUB_SYNC_TLS;
+diff --git a/arch/arm64/um/ptrace.c b/arch/arm64/um/ptrace.c
+index 437d92d20a72..d2a3e1f901ba 100644
+--- a/arch/arm64/um/ptrace.c
++++ b/arch/arm64/um/ptrace.c
+@@ -14,6 +14,7 @@
+ #include <linux/elf.h>
+ #include <linux/regset.h>
+ #include <linux/uaccess.h>
++#include <linux/moduleparam.h>
+ #include <asm/ptrace.h>
+ #include <registers.h>
+ 
+@@ -131,12 +132,27 @@ static int fpregs_active(struct task_struct *target,
+ 	return regset->n;
+ }
+ 
++/* See get_stub_state(): FP registers stay in the stub frame when possible. */
++static bool fp_lazy = true;
++core_param(fp_lazy, fp_lazy, bool, 0644);
++unsigned long um_fp_lazy_moves;
++core_param(fp_lazy_moves, um_fp_lazy_moves, ulong, 0444);
++
++int um_fp_lazy_ok(void);
++int um_fp_lazy_ok(void)
++{
++	struct mm_struct *mm = current->mm;
++
++	return fp_lazy && mm && atomic_read(&mm->mm_users) == 1;
++}
++
+ static int fpregs_get(struct task_struct *target,
+ 		      const struct user_regset *regset,
+ 		      struct membuf to)
+ {
+ 	void *fpregs = task_pt_regs(target)->regs.fp;
+ 
++	um_fp_sync(&task_pt_regs(target)->regs);
+ 	membuf_write(&to, fpregs, regset->size * regset->n);
+ 	return 0;
+ }
+@@ -148,6 +164,7 @@ static int fpregs_set(struct task_struct *target,
+ {
+ 	void *fpregs = task_pt_regs(target)->regs.fp;
+ 
++	um_fp_sync(&task_pt_regs(target)->regs);
+ 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+ 				  fpregs, 0, regset->size * regset->n);
+ }
+diff --git a/arch/arm64/um/shared/sysdep/ptrace.h b/arch/arm64/um/shared/sysdep/ptrace.h
+index 68d490661161..b93d9c42d1cf 100644
+--- a/arch/arm64/um/shared/sysdep/ptrace.h
++++ b/arch/arm64/um/shared/sysdep/ptrace.h
+@@ -124,10 +124,27 @@ struct uml_pt_regs {
+ 	long syscall;
+ 	int is_user;
+ 
++	/*
++	 * Set while this task's live FPSIMD registers are still in the stub's
++	 * signal frame (this record) instead of fp[]: a guest syscall never
++	 * touches them, so they are only copied out when someone needs them.
++	 * See get_stub_state(); um_fp_sync() before using fp[].
++	 */
++	void *fp_src;
++
+ 	/* Dynamically sized FP registers (FPSIMD, or FPSIMD+SVE) */
+ 	unsigned long fp[];
+ };
+ 
++#define UM_FP_LAZY 1
++extern void um_fp_fetch(struct uml_pt_regs *regs);
++
++static inline void um_fp_sync(struct uml_pt_regs *regs)
++{
++	if (regs->fp_src)
++		um_fp_fetch(regs);
++}
++
+ #define EMPTY_UML_PT_REGS { }
+ 
+ #define UPT_SYSCALL_NR(r) ((r)->syscall)
+diff --git a/arch/arm64/um/signal.c b/arch/arm64/um/signal.c
+index 7163bebcd5fb..3b8f1b16f945 100644
+--- a/arch/arm64/um/signal.c
++++ b/arch/arm64/um/signal.c
+@@ -96,6 +96,7 @@ static void fpstate_to_sigctx(struct fpsimd_context *fp, struct pt_regs *regs)
+ {
+ 	struct user_fpsimd_state *st = (struct user_fpsimd_state *)regs->regs.fp;
+ 
++	um_fp_sync(&regs->regs);
+ 	if (host_fp_size < UM_FP_PAYLOAD_SIZE)
+ 		return;
+ 
+@@ -108,6 +109,7 @@ static void sigctx_to_fpstate(struct pt_regs *regs, const struct fpsimd_context
+ {
+ 	struct user_fpsimd_state *st = (struct user_fpsimd_state *)regs->regs.fp;
+ 
++	um_fp_sync(&regs->regs);
+ 	if (host_fp_size < UM_FP_PAYLOAD_SIZE)
+ 		return;
+ 
+diff --git a/arch/um/kernel/exec.c b/arch/um/kernel/exec.c
+index 6c294d865ba6..a4dfa0a5a47d 100644
+--- a/arch/um/kernel/exec.c
++++ b/arch/um/kernel/exec.c
+@@ -28,6 +28,9 @@ void flush_thread(void)
+ 
+ 	get_safe_registers(current_pt_regs()->regs.gp,
+ 			   current_pt_regs()->regs.fp);
++#ifdef UM_FP_LAZY
++	current_pt_regs()->regs.fp_src = NULL;
++#endif
+ }
+ 
+ void start_thread(struct pt_regs *regs, unsigned long eip, unsigned long esp)
+diff --git a/arch/um/kernel/process.c b/arch/um/kernel/process.c
+index 63b38a3f73f7..0cffcc82bc65 100644
+--- a/arch/um/kernel/process.c
++++ b/arch/um/kernel/process.c
+@@ -162,6 +162,14 @@ int copy_thread(struct task_struct * p, const struct kernel_clone_args *args)
+ 
+ 		handler = fork_handler;
+ 
++#ifdef UM_FP_LAZY
++		/* dup_task_struct copied fp[] before the parent's was synced */
++		um_fp_sync(&current_pt_regs()->regs);
++		memcpy(p->thread.regs.regs.fp, current_pt_regs()->regs.fp,
++		       host_fp_size);
++		p->thread.regs.regs.fp_src = NULL;
++#endif
++
+ 		arch_copy_thread(&current->thread.arch, &p->thread.arch);
+ 	} else {
+ 		get_safe_registers(p->thread.regs.regs.gp, p->thread.regs.regs.fp);
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index 0301baaec0f4..d4641a9094ba 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -1503,6 +1503,9 @@ void userspace(struct uml_pt_regs *regs)
+ 				fatal_sigsegv();
+ 			}
+ 
++#ifdef UM_FP_LAZY
++			um_fp_sync(regs);
++#endif
+ 			if (put_fp_registers(pid, regs->fp)) {
+ 				printk(UM_KERN_ERR "%s - ptrace set fp regs failed, errno = %d\n",
+ 				       __func__, errno);
+@@ -1562,6 +1565,9 @@ void userspace(struct uml_pt_regs *regs)
+ 				       __func__, errno);
+ 				fatal_sigsegv();
+ 			}
++#ifdef UM_FP_LAZY
++			regs->fp_src = NULL;
++#endif
+ 
+ #ifdef UM_SYSCALL_STOP_HIDES_REG
+ 			/*
+-- 
+2.43.0
+
+
+From 2bfac0042505ad580ea2f473efb6b9886bfff107 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 25 Nov 2026 07:08:57 +0000
+Subject: [PATCH 32/32] um/arm64: take memcpy/memset/memmove/memcmp from glibc
+ too
+
+lib/string.c's versions are byte loops. On a glibc arm64 host a 16K
+clear_page() was a third of the kernel's time in fork(), and the FP
+register copies were a quarter of a syscall. Bionic builds already
+used libc's.
+
+A1 (Neoverse N1): fork+exit 680 -> 270us, mmap+touch+munmap 80 -> 22us.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ arch/arm64/um/asm/string.h | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/arch/arm64/um/asm/string.h b/arch/arm64/um/asm/string.h
+index 437043633611..5bb0c1c89989 100644
+--- a/arch/arm64/um/asm/string.h
++++ b/arch/arm64/um/asm/string.h
+@@ -64,6 +64,21 @@ char *strchrnul(const char *, int);
+ __kernel_size_t strlen(const char *);
+ int strncmp(const char *, const char *, __kernel_size_t);
+ __kernel_size_t strnlen(const char *, __kernel_size_t);
++#else
++/*
++ * Against glibc, take at least the bulk memory routines from libc too.
++ * lib/string.c's are byte loops: a 16K clear_page() was a third of the
++ * kernel's time in fork() on an arm64 host. The str* family stays generic
++ * (see above for strrchr).
++ */
++#define __HAVE_ARCH_MEMCPY
++#define __HAVE_ARCH_MEMSET
++#define __HAVE_ARCH_MEMMOVE
++#define __HAVE_ARCH_MEMCMP
++void *memcpy(void *, const void *, __kernel_size_t);
++void *memset(void *, int, __kernel_size_t);
++void *memmove(void *, const void *, __kernel_size_t);
++int memcmp(const void *, const void *, __kernel_size_t);
+ #endif
+ 
+ #endif /* __UM_ARM64_STRING_H */
 -- 
 2.43.0
 
