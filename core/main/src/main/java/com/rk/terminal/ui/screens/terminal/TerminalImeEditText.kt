@@ -2,8 +2,10 @@ package com.rk.terminal.ui.screens.terminal
 
 import android.content.Context
 import android.graphics.Color
+import android.os.Build
 import android.text.InputType
 import android.view.KeyEvent
+import android.view.View
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
@@ -28,8 +30,13 @@ class TerminalImeEditText(context: Context) : AppCompatEditText(context) {
         inputType = InputType.TYPE_CLASS_TEXT or
             InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
             InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-        imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_ACTION_NONE
+        imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_ACTION_NONE or
+            EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+        // The password input type makes autofill offer saved passwords; a terminal never wants that.
+        if (Build.VERSION.SDK_INT >= 26) importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
     }
+
+    override fun getAutofillType(): Int = View.AUTOFILL_TYPE_NONE
 
     fun showKeyboardAtCursor() {
         requestFocus()

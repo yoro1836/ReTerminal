@@ -43,6 +43,8 @@ fun TerminalViewLayout(
             factory = { ctx ->
                 TerminalView(ctx, null).apply {
                     viewModel.setTerminalView(this)
+                    if (android.os.Build.VERSION.SDK_INT >= 26)
+                        importantForAutofill = android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
                     setTextSize(dpToPx(Settings.terminal_font_size.toFloat(), ctx))
                     setBackgroundColor(TerminalUtils.getBackgroundColor())
 
