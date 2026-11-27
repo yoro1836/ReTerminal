@@ -1,7 +1,7 @@
 From 122de0338bebb3e2117380206901c9d51aaa6ad2 Mon Sep 17 00:00:00 2001
 From: t <t@t>
 Date: Fri, 20 Nov 2026 06:29:49 +0000
-Subject: [PATCH 01/38] um/arm64: syscall-site fast path (wip)
+Subject: [PATCH 01/39] um/arm64: syscall-site fast path (wip)
 
 ---
  arch/arm64/um/Kconfig                       |  11 +
@@ -907,7 +907,7 @@ index 81fef1c9ad03..9d2abb89254a 100644
 From c8d8a77cb91ed96de8dbff4da1d2120b1243f350 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:17:58 +0000
-Subject: [PATCH 02/38] um/arm64: fastpath fixes (slot floor, stub-only
+Subject: [PATCH 02/39] um/arm64: fastpath fixes (slot floor, stub-only
  stores), any svc site, memfd physmem, spin 200
 
 ---
@@ -1217,7 +1217,7 @@ index e40bc4559003..9b900dab3408 100644
 From 2c1f4618bca1daa15e70da5e702ff5a65c10296f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:36:39 +0000
-Subject: [PATCH 03/38] um: stub zygote with pre-filtered spare stubs
+Subject: [PATCH 03/39] um: stub zygote with pre-filtered spare stubs
  (stub_zygote=), spawn timing stat
 
 ---
@@ -1747,7 +1747,7 @@ index 58f6010ade11..08e5938c0594 100644
 From bc2ab4b82f6acef01d0ede8bb123cc2771617c80 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:46:48 +0000
-Subject: [PATCH 04/38] um: stub_pin (kernel thread and stubs on separate host
+Subject: [PATCH 04/39] um: stub_pin (kernel thread and stubs on separate host
  CPUs, default on), spin backoff knob, umstat= timing
 
 ---
@@ -2079,7 +2079,7 @@ index d3be0657d1a5..cc3ade2292ec 100644
 From bb5bff45121b48dc19017e60064af53b93afb90f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 07:55:48 +0000
-Subject: [PATCH 05/38] um: our options default on (seccomp=auto, stub_exe next
+Subject: [PATCH 05/39] um: our options default on (seccomp=auto, stub_exe next
  to the binary, physmem_memfd=)
 
 ---
@@ -2187,7 +2187,7 @@ index bc129f59cb7e..0683b9e5fe04 100644
 From d45f97a7f1fb413bb0680245c7740e8408ad7713 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 20 Nov 2026 09:02:27 +0000
-Subject: [PATCH 06/38] um: SMP build (NR_CPUS 8): serialize start_userspace,
+Subject: [PATCH 06/39] um: SMP build (NR_CPUS 8): serialize start_userspace,
  no stub_pin with ncpus>1
 
 ---
@@ -2264,7 +2264,7 @@ index 3948eaaa56ce..7d59e8dc57f8 100755
 From e18c1a4b619b0a049af77ab7b1dba30305f0619c Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 04:11:36 +0000
-Subject: [PATCH 07/38] um: stubs keep physmem open (no SCM_RIGHTS per map
+Subject: [PATCH 07/39] um: stubs keep physmem open (no SCM_RIGHTS per map
  batch, no empty recvmsg); umstat per-syscall breakdown
 
 ---
@@ -2512,7 +2512,7 @@ index b49db9ab2eec..edb488636459 100644
 From d69aea858f5832ae3a356a7b9333cf1c3c68c69b Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:10:01 +0000
-Subject: [PATCH 08/38] um: stub_pin keeps stubs off little cores (capacity <
+Subject: [PATCH 08/39] um: stub_pin keeps stubs off little cores (capacity <
  half of the best remaining)
 
 ---
@@ -2669,7 +2669,7 @@ index 59a77a4d611c..b2049492a0ce 100644
 From 2bb6ebd05cfea65778aa0eec9e9bef6a02867b9e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:13:06 +0000
-Subject: [PATCH 09/38] um: with SMP too, keep the kernel and stubs on the fast
+Subject: [PATCH 09/39] um: with SMP too, keep the kernel and stubs on the fast
  CPUs (stub_pin)
 
 ---
@@ -2793,7 +2793,7 @@ index 7234568b1943..26197dd3fc9b 100644
 From 6f44d440009f7d5851b6ccdf06633aec1d3a367e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:22:36 +0000
-Subject: [PATCH 10/38] um: SMP: defer IPIs in the handler while IRQs are off
+Subject: [PATCH 10/39] um: SMP: defer IPIs in the handler while IRQs are off
  instead of a host sigprocmask per local_irq_disable/enable
 
 ---
@@ -3005,7 +3005,7 @@ index 13ebc86918d4..9fcabde8c2c8 100644
 From b5c842c3ef50edcc8882acf11d281a91ec85bca8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:41:39 +0000
-Subject: [PATCH 11/38] um: stub_pin falls back to /proc/cpuinfo CPU part when
+Subject: [PATCH 11/39] um: stub_pin falls back to /proc/cpuinfo CPU part when
  sysfs CPU capacity is unreadable
 
 ---
@@ -3091,7 +3091,7 @@ index 851b0ebfe45c..ae927dfac43a 100644
 From 8d43843d827c864c5c3b4001893c985c6c3a78f8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:42:16 +0000
-Subject: [PATCH 12/38] um: stub_pin: don't squeeze more vCPUs than fast host
+Subject: [PATCH 12/39] um: stub_pin: don't squeeze more vCPUs than fast host
  CPUs onto them
 
 ---
@@ -3126,7 +3126,7 @@ index ae927dfac43a..a992391cf98b 100644
 From 847586991054563aa3dfa9812b5168213db56ec1 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 05:51:45 +0000
-Subject: [PATCH 13/38] um: handoff spin yields every ~3us so a peer on the
+Subject: [PATCH 13/39] um: handoff spin yields every ~3us so a peer on the
  same host CPU can run (sched_yield allowed for stubs)
 
 ---
@@ -3237,7 +3237,7 @@ index a3feb673bf94..4a6a2fbf9d5b 100644
 From f400252e028f1b0494259cad3b1c624f6ee6dba4 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:08:37 +0000
-Subject: [PATCH 14/38] um: keep one PROT_NONE anchor per 2MB of each stub so
+Subject: [PATCH 14/39] um: keep one PROT_NONE anchor per 2MB of each stub so
  the host keeps page tables between unmap and map (tlb_anchor=)
 
 ---
@@ -3525,7 +3525,7 @@ index c6e856d71f76..bc8942ac199d 100644
 From 16fdaab6a64632e525ea6c7bc52a8526239f6876 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:17:10 +0000
-Subject: [PATCH 15/38] um: also anchor a 2MB chunk when an upper-level table
+Subject: [PATCH 15/39] um: also anchor a 2MB chunk when an upper-level table
  was unmapped
 
 Lone mappings (e.g. mmap/munmap loops) free the guest pmd/pud on munmap, so
@@ -3643,7 +3643,7 @@ index c58d950e6de0..5fd93232042a 100644
 From a737e30ae2e2d8318f390adedac1eb02cad89879 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 06:48:30 +0000
-Subject: [PATCH 16/38] um: map guest RAM into stubs with MAP_POPULATE
+Subject: [PATCH 16/39] um: map guest RAM into stubs with MAP_POPULATE
  (stub_populate=)
 
 A 16K guest page on a 4K host took up to four host faults on first touch.
@@ -3750,7 +3750,7 @@ index bc8942ac199d..ee1c2763bef6 100644
 From d4f10447f325785c613de8e7c34890ff00765c2e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 08:52:24 +0000
-Subject: [PATCH 17/38] um/arm64: keep the fast-path frame out of the host
+Subject: [PATCH 17/39] um/arm64: keep the fast-path frame out of the host
  signal stack
 
 A SIGALRM taken while fast_busy is set but sp is still on the guest stack
@@ -3864,7 +3864,7 @@ index 0683b9e5fe04..2dda297e94d2 100644
 From 4950bb4dbd52f3d3a69b944d81a544306d338b2a Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sat, 21 Nov 2026 10:43:06 +0000
-Subject: [PATCH 18/38] um: don't wait for a zygote spare to boot in
+Subject: [PATCH 18/39] um: don't wait for a zygote spare to boot in
  start_userspace (stub_boot_async=)
 
 Overlaps the spare's wakeup with the rest of fork. SIGALRM is held back
@@ -4098,7 +4098,7 @@ index a992391cf98b..85cb1cc945a1 100644
 From e2db75bcf6aacd84c5eb20f83008376749e9d265 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:06:00 +0000
-Subject: [PATCH 19/38] um: say why stub_pin did or did not pin
+Subject: [PATCH 19/39] um: say why stub_pin did or did not pin
  (os_pin_fast_cpus)
 
 Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
@@ -4163,7 +4163,7 @@ index 85cb1cc945a1..12fc49b26920 100644
 From 0900c3a91e5c77e9c65a07e58756474e3be6e10d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:06:02 +0000
-Subject: [PATCH 20/38] um: host character device passthrough (hostdev=)
+Subject: [PATCH 20/39] um: host character device passthrough (hostdev=)
 
 hostdev=<host path>,<guest name>,<major>:<minor>[,drm] makes a guest
 character device whose ioctls run on the host fd inside the caller's stub
@@ -5439,7 +5439,7 @@ index ee1c2763bef6..4d3040727522 100644
 From c56f53b925b8ac2d81a731be8608024667297f25 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Sun, 22 Nov 2026 05:37:35 +0000
-Subject: [PATCH 21/38] um: hostdev: host fds as guest files, host unix socket
+Subject: [PATCH 21/39] um: hostdev: host fds as guest files, host unix socket
  and shm devices
 
 PRIME, syncobj and dma-buf sync-file ioctls now run in the kernel process
@@ -6279,7 +6279,7 @@ index 000000000000..0c4a1fe83bfa
 From 01e1677c6165190878f9ff9e0fb802d5ed59698d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 01:18:37 +0000
-Subject: [PATCH 22/38] um/arm64: fastpath: page-align the slot search window
+Subject: [PATCH 22/39] um/arm64: fastpath: page-align the slot search window
 
 vm_unmapped_area() returns low_limit unchanged when the gap starts there, and
 low_limit was site - FP_RANGE, so for any site above 120 MiB the slot page
@@ -6338,7 +6338,7 @@ index 78e8e3dc3aae..cb0449bf62a9 100644
 From 776d8bf6682e2f999df15bd291b32f7d941367c3 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 01:50:27 +0000
-Subject: [PATCH 23/38] um: cheaper fork: inherited accessed bit, mprotect
+Subject: [PATCH 23/39] um: cheaper fork: inherited accessed bit, mprotect
  sync, write-fault-around
 
 A Python fork()+waitpid() took about 105 guest page faults, each a host
@@ -6774,7 +6774,7 @@ index 8b0c2c735d3d..4034490e3cbd 100644
 From 9e6f2bebd7106b8fdcdab39f8f386b072af163b7 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 03:25:05 +0000
-Subject: [PATCH 24/38] um: clone the parent's stub on fork
+Subject: [PATCH 24/39] um: clone the parent's stub on fork
 
 A forked mm used to start with a fresh stub and fault every inherited page
 back in. Let the parent's stub clone itself instead (STUB_SYSCALL_CLONE): the
@@ -7667,7 +7667,7 @@ index 4034490e3cbd..998187d40696 100644
 From 8d642c182c8712079f4f25f368bd7165a7200329 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 03:25:05 +0000
-Subject: [PATCH 25/38] um/arm64: fastpath: no fast return onto a read-only
+Subject: [PATCH 25/39] um/arm64: fastpath: no fast return onto a read-only
  stack page
 
 The fast return stores x16/x17 below the guest sp while fast_busy is set,
@@ -7799,7 +7799,7 @@ index 2011c7f2ef81..fbc31df9bbf4 100644
 From 494c5a5091199e08d6f53e2b821c57eaeb44a738 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 05:00:16 +0000
-Subject: [PATCH 26/38] um: sched: keep a lone forked child on its parent's CPU
+Subject: [PATCH 26/39] um: sched: keep a lone forked child on its parent's CPU
 
 Waking another vCPU for the child is a host signal to a sleeping thread and
 the same again when the parent is woken to reap it. A child that is its
@@ -7856,7 +7856,7 @@ index 0f2364479f9d..2ff9bde44d88 100644
 From 88ac3872d081fc40ce81e4fecdc5787837eea84f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 05:00:16 +0000
-Subject: [PATCH 27/38] um: exec takes over the old mm's stub; cloned stubs
+Subject: [PATCH 27/39] um: exec takes over the old mm's stub; cloned stubs
  report in lazily
 
 exec made a new host process for the new mm and killed the old one. When
@@ -8157,7 +8157,7 @@ index fbc31df9bbf4..82fa8a3a60b4 100644
 From f81dc4c2f7a4c5a2f60798f1e203c170559fb833 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 06:08:20 +0000
-Subject: [PATCH 28/38] um/arm64: clock_gettime and gettimeofday in the vDSO
+Subject: [PATCH 28/39] um/arm64: clock_gettime and gettimeofday in the vDSO
 
 In SECCOMP mode a guest clock_gettime() is a round trip to the UML kernel in
 another host process, about a microsecond. Make the architected counter the
@@ -8673,7 +8673,7 @@ index 6d719b8e5ea2..3e81004b33f8 100644
 From c3eb1fff8bf06898b8da03889361b4b437372e40 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 23 Nov 2026 06:24:50 +0000
-Subject: [PATCH 29/38] um: install the first page of a fresh anonymous mapping
+Subject: [PATCH 29/39] um: install the first page of a fresh anonymous mapping
  in mmap()
 
 A new private anonymous read-write mapping is nearly always written at its
@@ -8801,7 +8801,7 @@ index 6a00a28c9cca..d146a5f399d1 100644
 From 87b97d77252dfb8999613353150bf049fff8729c Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 25 Nov 2026 06:33:09 +0000
-Subject: [PATCH 30/38] um: don't call strrchr from user code (glibc 2.43)
+Subject: [PATCH 30/39] um: don't call strrchr from user code (glibc 2.43)
 
 arch/um/Makefile renames strrchr for user objects; glibc 2.43 wraps it in
 a const-generic macro whose inner call then has no declaration.
@@ -8844,7 +8844,7 @@ index 82fa8a3a60b4..0301baaec0f4 100644
 From 0a06c3bfa9cac217a04ccfa0033a51a89d263bff Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 25 Nov 2026 06:44:02 +0000
-Subject: [PATCH 31/38] um/arm64: leave FP registers in the stub frame across
+Subject: [PATCH 31/39] um/arm64: leave FP registers in the stub frame across
  syscalls
 
 get_stub_state and set_stub_state copied the 528-byte FPSIMD record on
@@ -9135,7 +9135,7 @@ index 0301baaec0f4..d4641a9094ba 100644
 From 2bfac0042505ad580ea2f473efb6b9886bfff107 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 25 Nov 2026 07:08:57 +0000
-Subject: [PATCH 32/38] um/arm64: take memcpy/memset/memmove/memcmp from glibc
+Subject: [PATCH 32/39] um/arm64: take memcpy/memset/memmove/memcmp from glibc
  too
 
 lib/string.c's versions are byte loops. On a glibc arm64 host a 16K
@@ -9184,7 +9184,7 @@ index 437043633611..5bb0c1c89989 100644
 From 4852e09e4bf9f135b76b94709daf260702c3da04 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 26 Nov 2026 03:24:17 +0000
-Subject: [PATCH 33/38] um: give each guest thread a host thread of its own in
+Subject: [PATCH 33/39] um: give each guest thread a host thread of its own in
  the stub
 
 Guest threads of one mm took turns on the stub's single host thread,
@@ -10412,7 +10412,7 @@ index 57e0e2834ff5..cb7a7c7cbbca 100644
 From 9e6e6fadc0992c466ee6ca08157704949ac87171 Mon Sep 17 00:00:00 2001
 From: gpt2 <gpt2@localhost>
 Date: Thu, 26 Nov 2026 05:16:04 +0000
-Subject: [PATCH 34/38] um: start a thread group's second live thread locally
+Subject: [PATCH 34/39] um: start a thread group's second live thread locally
 
 Thread creation followed by a join can wake another vCPU twice: once
 to start the child and once to wake the joiner from its futex. Each
@@ -10468,7 +10468,7 @@ index 2ff9bde44d88..f7dc0663b328 100644
 From 09790dbbd0dda2a632aad70cc5718b8fb2e75684 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 26 Nov 2026 22:47:55 +0000
-Subject: [PATCH 35/38] um: skip the fast-path thread lookup while only the
+Subject: [PATCH 35/39] um: skip the fast-path thread lookup while only the
  main thread runs
 
 thr_live counts the extra guest threads that own a host thread now. While
@@ -10564,7 +10564,7 @@ index b90c1d08fcde..94d64e6c93b9 100644
 From 58dc8e24d6d593d2debae395928d43060715f84d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 27 Nov 2026 01:01:43 +0000
-Subject: [PATCH 36/38] um: run a vfork child on its parent's vCPU
+Subject: [PATCH 36/39] um: run a vfork child on its parent's vCPU
 
 The parent sleeps until the child execs or exits, so waking the child on
 another vCPU only adds a cross-vCPU wakeup (a host signal) each way.
@@ -10611,7 +10611,7 @@ index f7dc0663b328..c82944a77855 100644
 From 05f7662bf57f2e23f15e39e00f2cbd6173831897 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 27 Nov 2026 02:07:43 +0000
-Subject: [PATCH 37/38] um: map 256K of page cache per file fault
+Subject: [PATCH 37/39] um: map 256K of page cache per file fault
 
 Each fault is a trap plus a host mmap in UML. 64K fault-around left 25%
 more faults on exec of a dynamic binary. Boot param fault_around_pages.
@@ -10654,7 +10654,7 @@ index 998187d40696..958dd02c7869 100644
 From 295658ac3d5b94ae53a8c25154d9309f9aba743a Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 27 Nov 2026 04:41:41 +0000
-Subject: [PATCH 38/38] um: map guest pages executable only with VM_EXEC
+Subject: [PATCH 38/39] um: map guest pages executable only with VM_EXEC
 
 UML had no exec bit, so every guest page reached the host PROT_EXEC.
 An arm64 host cleans the D-cache and invalidates the I-cache for each
@@ -10770,6 +10770,212 @@ index b77f8a254389..a1c01e2af40b 100644
  			if (!pte_young(*pte)) {
  				r = 0;
  				w = 0;
+-- 
+2.43.0
+
+
+From f29a03b45035cbd38889c4fe5cbbc6dbc442bb67 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 27 Nov 2026 05:37:57 +0000
+Subject: [PATCH 39/39] um: read the clock less often in handoff spins
+
+On the Exynos 2400 a CNTVCT_EL0 read takes ~40ns, and reading it on
+every round of the stub<->kernel spin tripled the handoff round trip
+(0.23 -> 0.72us). Read it every 64 rounds (seccomp_spin_every=), and
+take the umstat timestamps only with umstat=1. Phone getppid
+1.07 -> 0.75us, open+close 2.4 -> 1.65us.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B3kysVLGNgK27oVbqXzFEn
+---
+ arch/um/include/shared/skas/stub-data.h  |  4 +++-
+ arch/um/include/shared/skas/stub-futex.h | 21 ++++++++++++++++++---
+ arch/um/kernel/skas/stub.c               | 18 ++++++++++++------
+ arch/um/os-Linux/skas/process.c          | 23 +++++++++++++++++++----
+ 4 files changed, 52 insertions(+), 14 deletions(-)
+
+diff --git a/arch/um/include/shared/skas/stub-data.h b/arch/um/include/shared/skas/stub-data.h
+index 9e070cbbbd91..3738ae86342d 100644
+--- a/arch/um/include/shared/skas/stub-data.h
++++ b/arch/um/include/shared/skas/stub-data.h
+@@ -252,7 +252,9 @@ struct stub_data {
+ 	int thr_n;
+ 	unsigned long thr_top;
+ 	int thr_live;
+-	int thr_pad;
++	int stat_on;	/* umstat=1: stub records timestamps */
++	unsigned int spin_every;	/* spin rounds per clock read */
++	unsigned int spin_pad;
+ 
+ 	/* seccomp architecture specific state restore */
+ 	struct stub_data_arch arch_data;
+diff --git a/arch/um/include/shared/skas/stub-futex.h b/arch/um/include/shared/skas/stub-futex.h
+index 137084ee296f..0758dc3acaee 100644
+--- a/arch/um/include/shared/skas/stub-futex.h
++++ b/arch/um/include/shared/skas/stub-futex.h
+@@ -87,23 +87,38 @@ stub_futex_spin_result(struct stub_spin_state *s, int hit,
+  * budget must mean the same thing at the governor's 300 MHz floor and its
+  * 3.2 GHz ceiling, and only the constant-rate counter delivers that.
+  */
++#define STUB_SPIN_CLOCK_EVERY 64
++
+ static __always_inline unsigned int
+ stub_futex_spin(volatile unsigned int *futex, unsigned int while_owner,
+-		unsigned long ticks)
++		unsigned long ticks, unsigned int every)
+ {
+ 	unsigned int val = stub_futex_load_acquire(futex);
+-	unsigned long start, last, now;
++	unsigned long start = 0, last = 0, now;
++	unsigned int i = 0;
+ 
+ 	if (STUB_FUTEX_OWNER(val) != while_owner || !ticks)
+ 		return val;
+ 
+-	start = last = stub_cycles();
+ 	for (;;) {
+ 		stub_relax();
+ 		val = stub_futex_load_acquire(futex);
+ 		if (STUB_FUTEX_OWNER(val) != while_owner)
+ 			break;
++		/*
++		 * Reading the counter is slow on some hosts (~40ns on an
++		 * Exynos 2400, and it triples the handoff latency when done
++		 * every round), so look at the clock only every so often.
++		 * The first look starts the budget.
++		 */
++		if (++i < every)
++			continue;
++		i = 0;
+ 		now = stub_cycles();
++		if (!start) {
++			start = last = now;
++			continue;
++		}
+ 		if (now - start >= ticks)
+ 			break;
+ 		/*
+diff --git a/arch/um/kernel/skas/stub.c b/arch/um/kernel/skas/stub.c
+index f394cf2e8dd7..dc128b94c0d0 100644
+--- a/arch/um/kernel/skas/stub.c
++++ b/arch/um/kernel/skas/stub.c
+@@ -192,7 +192,8 @@ stub_handoff(struct stub_data *d, int sig, siginfo_t *info, void *p)
+ 	unsigned int futex_val;
+ 	long res;
+ 
+-	d->ts_sig = stub_cycles();
++	if (d->stat_on)
++		d->ts_sig = stub_cycles();
+ 	d->signal = sig;
+ 	d->si_offset = (unsigned long)info - (unsigned long)&d->sigstack[0];
+ 	d->mctx_offset = (unsigned long)&uc->uc_mcontext - (unsigned long)&d->sigstack[0];
+@@ -222,7 +223,8 @@ stub_handoff(struct stub_data *d, int sig, siginfo_t *info, void *p)
+ 	 * reply is observed without ever entering FUTEX_WAIT.
+ 	 */
+ 	budget = stub_futex_spin_budget(&d->stub_spin, d->spin_ticks);
+-	futex_val = stub_futex_spin(&d->futex, FUTEX_IN_KERN, budget);
++	futex_val = stub_futex_spin(&d->futex, FUTEX_IN_KERN, budget,
++				    d->spin_every);
+ 	if (budget) {
+ 		int hit = STUB_FUTEX_OWNER(futex_val) == FUTEX_IN_CHILD;
+ 
+@@ -268,9 +270,11 @@ stub_handoff(struct stub_data *d, int sig, siginfo_t *info, void *p)
+ 		int none[1];
+ 
+ 		d->sc_n = d->syscall_data_len;
+-		d->ts_sc0 = stub_cycles();
++		if (d->stat_on)
++			d->ts_sc0 = stub_cycles();
+ 		res = syscall_handler(d, none);
+-		d->ts_sc1 = stub_cycles();
++		if (d->stat_on)
++			d->ts_sc1 = stub_cycles();
+ 	} else if (d->syscall_data_len) {
+ 		/* Read passed FDs (if any) */
+ 		do {
+@@ -291,9 +295,11 @@ stub_handoff(struct stub_data *d, int sig, siginfo_t *info, void *p)
+ 
+ 		/* Try running queued syscalls. */
+ 		d->sc_n = d->syscall_data_len;
+-		d->ts_sc0 = stub_cycles();
++		if (d->stat_on)
++			d->ts_sc0 = stub_cycles();
+ 		res = syscall_handler(d, fd_map);
+-		d->ts_sc1 = stub_cycles();
++		if (d->stat_on)
++			d->ts_sc1 = stub_cycles();
+ 
+ 		while (num_fds)
+ 			stub_syscall2(__NR_close, fd_map[--num_fds], 0);
+diff --git a/arch/um/os-Linux/skas/process.c b/arch/um/os-Linux/skas/process.c
+index d4641a9094ba..3878d9489e3b 100644
+--- a/arch/um/os-Linux/skas/process.c
++++ b/arch/um/os-Linux/skas/process.c
+@@ -160,6 +160,18 @@ static int __init uml_seccomp_spin_backoff_setup(char *line, int *add)
+ 	seccomp_spin_backoff = strtoul(line, NULL, 0);
+ 	return 0;
+ }
++static unsigned int seccomp_spin_every = STUB_SPIN_CLOCK_EVERY;
++
++static int __init uml_seccomp_spin_every_setup(char *line, int *add)
++{
++	*add = 0;
++	seccomp_spin_every = strtoul(line, NULL, 0) ?: 1;
++	return 0;
++}
++__uml_setup("seccomp_spin_every=", uml_seccomp_spin_every_setup,
++"seccomp_spin_every=<n>\n"
++"    Read the clock every n rounds of a handoff spin. Default: 64.\n\n");
++
+ __uml_setup("seccomp_spin_backoff=", uml_seccomp_spin_backoff_setup,
+ "seccomp_spin_backoff=<n>\n"
+ "    After a handoff spin misses, sleep straight away for the next n waits.\n"
+@@ -276,7 +288,7 @@ static void __wait_stub_done_seccomp(struct mm_id *mm_idp, int running,
+ 		budget = stub_futex_spin_budget(&data->kern_spin,
+ 						data->spin_ticks);
+ 		futex_val = stub_futex_spin(&data->futex, FUTEX_IN_CHILD,
+-					    budget);
++					    budget, data->spin_every);
+ 		if (budget) {
+ 			int hit = STUB_FUTEX_OWNER(futex_val) == FUTEX_IN_KERN;
+ 
+@@ -1093,6 +1105,8 @@ void stub_data_init(struct stub_data *proc_data)
+ 	 * waiter-bit protocol stays.
+ 	 */
+ 	proc_data->spin_backoff = seccomp_spin_backoff;
++	proc_data->stat_on = umstat_on;
++	proc_data->spin_every = seccomp_spin_every;
+ 	proc_data->spin_ticks = have_stub_cycles ?
+ 		seccomp_spin_us * stub_cycles_per_us() : 0;
+ }
+@@ -1438,7 +1452,8 @@ void userspace(struct uml_pt_regs *regs)
+ 			proc_data->syscall_data_len = mm_id->syscall_data_len;
+ 
+ 			wait_stub_done_seccomp(mm_id, 0, 0);
+-			fstat_t_a = stub_cycles();	/* UMSTAT */
++			if (umstat_on)
++				fstat_t_a = stub_cycles();
+ 
+ 			sig = proc_data->signal;
+ 
+@@ -1723,7 +1738,7 @@ void userspace(struct uml_pt_regs *regs)
+ 							     regs, NULL);
+ 				else
+ 					segv(regs->faultinfo, 0, 1, NULL, NULL);
+-				if (using_seccomp)
++				if (using_seccomp && umstat_on)
+ 					umstat_fault(mm_id, fstat_t_a);
+ 
+ 				break;
+@@ -1731,7 +1746,7 @@ void userspace(struct uml_pt_regs *regs)
+ 				long nr = PT_SYSCALL_NR(regs->gp);
+ 
+ 				handle_syscall(regs);
+-				if (using_seccomp)
++				if (using_seccomp && umstat_on)
+ 					umstat_syscall(mm_id, fstat_t_a, nr);
+ 				break;
+ 			}
 -- 
 2.43.0
 
